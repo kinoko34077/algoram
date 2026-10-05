@@ -220,7 +220,10 @@ impl<'a> Builder<'a> {
         ids: &mut IdAllocator,
     ) -> Result<Block, PythonImportError> {
         let name = child_text(node, "name", self.source).unwrap_or("<anonymous>");
-        let block_id = ids.allocate(parent_identity, &format!("function:{}", stable_fragment(name)));
+        let block_id = ids.allocate(
+            parent_identity,
+            &format!("function:{}", stable_fragment(name)),
+        );
         let graph_id = format!("graph:{block_id}");
 
         let mut block = block_for_node(
@@ -797,7 +800,9 @@ class Greeter:
             .iter()
             .find(|block| kind(block) == Some("class_definition"))
             .unwrap();
-        let class_graph = imported.graph(class.internal_graph_ref.as_deref().unwrap()).unwrap();
+        let class_graph = imported
+            .graph(class.internal_graph_ref.as_deref().unwrap())
+            .unwrap();
         let function = class_graph
             .blocks
             .iter()
