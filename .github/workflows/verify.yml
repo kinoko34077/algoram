@@ -44,3 +44,20 @@ jobs:
         run: npm run typecheck
       - name: Build
         run: npm run build
+
+  python-c-ctypes-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Build C shared library
+        run: |
+          cc --version
+          mkdir -p /tmp/algoram-interop
+          cc -shared -fPIC -Wall -Wextra -Werror \
+            fixtures/python-c-ctypes/bridge.c \
+            -o /tmp/algoram-interop/libalgoram_bridge.so
+      - name: Call through Python ctypes
+        run: |
+          python3 --version
+          result="$(python3 fixtures/python-c-ctypes/call.py /tmp/algoram-interop/libalgoram_bridge.so 21)"
+          test "$result" = "42"
