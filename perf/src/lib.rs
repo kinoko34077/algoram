@@ -158,13 +158,7 @@ mod tests {
         }
 
         assert_eq!(importer_calls, 1);
-        assert_eq!(
-            cache.stats(),
-            CacheStats {
-                hits: 2,
-                misses: 1
-            }
-        );
+        assert_eq!(cache.stats(), CacheStats { hits: 2, misses: 1 });
     }
 
     #[test]
@@ -172,10 +166,7 @@ mod tests {
         let mut cache = MemoCache::new();
         let mut importer_calls = 0usize;
 
-        for source in [
-            "def f(x):\n    return x\n",
-            "def f(x):\n    return x + 1\n",
-        ] {
+        for source in ["def f(x):\n    return x\n", "def f(x):\n    return x + 1\n"] {
             let key = SourceCacheKey::new("python", "artifact:test", "test.py", source);
             cache
                 .get_or_try_insert_with(key, || {
@@ -233,8 +224,7 @@ mod tests {
         let mut planner_calls = 0usize;
 
         for graph_revision in ["graph:v1", "graph:v2"] {
-            let key =
-                PlanCacheKey::new(graph_revision, "impl:v1", "routes:v1", "env:v1");
+            let key = PlanCacheKey::new(graph_revision, "impl:v1", "routes:v1", "env:v1");
             cache
                 .get_or_try_insert_with(key, || {
                     planner_calls += 1;
