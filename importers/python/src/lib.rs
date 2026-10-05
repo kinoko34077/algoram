@@ -676,7 +676,8 @@ fn named_children(node: Node<'_>) -> Vec<Node<'_>> {
 
 fn first_named_child(node: Node<'_>) -> Option<Node<'_>> {
     let mut cursor = node.walk();
-    node.named_children(&mut cursor).next()
+    let first = node.named_children(&mut cursor).next();
+    first
 }
 
 fn child_text<'a>(node: Node<'_>, field: &str, source: &'a str) -> Option<&'a str> {
