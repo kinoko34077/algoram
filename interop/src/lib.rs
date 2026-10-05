@@ -786,7 +786,7 @@ mod tests {
                     ContractId::from("c:function:algoram_double:int32"),
                     "fixture:c:function:algoram_double",
                 )
-                .with_transfer(TransferMode::Borrow),
+                .with_transfer(TransferMode::Copy),
             )
             .unwrap();
 
