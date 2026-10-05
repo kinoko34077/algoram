@@ -295,10 +295,7 @@ impl<'a> Builder<'a> {
             id: "return".to_owned(),
             direction: PortDirection::Out,
             channel: PortChannel::Data,
-            contract: Some(json!(format!(
-                "c:{}",
-                stable_fragment(return_type.trim())
-            ))),
+            contract: Some(json!(format!("c:{}", stable_fragment(return_type.trim())))),
             extensions: Extensions::new(),
         });
 
@@ -820,8 +817,7 @@ mod tests {
         all_blocks(imported)
             .into_iter()
             .find(|block| {
-                kind(block) == Some("function_definition")
-                    && c_syntax(block)["name"] == json!(name)
+                kind(block) == Some("function_definition") && c_syntax(block)["name"] == json!(name)
             })
             .unwrap_or_else(|| panic!("missing function {name}"))
     }
