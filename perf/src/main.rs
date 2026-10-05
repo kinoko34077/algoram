@@ -26,27 +26,17 @@ fn main() {
 
     for (size, iterations) in [(10usize, 20usize), (100, 10), (500, 3)] {
         let source = python_source(size);
-        measure(
-            "python_import_cold",
-            size,
-            iterations,
-            || {
-                let imported =
-                    import_python("artifact:perf-python", "perf.py", black_box(&source)).unwrap();
-                black_box(imported.root.blocks.len());
-            },
-        );
+        measure("python_import_cold", size, iterations, || {
+            let imported =
+                import_python("artifact:perf-python", "perf.py", black_box(&source)).unwrap();
+            black_box(imported.root.blocks.len());
+        });
 
         let source = c_source(size);
-        measure(
-            "c_import_cold",
-            size,
-            iterations,
-            || {
-                let imported = import_c("artifact:perf-c", "perf.c", black_box(&source)).unwrap();
-                black_box(imported.root.blocks.len());
-            },
-        );
+        measure("c_import_cold", size, iterations, || {
+            let imported = import_c("artifact:perf-c", "perf.c", black_box(&source)).unwrap();
+            black_box(imported.root.blocks.len());
+        });
     }
 
     measure_import_cache_hit();
@@ -54,12 +44,7 @@ fn main() {
     measure_single_process_runtime();
 }
 
-fn measure(
-    metric: &str,
-    size: usize,
-    iterations: usize,
-    mut operation: impl FnMut(),
-) {
+fn measure(metric: &str, size: usize, iterations: usize, mut operation: impl FnMut()) {
     operation();
     let start = Instant::now();
     for _ in 0..iterations {
@@ -249,10 +234,7 @@ fn planning_fixture() -> (Graph, ImplementationRegistry, RouteRegistry) {
 
     let mut implementations = ImplementationRegistry::new();
     implementations
-        .register(
-            "impl:target",
-            ProcessAction::new("python3", ["-c", "pass"]),
-        )
+        .register("impl:target", ProcessAction::new("python3", ["-c", "pass"]))
         .unwrap();
 
     let mut routes = RouteRegistry::new();
@@ -282,12 +264,7 @@ fn planning_fixture() -> (Graph, ImplementationRegistry, RouteRegistry) {
     (graph, implementations, routes)
 }
 
-fn port(
-    id: &str,
-    direction: PortDirection,
-    channel: PortChannel,
-    contract: Option<&str>,
-) -> Port {
+fn port(id: &str, direction: PortDirection, channel: PortChannel, contract: Option<&str>) -> Port {
     Port {
         id: id.to_owned(),
         direction,
@@ -305,10 +282,7 @@ fn measure_single_process_runtime() {
             implementation_ref: "impl:python-loop".to_owned(),
             action: ProcessAction::new(
                 "python3",
-                [
-                    "-c",
-                    "x = 0\nfor i in range(10000):\n    x += i\nprint(x)",
-                ],
+                ["-c", "x = 0\nfor i in range(10000):\n    x += i\nprint(x)"],
             ),
             origin_block_ids: (0..100).map(|index| format!("block:{index}")).collect(),
             source_anchors: Vec::new(),
