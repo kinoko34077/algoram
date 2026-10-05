@@ -61,19 +61,3 @@ jobs:
           python3 --version
           result="$(python3 fixtures/python-c-ctypes/call.py /tmp/algoram-interop/libalgoram_bridge.so 21)"
           test "$result" = "42"
-
-  interop-fixture:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Build C shared library fixture
-        run: |
-          mkdir -p /tmp/algoram-interop
-          cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
-            fixtures/interop/ctypes_bridge.c \
-            -o /tmp/algoram-interop/libalgoram_ctypes.so
-      - name: Verify Python ctypes to C ABI bridge
-        run: |
-          python3 --version
-          python3 fixtures/interop/ctypes_bridge.py \
-            /tmp/algoram-interop/libalgoram_ctypes.so
