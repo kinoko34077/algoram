@@ -242,12 +242,13 @@ fn find_port<'a>(
     reference: &PortRef,
     connection_id: &str,
 ) -> Result<&'a Port, GraphError> {
-    let block = blocks
-        .get(reference.block_id.as_str())
-        .ok_or_else(|| GraphError::MissingBlock {
-            connection_id: connection_id.to_owned(),
-            block_id: reference.block_id.clone(),
-        })?;
+    let block =
+        blocks
+            .get(reference.block_id.as_str())
+            .ok_or_else(|| GraphError::MissingBlock {
+                connection_id: connection_id.to_owned(),
+                block_id: reference.block_id.clone(),
+            })?;
     block
         .ports
         .iter()
@@ -307,7 +308,10 @@ impl fmt::Display for GraphError {
         match self {
             Self::Json(error) => write!(f, "invalid graph JSON: {error}"),
             Self::UnsupportedSchemaVersion { found } => {
-                write!(f, "unsupported schema_version '{found}', expected '{GRAPH_SCHEMA_VERSION}'")
+                write!(
+                    f,
+                    "unsupported schema_version '{found}', expected '{GRAPH_SCHEMA_VERSION}'"
+                )
             }
             Self::DuplicateBlockId(id) => write!(f, "duplicate block id '{id}'"),
             Self::DuplicatePortId { block_id, port_id } => {
@@ -427,9 +431,15 @@ mod tests {
 
         let mut block = structural_block("block:composite");
         block.internal_graph_ref = Some("graph:inner".to_owned());
-        block.ports.push(port("in", PortDirection::In, PortChannel::Data));
-        block.ports.push(port("out", PortDirection::Out, PortChannel::Data));
-        block.extensions.insert("future.block".to_owned(), json!({"x": "y"}));
+        block
+            .ports
+            .push(port("in", PortDirection::In, PortChannel::Data));
+        block
+            .ports
+            .push(port("out", PortDirection::Out, PortChannel::Data));
+        block
+            .extensions
+            .insert("future.block".to_owned(), json!({"x": "y"}));
         graph.blocks.push(block);
 
         let serialized = graph.to_json_pretty().unwrap();
