@@ -717,8 +717,7 @@ fn stable_fragment(input: &str) -> String {
 fn compact_label(prefix: &str, value: Option<&str>) -> String {
     match value {
         Some(value) if !value.trim().is_empty() => {
-            let value = value.trim().replace('
-', " ");
+            let value = value.trim().replace('\n', " ");
             let short = if value.chars().count() > 72 {
                 let mut shortened: String = value.chars().take(69).collect();
                 shortened.push_str("...");
