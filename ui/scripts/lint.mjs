@@ -1,5 +1,5 @@
 import { readdir, readFile } from "node:fs/promises";
-import { extname, join, relative } from "node:path";
+import { extname, relative } from "node:path";
 
 const root = new URL("../src/", import.meta.url);
 const allowedExtensions = new Set([".ts", ".tsx", ".css"]);
@@ -31,14 +31,14 @@ async function visit(directoryUrl) {
 
     if (entry.name !== "fixture.ts") {
       const forbidden = [
-        /extensions\s*\.\s*python/,
-        /extensions\s*\[\s*["']python["']\s*\]/,
+        /extensions\s*\.\s*(python|c)\b/,
+        /extensions\s*\[\s*["'](python|c)["']\s*\]/,
         /semantic_kind/,
       ];
       for (const pattern of forbidden) {
         if (pattern.test(content)) {
           failures.push(
-            `${displayPath}: renderer/navigation code must not depend on Python-specific semantic metadata`,
+            `${displayPath}: renderer/navigation code must not depend on language-specific semantic metadata`,
           );
         }
       }
