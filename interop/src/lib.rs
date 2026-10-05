@@ -257,9 +257,7 @@ impl RouteRequest {
         Self {
             source: source.into(),
             target: target.into(),
-            explicit_connector_ids: Some(
-                connector_ids.into_iter().map(Into::into).collect(),
-            ),
+            explicit_connector_ids: Some(connector_ids.into_iter().map(Into::into).collect()),
             max_hops: DEFAULT_MAX_HOPS,
         }
     }
@@ -602,9 +600,14 @@ mod tests {
     use super::*;
 
     fn connector(id: &str, source: &str, target: &str) -> Connector {
-        Connector::new(id, ContractId::from(source), ContractId::from(target), format!("impl:{id}"))
-            .with_transfer(TransferMode::Copy)
-            .with_scheduling(SchedulingMode::Sync)
+        Connector::new(
+            id,
+            ContractId::from(source),
+            ContractId::from(target),
+            format!("impl:{id}"),
+        )
+        .with_transfer(TransferMode::Copy)
+        .with_scheduling(SchedulingMode::Sync)
     }
 
     #[test]
@@ -612,8 +615,12 @@ mod tests {
         let mut registry = RouteRegistry::new();
         registry.register(connector("z-direct", "a", "b")).unwrap();
         registry.register(connector("a-direct", "a", "b")).unwrap();
-        registry.register(connector("indirect-1", "a", "x")).unwrap();
-        registry.register(connector("indirect-2", "x", "b")).unwrap();
+        registry
+            .register(connector("indirect-1", "a", "x"))
+            .unwrap();
+        registry
+            .register(connector("indirect-2", "x", "b"))
+            .unwrap();
 
         let result = registry
             .resolve(&RouteRequest::automatic("a", "b"))
@@ -802,10 +809,7 @@ mod tests {
 
         assert_eq!(
             route.connector_ids(),
-            vec![
-                "python-ctypes-c-abi-int32",
-                "c-abi-call-algoram-double"
-            ]
+            vec!["python-ctypes-c-abi-int32", "c-abi-call-algoram-double"]
         );
 
         let graph = route.to_inspection_graph().unwrap();
