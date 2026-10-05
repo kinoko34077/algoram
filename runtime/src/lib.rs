@@ -19,7 +19,10 @@ pub struct ProcessAction {
 }
 
 impl ProcessAction {
-    pub fn new(program: impl Into<String>, args: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn new(
+        program: impl Into<String>,
+        args: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
         Self {
             program: program.into(),
             args: args.into_iter().map(Into::into).collect(),
@@ -146,19 +149,12 @@ impl Planner {
                         if source_contract != target_contract =>
                     {
                         let resolution = routes
-                            .resolve(&RouteRequest::automatic(
-                                source_contract,
-                                target_contract,
-                            ))
+                            .resolve(&RouteRequest::automatic(source_contract, target_contract))
                             .map_err(PlannerError::Route)?;
                         match resolution {
                             Resolution::Resolved { route, .. } => {
-                                route_connector_ids.extend(
-                                    route
-                                        .connector_ids()
-                                        .into_iter()
-                                        .map(str::to_owned),
-                                );
+                                route_connector_ids
+                                    .extend(route.connector_ids().into_iter().map(str::to_owned));
                             }
                             Resolution::Unresolved { .. } => {
                                 return Err(PlannerError::UnresolvedRoute {
@@ -495,9 +491,7 @@ fn bounded_string(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algoram_core::{
-        Block, Connection, Extensions, PortDirection, PortRef, SourceArtifact,
-    };
+    use algoram_core::{Block, Connection, Extensions, PortDirection, PortRef, SourceArtifact};
     use algoram_interop::{Connector, ContractId, TransferMode};
     use serde_json::json;
     use std::fs;
@@ -555,26 +549,40 @@ mod tests {
         second_named_first
             .ports
             .push(port("flow_in", PortDirection::In, PortChannel::Flow, None));
-        second_named_first
-            .ports
-            .push(port("flow_out", PortDirection::Out, PortChannel::Flow, None));
+        second_named_first.ports.push(port(
+            "flow_out",
+            PortDirection::Out,
+            PortChannel::Flow,
+            None,
+        ));
 
         let mut first_named_second = block("block:a", Some("impl:a"));
         first_named_second
             .ports
             .push(port("flow_in", PortDirection::In, PortChannel::Flow, None));
-        first_named_second
-            .ports
-            .push(port("flow_out", PortDirection::Out, PortChannel::Flow, None));
+        first_named_second.ports.push(port(
+            "flow_out",
+            PortDirection::Out,
+            PortChannel::Flow,
+            None,
+        ));
 
-        graph.blocks.extend([second_named_first, first_named_second]);
+        graph
+            .blocks
+            .extend([second_named_first, first_named_second]);
 
         let mut implementations = ImplementationRegistry::new();
         implementations
-            .register("impl:z", ProcessAction::new("z", std::iter::empty::<&str>()))
+            .register(
+                "impl:z",
+                ProcessAction::new("z", std::iter::empty::<&str>()),
+            )
             .unwrap();
         implementations
-            .register("impl:a", ProcessAction::new("a", std::iter::empty::<&str>()))
+            .register(
+                "impl:a",
+                ProcessAction::new("a", std::iter::empty::<&str>()),
+            )
             .unwrap();
 
         let plan = Planner::lower(&graph, &implementations, &RouteRegistry::new()).unwrap();
@@ -595,22 +603,30 @@ mod tests {
         later
             .ports
             .push(port("flow_in", PortDirection::In, PortChannel::Flow, None));
-        later
-            .ports
-            .push(port("flow_out", PortDirection::Out, PortChannel::Flow, None));
+        later.ports.push(port(
+            "flow_out",
+            PortDirection::Out,
+            PortChannel::Flow,
+            None,
+        ));
 
         let mut earlier = block("block:earlier", Some("impl:earlier"));
         earlier
             .ports
             .push(port("flow_in", PortDirection::In, PortChannel::Flow, None));
-        earlier
-            .ports
-            .push(port("flow_out", PortDirection::Out, PortChannel::Flow, None));
+        earlier.ports.push(port(
+            "flow_out",
+            PortDirection::Out,
+            PortChannel::Flow,
+            None,
+        ));
 
         graph.blocks.extend([later, earlier]);
-        graph
-            .connections
-            .push(flow_connection("flow:earlier-later", "block:earlier", "block:later"));
+        graph.connections.push(flow_connection(
+            "flow:earlier-later",
+            "block:earlier",
+            "block:later",
+        ));
 
         let mut implementations = ImplementationRegistry::new();
         implementations
@@ -751,9 +767,7 @@ mod tests {
     #[test]
     fn planning_does_not_execute_actions() {
         let mut graph = Graph::new("graph:no-exec");
-        graph
-            .blocks
-            .push(block("block:touch", Some("impl:touch")));
+        graph.blocks.push(block("block:touch", Some("impl:touch")));
 
         let marker = std::env::temp_dir().join(format!(
             "algoram-planning-must-not-run-{}",
@@ -767,10 +781,7 @@ mod tests {
                 "impl:touch",
                 ProcessAction::new(
                     "sh",
-                    [
-                        "-c".to_owned(),
-                        format!("touch {}", marker.display()),
-                    ],
+                    ["-c".to_owned(), format!("touch {}", marker.display())],
                 ),
             )
             .unwrap();
@@ -886,18 +897,24 @@ mod tests {
         input.source_anchor = Some(whole_anchor("artifact:execution-python", PY_SOURCE));
 
         let mut build = block("block:build-c", Some("fixture:build-c"));
-        build
-            .ports
-            .push(port("flow_out", PortDirection::Out, PortChannel::Flow, None));
+        build.ports.push(port(
+            "flow_out",
+            PortDirection::Out,
+            PortChannel::Flow,
+            None,
+        ));
         build.source_anchor = Some(whole_anchor("artifact:execution-c", C_SOURCE));
 
         let mut invoke = block("block:invoke-c", Some("fixture:invoke-c"));
         invoke
             .ports
             .push(port("flow_in", PortDirection::In, PortChannel::Flow, None));
-        invoke
-            .ports
-            .push(port("flow_out", PortDirection::Out, PortChannel::Flow, None));
+        invoke.ports.push(port(
+            "flow_out",
+            PortDirection::Out,
+            PortChannel::Flow,
+            None,
+        ));
         invoke.ports.push(port(
             "value",
             PortDirection::In,
@@ -1000,10 +1017,7 @@ mod tests {
         implementations
             .register(
                 "fixture:after",
-                ProcessAction::new(
-                    "python3",
-                    ["-c".to_owned(), "print('after')".to_owned()],
-                ),
+                ProcessAction::new("python3", ["-c".to_owned(), "print('after')".to_owned()]),
             )
             .unwrap();
         implementations
