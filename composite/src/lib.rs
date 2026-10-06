@@ -588,21 +588,21 @@ mod tests {
     #[test]
     fn contract_channel_and_direction_mismatches_are_rejected() {
         let mut direction = basic_definition();
-        direction.internal_graph.blocks[0].ports[0].direction = PortDirection::In;
+        direction.ports[0].direction = PortDirection::Out;
         assert!(matches!(
             direction.validate(),
             Err(CompositeError::BoundaryDirectionMismatch { .. })
         ));
 
         let mut channel = basic_definition();
-        channel.internal_graph.blocks[0].ports[0].channel = PortChannel::Flow;
+        channel.ports[0].channel = PortChannel::Flow;
         assert!(matches!(
             channel.validate(),
             Err(CompositeError::BoundaryChannelMismatch { .. })
         ));
 
         let mut contract = basic_definition();
-        contract.internal_graph.blocks[0].ports[0].contract = Some(json!("other:int"));
+        contract.ports[0].contract = Some(json!("other:int"));
         assert!(matches!(
             contract.validate(),
             Err(CompositeError::BoundaryContractMismatch { .. })
