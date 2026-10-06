@@ -796,7 +796,8 @@ fn named_children(node: Node<'_>) -> Vec<Node<'_>> {
 
 fn first_named_child(node: Node<'_>) -> Option<Node<'_>> {
     let mut cursor = node.walk();
-    node.named_children(&mut cursor).next()
+    let child = node.named_children(&mut cursor).next();
+    child
 }
 
 fn find_first_kind<'tree>(node: Node<'tree>, kind: &str) -> Option<Node<'tree>> {
