@@ -172,8 +172,10 @@ impl ResilienceAnalyzer {
                         continue;
                     }
 
-                    let Some(source_contract) =
-                        source_port.contract.as_ref().and_then(|value| value.as_str())
+                    let Some(source_contract) = source_port
+                        .contract
+                        .as_ref()
+                        .and_then(|value| value.as_str())
                     else {
                         continue;
                     };
@@ -948,5 +950,4 @@ mod tests {
         assert_eq!(routes.connectors().len(), connector_count);
         assert!(!marker.exists());
     }
-
 }
