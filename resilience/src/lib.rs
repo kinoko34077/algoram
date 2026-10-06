@@ -173,7 +173,7 @@ impl ResilienceAnalyzer {
                     }
 
                     let Some(source_contract) =
-                        source_port.contract.as_ref().and_then(serde_json_string)
+                        source_port.contract.as_ref().and_then(|value| value.as_str())
                     else {
                         continue;
                     };
@@ -290,10 +290,6 @@ fn validate_graph_and_plan(graph: &Graph, plan: &ExecutionPlan) -> Result<(), Re
         });
     }
     Ok(())
-}
-
-fn serde_json_string(value: &serde_json::Value) -> Option<&str> {
-    value.as_str()
 }
 
 fn find_graph_port<'a>(
@@ -847,4 +843,110 @@ mod tests {
         assert!(matches!(error, ResilienceError::NoObservedFailure));
         assert!(!marker.exists());
     }
+
+    #[test]
+    fn unhealthy_selected_route_surfaces_current_reachable_alternative_without_switching() {
+        let marker = std::env::temp_dir().join(format!(
+            "algoram-resilience-route-candidate-must-not-execute-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&marker);
+
+        let mut graph = Graph::new("graph:route-candidate");
+        let mut source = block("route-source");
+        source.implementation_ref = None;
+        source.ports.clear();
+        source.ports.push(Port {
+            id: "out".to_owned(),
+            direction: PortDirection::Out,
+            channel: PortChannel::Data,
+            contract: Some(serde_json::json!("contract:a")),
+            extensions: Extensions::new(),
+        });
+        let mut target = block("route-target");
+        target.ports.clear();
+        target.ports.push(Port {
+            id: "in".to_owned(),
+            direction: PortDirection::In,
+            channel: PortChannel::Data,
+            contract: Some(serde_json::json!("contract:c")),
+            extensions: Extensions::new(),
+        });
+        graph.blocks.extend([source, target]);
+        graph.connections.push(Connection {
+            id: "data:route-candidate".to_owned(),
+            source: PortRef {
+                block_id: "route-source".to_owned(),
+                port_id: "out".to_owned(),
+            },
+            target: PortRef {
+                block_id: "route-target".to_owned(),
+                port_id: "in".to_owned(),
+            },
+            extensions: Extensions::new(),
+        });
+
+        let plan = ExecutionPlan {
+            reference_graph_id: graph.id.clone(),
+            steps: vec![ExecutionStep {
+                id: "step:route-target".to_owned(),
+                implementation_ref: "impl:route-target".to_owned(),
+                action: ProcessAction::new(
+                    "sh",
+                    ["-c".to_owned(), format!("touch {}", marker.display())],
+                ),
+                origin_block_ids: vec!["route-target".to_owned()],
+                source_anchors: Vec::new(),
+                route_connector_ids: vec!["primary".to_owned()],
+                argv_bindings: Vec::new(),
+            }],
+        };
+        let graph_before = graph.clone();
+        let plan_before = plan.clone();
+
+        let mut routes = RouteRegistry::new();
+        routes
+            .register(
+                Connector::new(
+                    "primary",
+                    ContractId::from("contract:a"),
+                    ContractId::from("contract:c"),
+                    "impl:primary",
+                )
+                .unavailable(),
+            )
+            .unwrap();
+        routes
+            .register(Connector::new(
+                "a-1",
+                ContractId::from("contract:a"),
+                ContractId::from("contract:b"),
+                "impl:a-1",
+            ))
+            .unwrap();
+        routes
+            .register(Connector::new(
+                "a-2",
+                ContractId::from("contract:b"),
+                ContractId::from("contract:c"),
+                "impl:a-2",
+            ))
+            .unwrap();
+        let connector_count = routes.connectors().len();
+
+        let candidates =
+            ResilienceAnalyzer::alternative_route_candidates(&graph, &plan, &routes).unwrap();
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].step_id, "step:route-target");
+        assert_eq!(candidates[0].connection_id, "data:route-candidate");
+        assert_eq!(candidates[0].source_contract, "contract:a");
+        assert_eq!(candidates[0].target_contract, "contract:c");
+        assert_eq!(candidates[0].connector_ids, vec!["a-1", "a-2"]);
+        assert_eq!(graph, graph_before);
+        assert_eq!(plan, plan_before);
+        assert_eq!(routes.connectors().len(), connector_count);
+        assert!(!marker.exists());
+    }
+
 }
