@@ -245,6 +245,24 @@ pub struct ExecutionPlan {
     pub steps: Vec<ExecutionStep>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RouteOverride {
+    pub connection_id: String,
+    pub connector_ids: Vec<String>,
+}
+
+impl RouteOverride {
+    pub fn new(
+        connection_id: impl Into<String>,
+        connector_ids: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        Self {
+            connection_id: connection_id.into(),
+            connector_ids: connector_ids.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RuntimeLocationClass {
@@ -461,7 +479,7 @@ impl Planner {
         implementations: &ImplementationRegistry,
         routes: &RouteRegistry,
     ) -> Result<ExecutionPlan, PlannerError> {
-        Self::lower_internal(graph, implementations, routes, None)
+        Self::lower_internal(graph, implementations, routes, None, &[])
     }
 
     pub fn lower_with_profiles(
@@ -476,7 +494,17 @@ impl Planner {
             implementations,
             routes,
             Some((profiles, environment_key)),
+            &[],
         )
+    }
+
+    pub fn lower_with_route_overrides(
+        graph: &Graph,
+        implementations: &ImplementationRegistry,
+        routes: &RouteRegistry,
+        route_overrides: &[RouteOverride],
+    ) -> Result<ExecutionPlan, PlannerError> {
+        Self::lower_internal(graph, implementations, routes, None, route_overrides)
     }
 
     fn lower_internal(
@@ -484,8 +512,35 @@ impl Planner {
         implementations: &ImplementationRegistry,
         routes: &RouteRegistry,
         profile_context: Option<(&ImplementationProfileStore, &str)>,
+        route_overrides: &[RouteOverride],
     ) -> Result<ExecutionPlan, PlannerError> {
         graph.validate().map_err(PlannerError::Graph)?;
+
+        let graph_connection_ids = graph
+            .connections
+            .iter()
+            .map(|connection| connection.id.as_str())
+            .collect::<BTreeSet<_>>();
+        let mut override_by_connection = BTreeMap::<&str, &RouteOverride>::new();
+        for route_override in route_overrides {
+            if route_override.connection_id.trim().is_empty() {
+                return Err(PlannerError::EmptyRouteOverrideConnectionId);
+            }
+            if !graph_connection_ids.contains(route_override.connection_id.as_str()) {
+                return Err(PlannerError::UnknownRouteOverrideConnection {
+                    connection_id: route_override.connection_id.clone(),
+                });
+            }
+            if override_by_connection
+                .insert(route_override.connection_id.as_str(), route_override)
+                .is_some()
+            {
+                return Err(PlannerError::DuplicateRouteOverride {
+                    connection_id: route_override.connection_id.clone(),
+                });
+            }
+        }
+        let mut applied_route_overrides = BTreeSet::<String>::new();
 
         let order = stable_flow_order(graph)?;
         let mut steps = Vec::new();
@@ -551,9 +606,18 @@ impl Planner {
                     (Some(source_contract), Some(target_contract))
                         if source_contract != target_contract =>
                     {
-                        let resolution = routes
-                            .resolve(&RouteRequest::automatic(source_contract, target_contract))
-                            .map_err(PlannerError::Route)?;
+                        let request = match override_by_connection.get(connection.id.as_str()) {
+                            Some(route_override) => {
+                                applied_route_overrides.insert(connection.id.clone());
+                                RouteRequest::explicit(
+                                    source_contract,
+                                    target_contract,
+                                    route_override.connector_ids.iter().cloned(),
+                                )
+                            }
+                            None => RouteRequest::automatic(source_contract, target_contract),
+                        };
+                        let resolution = routes.resolve(&request).map_err(PlannerError::Route)?;
                         match resolution {
                             Resolution::Resolved { route, .. } => {
                                 route_connector_ids
@@ -586,6 +650,14 @@ impl Planner {
                 route_connector_ids,
                 argv_bindings,
             });
+        }
+
+        for connection_id in override_by_connection.keys() {
+            if !applied_route_overrides.contains(*connection_id) {
+                return Err(PlannerError::RouteOverrideNotApplicable {
+                    connection_id: (*connection_id).to_owned(),
+                });
+            }
         }
 
         Ok(ExecutionPlan {
@@ -800,6 +872,16 @@ pub enum PlannerError {
         source_contract: String,
         target_contract: String,
     },
+    EmptyRouteOverrideConnectionId,
+    UnknownRouteOverrideConnection {
+        connection_id: String,
+    },
+    DuplicateRouteOverride {
+        connection_id: String,
+    },
+    RouteOverrideNotApplicable {
+        connection_id: String,
+    },
     DuplicateArgvPort {
         block_id: String,
         port_id: String,
@@ -882,6 +964,21 @@ impl fmt::Display for PlannerError {
             } => write!(
                 f,
                 "data connection '{connection_id}' has no known route from '{source_contract}' to '{target_contract}'"
+            ),
+            Self::EmptyRouteOverrideConnectionId => {
+                write!(f, "route override connection_id must not be empty")
+            }
+            Self::UnknownRouteOverrideConnection { connection_id } => write!(
+                f,
+                "route override references unknown connection '{connection_id}'"
+            ),
+            Self::DuplicateRouteOverride { connection_id } => write!(
+                f,
+                "route override for connection '{connection_id}' is declared more than once"
+            ),
+            Self::RouteOverrideNotApplicable { connection_id } => write!(
+                f,
+                "route override for connection '{connection_id}' is not applicable to a cross-contract executable data connection"
             ),
             Self::DuplicateArgvPort { block_id, port_id } => write!(
                 f,
