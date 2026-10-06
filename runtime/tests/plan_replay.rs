@@ -79,7 +79,7 @@ fn replay_graph() -> Graph {
         start_line: Some(0),
         start_column: Some(0),
         end_line: Some(0),
-        end_column: Some(SOURCE_TEXT.trim_end().len() as u32),
+        end_column: Some(SOURCE_TEXT.trim_end().len() as u64),
         semantic_key: Some("phase4:replay-process".to_owned()),
     });
 
