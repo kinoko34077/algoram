@@ -251,7 +251,7 @@ mod tests {
                 origin_block_ids: origin_block_ids.clone(),
                 source_anchors: Vec::new(),
                 route_connector_ids: Vec::new(),
-                    argv_bindings: Vec::new(),
+                argv_bindings: Vec::new(),
             }],
         };
 
