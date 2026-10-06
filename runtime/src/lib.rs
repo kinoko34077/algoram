@@ -726,6 +726,8 @@ pub enum TraceStatus {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TraceEntry {
     pub step_id: String,
+    #[serde(default)]
+    pub implementation_ref: String,
     pub status: TraceStatus,
     pub origin_block_ids: Vec<String>,
     #[serde(default)]
@@ -910,6 +912,7 @@ fn trace_entry(
 ) -> TraceEntry {
     TraceEntry {
         step_id: step.id.clone(),
+        implementation_ref: step.implementation_ref.clone(),
         status,
         origin_block_ids: step.origin_block_ids.clone(),
         source_anchors: step.source_anchors.clone(),
