@@ -29,10 +29,7 @@ fn anchor(artifact_id: &str, semantic_key: &str) -> SourceAnchor {
 fn local_action() -> ProcessAction {
     ProcessAction::new(
         "python3",
-        [
-            "-c".to_owned(),
-            "print('LOCAL_VALUE', end='')".to_owned(),
-        ],
+        ["-c".to_owned(), "print('LOCAL_VALUE', end='')".to_owned()],
     )
 }
 
@@ -105,7 +102,9 @@ fn endpoints() -> Vec<RuntimeEndpoint> {
 
 fn local_trust() -> (ImplementationRegistry, ExecutionPolicy) {
     let mut implementations = ImplementationRegistry::new();
-    implementations.register("impl:local", local_action()).unwrap();
+    implementations
+        .register("impl:local", local_action())
+        .unwrap();
 
     let mut policy = ExecutionPolicy::new();
     policy.allow("impl:local");
@@ -204,7 +203,9 @@ fn local_stdout_crosses_agent_boundary_and_returns_one_attributed_trace() {
     assert_eq!(trace.entries[1].entry.step_id, "step:agent");
     assert_eq!(trace.entries[1].entry.stdout, "REMOTE:LOCAL_VALUE");
     assert_eq!(
-        trace.entries[1].entry.source_anchors[0].semantic_key.as_deref(),
+        trace.entries[1].entry.source_anchors[0]
+            .semantic_key
+            .as_deref(),
         Some("python:agent.main")
     );
     assert_eq!(
