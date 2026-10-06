@@ -1,4 +1,4 @@
-use algoram_core::{Graph, GraphError, Port, PortChannel, SourceAnchor};
+use algoram_core::{Block, Graph, GraphError, Port, PortChannel, PortDirection, SourceAnchor};
 use algoram_interop::{Resolution, RouteError, RouteRegistry, RouteRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -14,6 +14,8 @@ pub struct ProcessAction {
     pub program: String,
     #[serde(default)]
     pub args: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub argv_ports: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub current_dir: Option<String>,
 }
@@ -26,8 +28,17 @@ impl ProcessAction {
         Self {
             program: program.into(),
             args: args.into_iter().map(Into::into).collect(),
+            argv_ports: Vec::new(),
             current_dir: None,
         }
+    }
+
+    pub fn with_argv_ports(
+        mut self,
+        port_ids: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        self.argv_ports = port_ids.into_iter().map(Into::into).collect();
+        self
     }
 
     pub fn with_current_dir(mut self, current_dir: impl Into<String>) -> Self {
@@ -65,6 +76,19 @@ impl ImplementationRegistry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ArgvBindingSource {
+    ExternalPort { block_id: String, port_id: String },
+    StepStdout { step_id: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArgvPortBinding {
+    pub target_port_id: String,
+    pub source: ArgvBindingSource,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecutionStep {
     pub id: String,
     pub implementation_ref: String,
@@ -74,6 +98,8 @@ pub struct ExecutionStep {
     pub source_anchors: Vec<SourceAnchor>,
     #[serde(default)]
     pub route_connector_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub argv_bindings: Vec<ArgvPortBinding>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -109,6 +135,7 @@ impl Planner {
                     implementation_ref: implementation_ref.to_owned(),
                 })?;
 
+            let argv_bindings = derive_argv_bindings(graph, block, &action)?;
             let mut route_connector_ids = Vec::new();
 
             for connection in graph
@@ -181,6 +208,7 @@ impl Planner {
                 origin_block_ids: vec![block.id.clone()],
                 source_anchors: block.source_anchor.clone().into_iter().collect(),
                 route_connector_ids,
+                argv_bindings,
             });
         }
 
@@ -189,6 +217,93 @@ impl Planner {
             steps,
         })
     }
+}
+
+fn derive_argv_bindings(
+    graph: &Graph,
+    block: &Block,
+    action: &ProcessAction,
+) -> Result<Vec<ArgvPortBinding>, PlannerError> {
+    let mut declared = BTreeSet::new();
+    let mut bindings = Vec::with_capacity(action.argv_ports.len());
+
+    for target_port_id in &action.argv_ports {
+        if !declared.insert(target_port_id.as_str()) {
+            return Err(PlannerError::DuplicateArgvPort {
+                block_id: block.id.clone(),
+                port_id: target_port_id.clone(),
+            });
+        }
+
+        let target_port = block
+            .ports
+            .iter()
+            .find(|port| port.id == *target_port_id)
+            .ok_or_else(|| PlannerError::MissingArgvPort {
+                block_id: block.id.clone(),
+                port_id: target_port_id.clone(),
+            })?;
+
+        if target_port.direction != PortDirection::In || target_port.channel != PortChannel::Data {
+            return Err(PlannerError::InvalidArgvPort {
+                block_id: block.id.clone(),
+                port_id: target_port_id.clone(),
+            });
+        }
+
+        let incoming = graph
+            .connections
+            .iter()
+            .filter(|connection| {
+                connection.target.block_id == block.id
+                    && connection.target.port_id == *target_port_id
+            })
+            .collect::<Vec<_>>();
+
+        let connection = match incoming.as_slice() {
+            [] => {
+                return Err(PlannerError::MissingArgvBindingConnection {
+                    block_id: block.id.clone(),
+                    port_id: target_port_id.clone(),
+                });
+            }
+            [connection] => *connection,
+            _ => {
+                return Err(PlannerError::AmbiguousArgvBindingConnection {
+                    block_id: block.id.clone(),
+                    port_id: target_port_id.clone(),
+                    connection_ids: incoming
+                        .iter()
+                        .map(|connection| connection.id.clone())
+                        .collect(),
+                });
+            }
+        };
+
+        let source_block = graph
+            .blocks
+            .iter()
+            .find(|candidate| candidate.id == connection.source.block_id)
+            .expect("validated graph contains argv binding source block");
+
+        let source = if source_block.implementation_ref.is_some() {
+            ArgvBindingSource::StepStdout {
+                step_id: format!("step:{}", source_block.id),
+            }
+        } else {
+            ArgvBindingSource::ExternalPort {
+                block_id: connection.source.block_id.clone(),
+                port_id: connection.source.port_id.clone(),
+            }
+        };
+
+        bindings.push(ArgvPortBinding {
+            target_port_id: target_port_id.clone(),
+            source,
+        });
+    }
+
+    Ok(bindings)
 }
 
 fn stable_flow_order(graph: &Graph) -> Result<Vec<usize>, PlannerError> {
@@ -294,6 +409,27 @@ pub enum PlannerError {
         source_contract: String,
         target_contract: String,
     },
+    DuplicateArgvPort {
+        block_id: String,
+        port_id: String,
+    },
+    MissingArgvPort {
+        block_id: String,
+        port_id: String,
+    },
+    InvalidArgvPort {
+        block_id: String,
+        port_id: String,
+    },
+    MissingArgvBindingConnection {
+        block_id: String,
+        port_id: String,
+    },
+    AmbiguousArgvBindingConnection {
+        block_id: String,
+        port_id: String,
+        connection_ids: Vec<String>,
+    },
     FlowCycle,
 }
 
@@ -331,6 +467,31 @@ impl fmt::Display for PlannerError {
             } => write!(
                 f,
                 "data connection '{connection_id}' has no known route from '{source_contract}' to '{target_contract}'"
+            ),
+            Self::DuplicateArgvPort { block_id, port_id } => write!(
+                f,
+                "block '{block_id}' declares argv Port '{port_id}' more than once"
+            ),
+            Self::MissingArgvPort { block_id, port_id } => write!(
+                f,
+                "block '{block_id}' declares missing argv Port '{port_id}'"
+            ),
+            Self::InvalidArgvPort { block_id, port_id } => write!(
+                f,
+                "block '{block_id}' argv Port '{port_id}' must be an input data Port"
+            ),
+            Self::MissingArgvBindingConnection { block_id, port_id } => write!(
+                f,
+                "block '{block_id}' argv Port '{port_id}' has no incoming data connection"
+            ),
+            Self::AmbiguousArgvBindingConnection {
+                block_id,
+                port_id,
+                connection_ids,
+            } => write!(
+                f,
+                "block '{block_id}' argv Port '{port_id}' has multiple incoming data connections: {}",
+                connection_ids.join(", ")
             ),
             Self::FlowCycle => write!(f, "reference graph flow connections contain a cycle"),
         }
@@ -805,6 +966,7 @@ mod tests {
                     origin_block_ids: vec!["block:fail".to_owned()],
                     source_anchors: Vec::new(),
                     route_connector_ids: Vec::new(),
+                    argv_bindings: Vec::new(),
                 },
                 ExecutionStep {
                     id: "step:later".to_owned(),
@@ -816,6 +978,7 @@ mod tests {
                     origin_block_ids: vec!["block:later".to_owned()],
                     source_anchors: Vec::new(),
                     route_connector_ids: Vec::new(),
+                    argv_bindings: Vec::new(),
                 },
             ],
         };
