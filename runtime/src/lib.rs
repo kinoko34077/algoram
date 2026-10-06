@@ -781,7 +781,6 @@ impl RuntimeInput {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionAccessClass {
@@ -1479,7 +1478,6 @@ mod tests {
         assert_eq!(trace.entries[1].status, TraceStatus::NotRun);
         assert!(trace.failed_entry().is_some());
     }
-
 
     fn marker_action(marker: &Path, value: &str) -> ProcessAction {
         ProcessAction::new(
