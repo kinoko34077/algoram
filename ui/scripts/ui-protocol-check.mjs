@@ -30,7 +30,10 @@ assert.match(app, /inspectorOpen/);
 assert.match(app, /aria-expanded=\{inspectorOpen\}/);
 
 assert.match(canvas, /nodesFocusable/);
+assert.match(canvas, /edgesFocusable=\{false\}/);
 assert.match(canvas, /disableKeyboardA11y=\{false\}/);
+assert.match(canvas, /ariaLabelConfig=\{\{/);
+assert.match(canvas, /Use the arrow keys to move a selected node/);
 assert.match(canvas, /connectOnClick/);
 assert.match(canvas, /isValidConnection=\{isValidConnection\}/);
 assert.match(canvas, /aria-live="polite"/);
