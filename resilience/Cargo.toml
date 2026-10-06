@@ -1,0 +1,11 @@
+[package]
+name = "algoram-resilience"
+version = "0.1.0"
+edition = "2021"
+description = "Read-only failure impact and recovery analysis for Algoram"
+
+[dependencies]
+algoram-core = { path = "../core" }
+algoram-interop = { path = "../interop" }
+algoram-runtime = { path = "../runtime" }
+serde = { version = "1", features = ["derive"] }
