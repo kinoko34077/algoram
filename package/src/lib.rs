@@ -162,9 +162,7 @@ impl From<serde_json::Error> for PackageError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algoram_core::{
-        Block, Extensions, Graph, SourceAnchor, SourceArtifact,
-    };
+    use algoram_core::{Block, Extensions, Graph, SourceAnchor, SourceArtifact};
     use serde_json::json;
 
     fn source_artifact() -> SourceArtifact {
@@ -243,16 +241,13 @@ mod tests {
     }
 
     fn fixture_package() -> BlockPackage {
-        BlockPackage::new(
-            "example.package",
-            "0.1.0",
-            fixture_definition(),
+        BlockPackage::new("example.package", "0.1.0", fixture_definition()).with_provenance(
+            PackageProvenance {
+                origin: Some("https://example.invalid/package".to_owned()),
+                revision: Some("pkg-rev-1".to_owned()),
+                license: Some("Apache-2.0".to_owned()),
+            },
         )
-        .with_provenance(PackageProvenance {
-            origin: Some("https://example.invalid/package".to_owned()),
-            revision: Some("pkg-rev-1".to_owned()),
-            license: Some("Apache-2.0".to_owned()),
-        })
     }
 
     #[test]
@@ -264,18 +259,12 @@ mod tests {
         let restored = BlockPackage::from_json(&json).unwrap();
 
         assert_eq!(restored, package);
-        assert_eq!(
-            restored.provenance.license.as_deref(),
-            Some("Apache-2.0")
-        );
+        assert_eq!(restored.provenance.license.as_deref(), Some("Apache-2.0"));
 
         let artifact = &restored.definition.internal_graph.source_artifacts[0];
         assert_eq!(artifact.origin, "src/example.py");
         assert_eq!(artifact.revision.as_deref(), Some("abc123"));
-        assert_eq!(
-            artifact.content_hash.as_deref(),
-            Some("sha256:0123456789")
-        );
+        assert_eq!(artifact.content_hash.as_deref(), Some("sha256:0123456789"));
         assert_eq!(
             artifact.repository_origin.as_deref(),
             Some("example/repository")
@@ -369,9 +358,6 @@ mod tests {
 
         let restored = BlockPackage::from_json(&package.to_json_pretty().unwrap()).unwrap();
         assert_eq!(restored, package);
-        assert_eq!(
-            restored.dependency_summary(),
-            package.dependency_summary()
-        );
+        assert_eq!(restored.dependency_summary(), package.dependency_summary());
     }
 }
