@@ -223,6 +223,30 @@ impl CapabilityCatalog {
         Ok(catalog)
     }
 
+    pub fn search_logical_implementations(
+        &self,
+        logical_implementation_ref: &str,
+    ) -> Result<Vec<&CapabilityListing>, CatalogError> {
+        self.validate()?;
+
+        let mut results = self
+            .listings
+            .iter()
+            .filter(|listing| {
+                matches!(
+                    &listing.asset,
+                    CatalogAsset::Implementation {
+                        logical_implementation_ref: Some(logical_ref),
+                        ..
+                    } if logical_ref == logical_implementation_ref
+                )
+            })
+            .collect::<Vec<_>>();
+
+        results.sort_by(|left, right| left.listing_id.cmp(&right.listing_id));
+        Ok(results)
+    }
+
     pub fn search_counterparts(
         &self,
         current_port: &Port,
@@ -354,6 +378,9 @@ impl From<serde_json::Error> for CatalogError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use algoram_core::{Block, Connection, Extensions, Graph, PortRef};
+    use algoram_interop::RouteRegistry;
+    use algoram_runtime::{ExecutionPlan, ImplementationRegistry, Planner, ProcessAction, ProcessRuntime};
     use serde_json::json;
 
     fn current_output_port() -> Port {
@@ -536,6 +563,265 @@ mod tests {
             Err(CatalogError::FreeListingHasPrice { listing_id })
                 if listing_id == "free-priced"
         ));
+    }
+
+    fn supplier_listing(
+        listing_id: &str,
+        supplier: &str,
+        implementation_ref: &str,
+        amount_minor: u64,
+        score_millis: u16,
+    ) -> CapabilityListing {
+        CapabilityListing {
+            listing_id: listing_id.to_owned(),
+            title: format!("{supplier} text implementation"),
+            supplier: supplier.to_owned(),
+            source: format!("https://example.invalid/{supplier}"),
+            version: "1.0.0".to_owned(),
+            last_updated: "2026-10-06".to_owned(),
+            asset: CatalogAsset::Implementation {
+                implementation_ref: implementation_ref.to_owned(),
+                logical_implementation_ref: Some("logical:text-provider".to_owned()),
+            },
+            supported_ports: vec![SupportedPort::new(
+                PortDirection::In,
+                PortChannel::Data,
+                json!("text:utf8"),
+            )],
+            marketplace: MarketplaceMetadata {
+                commercial_availability: CommercialAvailability::Paid,
+                source_availability: SourceAvailability::Closed,
+                price: Some(Price {
+                    amount_minor,
+                    currency: "JPY".to_owned(),
+                }),
+                rating: Some(RatingSummary {
+                    score_millis,
+                    max_score_millis: 5000,
+                    review_count: 10,
+                }),
+                reputation: None,
+                inspectability: Inspectability::MetadataOnly,
+                support_statement: None,
+                warranty_statement: None,
+            },
+        }
+    }
+
+    fn supplier_graph() -> Graph {
+        let mut graph = Graph::new("graph:supplier-replacement");
+
+        let mut source = Block {
+            id: "block:source".to_owned(),
+            label: "source".to_owned(),
+            ports: Vec::new(),
+            internal_graph_ref: None,
+            implementation_ref: None,
+            definition_ref: None,
+            source_anchor: None,
+            extensions: Extensions::new(),
+            diagnostics: Vec::new(),
+        };
+        source.ports.push(Port {
+            id: "value".to_owned(),
+            direction: PortDirection::Out,
+            channel: PortChannel::Data,
+            contract: Some(json!("text:utf8")),
+            extensions: Extensions::new(),
+        });
+
+        let mut target = Block {
+            id: "block:provider".to_owned(),
+            label: "provider".to_owned(),
+            ports: Vec::new(),
+            internal_graph_ref: None,
+            implementation_ref: Some("logical:text-provider".to_owned()),
+            definition_ref: None,
+            source_anchor: None,
+            extensions: Extensions::new(),
+            diagnostics: Vec::new(),
+        };
+        target.ports.push(Port {
+            id: "value".to_owned(),
+            direction: PortDirection::In,
+            channel: PortChannel::Data,
+            contract: Some(json!("text:utf8")),
+            extensions: Extensions::new(),
+        });
+
+        graph.blocks.extend([source, target]);
+        graph.connections.push(Connection {
+            id: "data:source-provider".to_owned(),
+            source: PortRef {
+                block_id: "block:source".to_owned(),
+                port_id: "value".to_owned(),
+            },
+            target: PortRef {
+                block_id: "block:provider".to_owned(),
+                port_id: "value".to_owned(),
+            },
+            extensions: Extensions::new(),
+        });
+        graph
+    }
+
+    fn registry_with_explicit_supplier(default_ref: &str) -> ImplementationRegistry {
+        let mut registry = ImplementationRegistry::new();
+        registry
+            .register(
+                "impl:supplier-a",
+                ProcessAction::new(
+                    "python3",
+                    ["-c".to_owned(), "print('SUPPLIER_A', end='')".to_owned()],
+                ),
+            )
+            .unwrap();
+        registry
+            .register(
+                "impl:supplier-b",
+                ProcessAction::new(
+                    "python3",
+                    ["-c".to_owned(), "print('SUPPLIER_B', end='')".to_owned()],
+                ),
+            )
+            .unwrap();
+        registry
+            .register_choice(
+                "logical:text-provider",
+                ["impl:supplier-a", "impl:supplier-b"],
+                default_ref,
+            )
+            .unwrap();
+        registry
+    }
+
+    fn concrete_ref(listing: &CapabilityListing) -> &str {
+        match &listing.asset {
+            CatalogAsset::Implementation {
+                implementation_ref, ..
+            } => implementation_ref,
+            CatalogAsset::BlockPackage { .. } => panic!("expected implementation listing"),
+        }
+    }
+
+    #[test]
+    fn logical_query_returns_supplier_candidates_without_marketplace_auto_ranking() {
+        let catalog = CapabilityCatalog::new([
+            supplier_listing("supplier-b", "B", "impl:supplier-b", 100, 4900),
+            supplier_listing("supplier-a", "A", "impl:supplier-a", 9999, 1000),
+            package_listing("package-unrelated"),
+        ]);
+
+        let before = catalog.clone();
+        let results = catalog
+            .search_logical_implementations("logical:text-provider")
+            .unwrap();
+
+        assert_eq!(
+            results
+                .iter()
+                .map(|listing| listing.listing_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["supplier-a", "supplier-b"]
+        );
+        assert_eq!(
+            results.iter().map(|listing| concrete_ref(listing)).collect::<Vec<_>>(),
+            vec!["impl:supplier-a", "impl:supplier-b"]
+        );
+        assert_eq!(catalog, before);
+
+        let mut changed_marketplace = catalog.clone();
+        changed_marketplace.listings[0].marketplace.price = Some(Price {
+            amount_minor: 1_000_000,
+            currency: "JPY".to_owned(),
+        });
+        changed_marketplace.listings[0].marketplace.rating = Some(RatingSummary {
+            score_millis: 100,
+            max_score_millis: 5000,
+            review_count: 999,
+        });
+        changed_marketplace.listings[1].marketplace.price = Some(Price {
+            amount_minor: 1,
+            currency: "JPY".to_owned(),
+        });
+        changed_marketplace.listings[1].marketplace.rating = Some(RatingSummary {
+            score_millis: 5000,
+            max_score_millis: 5000,
+            review_count: 1,
+        });
+
+        assert_eq!(
+            changed_marketplace
+                .search_logical_implementations("logical:text-provider")
+                .unwrap()
+                .iter()
+                .map(|listing| listing.listing_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["supplier-a", "supplier-b"]
+        );
+    }
+
+    #[test]
+    fn explicit_supplier_choice_changes_concrete_plan_without_changing_graph() {
+        let catalog = CapabilityCatalog::new([
+            supplier_listing("supplier-a", "A", "impl:supplier-a", 9999, 1000),
+            supplier_listing("supplier-b", "B", "impl:supplier-b", 100, 4900),
+        ]);
+        let candidates = catalog
+            .search_logical_implementations("logical:text-provider")
+            .unwrap();
+
+        let graph = supplier_graph();
+        let graph_before = graph.clone();
+        let routes = RouteRegistry::new();
+
+        let selected_a = concrete_ref(candidates[0]);
+        let plan_a = Planner::lower(
+            &graph,
+            &registry_with_explicit_supplier(selected_a),
+            &routes,
+        )
+        .unwrap();
+
+        let selected_b = concrete_ref(candidates[1]);
+        let plan_b = Planner::lower(
+            &graph,
+            &registry_with_explicit_supplier(selected_b),
+            &routes,
+        )
+        .unwrap();
+
+        assert_eq!(graph, graph_before);
+        assert_eq!(plan_a.steps.len(), 1);
+        assert_eq!(plan_b.steps.len(), 1);
+        assert_eq!(plan_a.steps[0].implementation_ref, "impl:supplier-a");
+        assert_eq!(plan_b.steps[0].implementation_ref, "impl:supplier-b");
+        assert_ne!(
+            plan_a.steps[0].implementation_ref,
+            plan_b.steps[0].implementation_ref
+        );
+        assert_eq!(graph.blocks[1].implementation_ref.as_deref(), Some("logical:text-provider"));
+        assert_eq!(graph.connections, graph_before.connections);
+    }
+
+    #[test]
+    fn replay_stays_bound_to_selected_supplier_without_catalog_or_registry() {
+        let graph = supplier_graph();
+        let plan = Planner::lower(
+            &graph,
+            &registry_with_explicit_supplier("impl:supplier-b"),
+            &RouteRegistry::new(),
+        )
+        .unwrap();
+
+        let json = serde_json::to_string(&plan).unwrap();
+        let replayed: ExecutionPlan = serde_json::from_str(&json).unwrap();
+        assert_eq!(replayed.steps[0].implementation_ref, "impl:supplier-b");
+
+        let trace = ProcessRuntime::execute(&replayed);
+        assert!(trace.succeeded());
+        assert_eq!(trace.entries[0].implementation_ref, "impl:supplier-b");
+        assert_eq!(trace.entries[0].stdout, "SUPPLIER_B");
     }
 
     #[test]
