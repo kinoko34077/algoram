@@ -204,7 +204,7 @@ impl Planner {
                 .resolve(implementation_ref)
                 .ok_or_else(|| PlannerError::MissingImplementation {
                     block_id: block.id.clone(),
-                    implementation_ref: selected_implementation_ref.to_owned(),
+                    implementation_ref: implementation_ref.to_owned(),
                 })?;
             let action = action.clone();
 
