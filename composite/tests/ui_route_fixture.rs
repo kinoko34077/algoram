@@ -66,9 +66,7 @@ fn python_rust_route_graph() -> Graph {
             Connector::new(
                 "c-abi-call-rust-algoram-checked-triple",
                 ContractId::from("c:abi:int32"),
-                ContractId::from(
-                    "rust:extern-c:function:algoram_checked_triple:int32",
-                ),
+                ContractId::from("rust:extern-c:function:algoram_checked_triple:int32"),
                 "fixture:rust:extern-c:algoram_checked_triple",
             )
             .with_transfer(TransferMode::Copy),
