@@ -1,5 +1,9 @@
+import { readFile } from "node:fs/promises";
 import ELK from "elkjs/lib/elk.bundled.js";
 
+const packageJson = JSON.parse(
+  await readFile(new URL("../package.json", import.meta.url), "utf8"),
+);
 const elk = new ELK();
 
 console.log(
@@ -9,6 +13,7 @@ console.log(
     node: process.version,
     platform: process.platform,
     arch: process.arch,
+    elk: packageJson.dependencies.elkjs,
   }),
 );
 
