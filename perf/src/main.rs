@@ -10,6 +10,7 @@ use algoram_runtime::{
 };
 use serde_json::json;
 use std::hint::black_box;
+use std::process::Command;
 use std::time::{Duration, Instant};
 
 fn main() {
@@ -20,7 +21,9 @@ fn main() {
             "os": std::env::consts::OS,
             "arch": std::env::consts::ARCH,
             "crate": env!("CARGO_PKG_NAME"),
-            "crate_version": env!("CARGO_PKG_VERSION")
+            "crate_version": env!("CARGO_PKG_VERSION"),
+            "rustc": command_version("rustc"),
+            "cargo": command_version("cargo")
         })
     );
 
@@ -42,6 +45,16 @@ fn main() {
     measure_import_cache_hit();
     measure_plan_cold_and_cached();
     measure_single_process_runtime();
+}
+
+fn command_version(program: &str) -> String {
+    Command::new(program)
+        .arg("--version")
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+        .unwrap_or_else(|| "unavailable".to_owned())
 }
 
 fn measure(metric: &str, size: usize, iterations: usize, mut operation: impl FnMut()) {
