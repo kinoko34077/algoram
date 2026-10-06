@@ -1,5 +1,7 @@
+import phase1RouteGraphData from "./generated/phase1-route.json";
 import type {
   AlgoramBlock,
+  AlgoramConnection,
   AlgoramGraph,
   AlgoramPort,
   ReferenceBundle,
@@ -7,245 +9,266 @@ import type {
   SourceArtifact,
 } from "./algoram";
 
-const source = `class Greeter:
-    def hello(self, name):
-        prefix = "hi"
-        print(prefix)
-        if name:
-            return name
+const pythonSource = `#!/usr/bin/env python3
+
+import ctypes
+import pathlib
+import sys
+
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        raise SystemExit("usage: call.py <shared-library> <integer>")
+
+    library_path = pathlib.Path(sys.argv[1]).resolve()
+    value = int(sys.argv[2])
+
+    library = ctypes.CDLL(str(library_path))
+    function = library.algoram_checked_double
+    function.argtypes = [ctypes.c_int32]
+    function.restype = ctypes.c_int32
+
+    result = function(value)
+    if result < 0:
+        print(
+            f"native failure: algoram_checked_double({value}) returned {result}",
+            file=sys.stderr,
+        )
+        return 23
+
+    print(result)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
 `;
 
-const artifact: SourceArtifact = {
-  id: "artifact:ui-demo",
-  origin: "fixtures/greeter.py",
+const cSource = `#include <stdint.h>
+
+#if defined(_WIN32)
+#define ALGORAM_EXPORT __declspec(dllexport)
+#else
+#define ALGORAM_EXPORT __attribute__((visibility("default")))
+#endif
+
+ALGORAM_EXPORT int32_t algoram_checked_double(int32_t value) {
+    if (value < 0) {
+        return -1;
+    }
+    return value * 2;
+}
+`;
+
+const pythonArtifact: SourceArtifact = {
+  id: "artifact:phase1-python",
+  origin: "fixtures/execution-plan/call.py",
   language: "python",
-  revision: "fixture",
+  revision: "accepted-fixture",
+};
+
+const cArtifact: SourceArtifact = {
+  id: "artifact:phase1-c",
+  origin: "fixtures/execution-plan/bridge.c",
+  language: "c",
+  revision: "accepted-fixture",
 };
 
 const encoder = new TextEncoder();
 
-function byteOffset(charOffset: number): number {
+function byteOffset(source: string, charOffset: number): number {
   return encoder.encode(source.slice(0, charOffset)).length;
 }
 
-function pointAt(charOffset: number): { line: number; column: number } {
-  const prefix = source.slice(0, charOffset);
-  const lines = prefix.split("\n");
-  const tail = lines.at(-1) ?? "";
-  return {
-    line: lines.length - 1,
-    column: encoder.encode(tail).length,
-  };
-}
-
-function nthIndexOf(fragment: string, occurrence = 0): number {
-  let cursor = 0;
-  for (let index = 0; index <= occurrence; index += 1) {
-    const found = source.indexOf(fragment, cursor);
-    if (found < 0) {
-      throw new Error(`Fixture fragment not found: ${fragment}`);
-    }
-    if (index === occurrence) {
-      return found;
-    }
-    cursor = found + fragment.length;
-  }
-  throw new Error(`Fixture occurrence not found: ${fragment}`);
-}
-
-function anchor(fragment: string, occurrence = 0): SourceAnchor {
-  const startChar = nthIndexOf(fragment, occurrence);
-  const endChar = startChar + fragment.length;
-  const start = pointAt(startChar);
-  const end = pointAt(endChar);
-
+function anchorWhole(artifact: SourceArtifact, source: string): SourceAnchor {
   return {
     artifact_id: artifact.id,
-    start_byte: byteOffset(startChar),
-    end_byte: byteOffset(endChar),
-    start_line: start.line,
-    start_column: start.column,
-    end_line: end.line,
-    end_column: end.column,
+    start_byte: 0,
+    end_byte: encoder.encode(source).length,
   };
 }
 
-function pythonExtensions(kind: string): Record<string, unknown> {
-  return {
-    python: {
-      semantic_kind: kind,
-    },
+function anchorFragment(
+  artifact: SourceArtifact,
+  source: string,
+  fragment: string,
+  semanticKey?: string,
+): SourceAnchor {
+  const startChar = source.indexOf(fragment);
+  if (startChar < 0) {
+    throw new Error(`Fixture fragment not found: ${fragment}`);
+  }
+
+  const anchor: SourceAnchor = {
+    artifact_id: artifact.id,
+    start_byte: byteOffset(source, startChar),
+    end_byte: byteOffset(source, startChar + fragment.length),
   };
+
+  if (semanticKey) {
+    anchor.semantic_key = semanticKey;
+  }
+
+  return anchor;
 }
 
-function flowPorts(): AlgoramPort[] {
-  return [
-    { id: "flow_in", direction: "in", channel: "flow" },
-    { id: "flow_out", direction: "out", channel: "flow" },
-  ];
-}
-
-function graph(
+function port(
   id: string,
-  label: string,
-  blocks: AlgoramBlock[],
-  connections: AlgoramGraph["connections"] = [],
-): AlgoramGraph {
+  direction: "in" | "out",
+  channel: "flow" | "data",
+  contract?: string,
+): AlgoramPort {
   return {
-    schema_version: "algoram.graph/0.1",
     id,
-    label,
-    blocks,
-    connections,
-    source_artifacts: [artifact],
+    direction,
+    channel,
+    ...(contract ? { contract } : {}),
   };
 }
 
-const rootGraphId = "graph:python:artifact:ui-demo:document";
-const moduleGraphId = "graph:python:artifact:ui-demo:module";
-const fileBlockId = "python:artifact:ui-demo:file";
-const classBlockId = `${fileBlockId}/class:Greeter`;
-const classGraphId = `graph:${classBlockId}`;
-const functionBlockId = `${classBlockId}/function:hello`;
-const functionGraphId = `graph:${functionBlockId}`;
-const ifBlockId = `${functionBlockId}/if`;
-const ifGraphId = `graph:${ifBlockId}`;
+function connection(
+  id: string,
+  sourceBlock: string,
+  sourcePort: string,
+  targetBlock: string,
+  targetPort: string,
+): AlgoramConnection {
+  return {
+    id,
+    source: {
+      block_id: sourceBlock,
+      port_id: sourcePort,
+    },
+    target: {
+      block_id: targetBlock,
+      port_id: targetPort,
+    },
+  };
+}
 
-const fileBlock: AlgoramBlock = {
-  id: fileBlockId,
-  label: artifact.origin,
-  internal_graph_ref: moduleGraphId,
-  source_anchor: anchor(source),
-  extensions: pythonExtensions("source_file"),
-};
+const rootGraphId = "graph:phase1:e2e-root";
+const internalGraphId = "graph:composite:python-c";
+const routeGraph = phase1RouteGraphData as AlgoramGraph;
+const routeGraphId = routeGraph.id;
 
-const classFragment = source;
-const classBlock: AlgoramBlock = {
-  id: classBlockId,
-  label: "class Greeter",
-  internal_graph_ref: classGraphId,
-  source_anchor: anchor(classFragment),
-  extensions: pythonExtensions("class_definition"),
-};
-
-const functionFragment = `def hello(self, name):
-        prefix = "hi"
-        print(prefix)
-        if name:
-            return name`;
-const functionBlock: AlgoramBlock = {
-  id: functionBlockId,
-  label: "fn hello",
-  internal_graph_ref: functionGraphId,
-  source_anchor: anchor(functionFragment),
+const compositeBlock: AlgoramBlock = {
+  id: "block:phase1-composite",
+  label: "Python/C checked double",
   ports: [
-    {
-      id: "param:self",
-      direction: "in",
-      channel: "data",
-      contract: "python:unknown",
-    },
-    {
-      id: "param:name",
-      direction: "in",
-      channel: "data",
-      contract: "python:unknown",
-    },
-    {
-      id: "return",
-      direction: "out",
-      channel: "data",
-      contract: "python:unknown",
-    },
+    port("value", "in", "data", "python:ctypes:c_int"),
+    port("result", "out", "data", "c:abi:int32"),
   ],
-  extensions: pythonExtensions("function_definition"),
-};
-
-const parameterSelf: AlgoramBlock = {
-  id: `${functionBlockId}/parameter:self`,
-  label: "parameter self",
-  source_anchor: anchor("self"),
-  extensions: pythonExtensions("parameter"),
-};
-
-const parameterName: AlgoramBlock = {
-  id: `${functionBlockId}/parameter:name`,
-  label: "parameter name",
-  source_anchor: anchor("name"),
-  extensions: pythonExtensions("parameter"),
-};
-
-const assignmentId = `${functionBlockId}/assignment:prefix`;
-const assignment: AlgoramBlock = {
-  id: assignmentId,
-  label: "assign prefix",
-  ports: flowPorts(),
-  source_anchor: anchor('prefix = "hi"'),
-  extensions: pythonExtensions("assignment"),
-};
-
-const callId = `${functionBlockId}/call:print`;
-const call: AlgoramBlock = {
-  id: callId,
-  label: "call print(prefix)",
-  ports: flowPorts(),
-  source_anchor: anchor("print(prefix)"),
-  extensions: pythonExtensions("call"),
-};
-
-const conditional: AlgoramBlock = {
-  id: ifBlockId,
-  label: "if name",
-  ports: flowPorts(),
-  internal_graph_ref: ifGraphId,
-  source_anchor: anchor(`if name:
-            return name`),
-  extensions: pythonExtensions("if_statement"),
-};
-
-const returnBlock: AlgoramBlock = {
-  id: `${ifBlockId}/return`,
-  label: "return name",
-  ports: flowPorts(),
-  source_anchor: anchor("return name"),
-  extensions: pythonExtensions("return_statement"),
-};
-
-const root = graph(rootGraphId, "Python source document", [fileBlock]);
-const moduleGraph = graph(moduleGraphId, "Python module", [classBlock]);
-const classGraph = graph(classGraphId, "Python class: Greeter", [functionBlock]);
-const functionGraph = graph(
-  functionGraphId,
-  "Python function: hello",
-  [parameterSelf, parameterName, assignment, call, conditional],
-  [
-    {
-      id: "flow:assignment-call",
-      source: { block_id: assignmentId, port_id: "flow_out" },
-      target: { block_id: callId, port_id: "flow_in" },
+  internal_graph_ref: internalGraphId,
+  definition_ref: "definition:python-c-double",
+  extensions: {
+    composite: {
+      definition_id: "definition:python-c-double",
+      internal_graph_id: internalGraphId,
     },
-    {
-      id: "flow:call-if",
-      source: { block_id: callId, port_id: "flow_out" },
-      target: { block_id: ifBlockId, port_id: "flow_in" },
-    },
+  },
+};
+
+const rootGraph: AlgoramGraph = {
+  schema_version: "algoram.graph/0.1",
+  id: rootGraphId,
+  label: "Phase 1 high-level composition",
+  blocks: [compositeBlock],
+  connections: [],
+};
+
+const boundaryInput: AlgoramBlock = {
+  id: "block:boundary-input",
+  label: "Python input boundary",
+  ports: [port("value", "out", "data", "python:ctypes:c_int")],
+  source_anchor: anchorWhole(pythonArtifact, pythonSource),
+};
+
+const buildC: AlgoramBlock = {
+  id: "block:build-c",
+  label: "Build C shared library",
+  ports: [port("flow_out", "out", "flow")],
+  implementation_ref: "fixture:composite-build-c",
+  source_anchor: anchorWhole(cArtifact, cSource),
+};
+
+const invokeC: AlgoramBlock = {
+  id: "block:invoke-c",
+  label: "Call C function through ctypes/C ABI",
+  ports: [
+    port("flow_in", "in", "flow"),
+    port(
+      "value",
+      "in",
+      "data",
+      "c:function:algoram_checked_double:int32",
+    ),
+    port("result", "out", "data", "c:abi:int32"),
   ],
-);
-const ifGraph = graph(ifGraphId, "If body: name", [returnBlock]);
+  implementation_ref: "fixture:composite-invoke-c",
+  source_anchor: anchorFragment(
+    cArtifact,
+    cSource,
+    "int32_t algoram_checked_double",
+    "c:algoram_checked_double",
+  ),
+};
+
+const boundaryOutput: AlgoramBlock = {
+  id: "block:boundary-output",
+  label: "Python result boundary",
+  ports: [port("result", "in", "data", "c:abi:int32")],
+  source_anchor: anchorWhole(pythonArtifact, pythonSource),
+};
+
+const internalGraph: AlgoramGraph = {
+  schema_version: "algoram.graph/0.1",
+  id: internalGraphId,
+  label: "Python/C checked double — internal graph",
+  blocks: [boundaryInput, buildC, invokeC, boundaryOutput],
+  connections: [
+    connection(
+      "flow:build-invoke",
+      buildC.id,
+      "flow_out",
+      invokeC.id,
+      "flow_in",
+    ),
+    connection(
+      "data:input-invoke",
+      boundaryInput.id,
+      "value",
+      invokeC.id,
+      "value",
+    ),
+    connection(
+      "data:invoke-output",
+      invokeC.id,
+      "result",
+      boundaryOutput.id,
+      "result",
+    ),
+  ],
+  source_artifacts: [cArtifact, pythonArtifact],
+};
 
 export const demoBundle: ReferenceBundle = {
   rootGraphId,
   graphs: {
-    [root.id]: root,
-    [moduleGraph.id]: moduleGraph,
-    [classGraph.id]: classGraph,
-    [functionGraph.id]: functionGraph,
-    [ifGraph.id]: ifGraph,
+    [rootGraph.id]: rootGraph,
+    [internalGraph.id]: internalGraph,
+    [routeGraph.id]: routeGraph,
   },
   sources: {
-    [artifact.id]: {
-      artifact,
-      text: source,
+    [cArtifact.id]: {
+      artifact: cArtifact,
+      text: cSource,
     },
+    [pythonArtifact.id]: {
+      artifact: pythonArtifact,
+      text: pythonSource,
+    },
+  },
+  routeInspections: {
+    [invokeC.id]: routeGraphId,
   },
 };
