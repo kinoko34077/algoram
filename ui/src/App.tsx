@@ -2,6 +2,12 @@ import { useMemo, useState } from "react";
 import type { AlgoramBlock } from "./algoram";
 import { demoBundle } from "./fixture";
 import { GraphCanvas } from "./GraphCanvas";
+import {
+  buildNavigationIndex,
+  resolveBlockPath,
+  type NavigationRecord,
+} from "./navigation";
+import { SearchPanel } from "./SearchPanel";
 import { SourcePanel } from "./SourcePanel";
 
 interface Breadcrumb {
@@ -21,6 +27,12 @@ export function App() {
     },
   ]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [navigationStatus, setNavigationStatus] = useState<string | null>(null);
+
+  const navigationIndex = useMemo(
+    () => buildNavigationIndex(demoBundle),
+    [],
+  );
 
   const currentGraphId = path.at(-1)?.graphId ?? demoBundle.rootGraphId;
   const currentGraph = demoBundle.graphs[currentGraphId];
@@ -62,6 +74,26 @@ export function App() {
   function jumpTo(index: number) {
     setPath((current) => current.slice(0, index + 1));
     setSelectedBlockId(null);
+    setNavigationStatus(null);
+  }
+
+  function jumpToSearchResult(record: NavigationRecord) {
+    const resolvedPath = resolveBlockPath(navigationIndex, record);
+    if (!resolvedPath) {
+      setNavigationStatus(
+        `Cannot reach ${record.label} from the loaded root hierarchy.`,
+      );
+      return;
+    }
+
+    setPath(
+      resolvedPath.map((entry) => ({
+        graphId: entry.graphId,
+        label: entry.label,
+      })),
+    );
+    setSelectedBlockId(record.blockId);
+    setNavigationStatus(null);
   }
 
   return (
@@ -90,6 +122,12 @@ export function App() {
           </button>
         ))}
       </nav>
+
+      <SearchPanel
+        index={navigationIndex}
+        status={navigationStatus}
+        onSelectResult={jumpToSearchResult}
+      />
 
       <main className="workspace">
         <section className="graph-region">
