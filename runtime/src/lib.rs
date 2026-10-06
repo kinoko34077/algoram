@@ -245,7 +245,6 @@ pub struct ExecutionPlan {
     pub steps: Vec<ExecutionStep>,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RuntimeLocationClass {
@@ -303,10 +302,7 @@ pub struct PlacedExecutionPlan {
 }
 
 impl PlacedExecutionPlan {
-    pub fn new(
-        plan: ExecutionPlan,
-        placements: impl IntoIterator<Item = StepPlacement>,
-    ) -> Self {
+    pub fn new(plan: ExecutionPlan, placements: impl IntoIterator<Item = StepPlacement>) -> Self {
         Self {
             plan,
             placements: placements.into_iter().collect(),
@@ -1405,7 +1401,6 @@ mod tests {
         }
     }
 
-
     fn placement_test_plan() -> ExecutionPlan {
         ExecutionPlan {
             reference_graph_id: "graph:placement".to_owned(),
@@ -1463,14 +1458,8 @@ mod tests {
         let endpoints = placement_test_endpoints();
 
         placed.validate(&endpoints).unwrap();
-        assert_eq!(
-            placed.runtime_for_step("step:local"),
-            Some("runtime:local")
-        );
-        assert_eq!(
-            placed.runtime_for_step("step:agent"),
-            Some("runtime:agent")
-        );
+        assert_eq!(placed.runtime_for_step("step:local"), Some("runtime:local"));
+        assert_eq!(placed.runtime_for_step("step:agent"), Some("runtime:agent"));
 
         let original_plan_json = serde_json::to_value(&placed.plan).unwrap();
         assert!(original_plan_json.get("placements").is_none());
@@ -1481,7 +1470,10 @@ mod tests {
 
         assert_eq!(restored, placed);
         assert_eq!(restored.plan, placed.plan);
-        assert_eq!(serde_json::to_value(&restored.plan).unwrap(), original_plan_json);
+        assert_eq!(
+            serde_json::to_value(&restored.plan).unwrap(),
+            original_plan_json
+        );
         restored.validate(&endpoints).unwrap();
     }
 
