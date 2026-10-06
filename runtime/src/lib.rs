@@ -1233,6 +1233,329 @@ impl RuntimeAgent {
     }
 }
 
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DistributedTraceEntry {
+    pub runtime_ref: String,
+    pub entry: TraceEntry,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DistributedTransfer {
+    pub source_step_id: String,
+    pub target_step_id: String,
+    pub target_port_id: String,
+    pub source_runtime_ref: String,
+    pub target_runtime_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DistributedExecutionTrace {
+    pub reference_graph_id: String,
+    pub entries: Vec<DistributedTraceEntry>,
+    #[serde(default)]
+    pub transfers: Vec<DistributedTransfer>,
+}
+
+impl DistributedExecutionTrace {
+    pub fn succeeded(&self) -> bool {
+        self.entries
+            .iter()
+            .all(|entry| entry.entry.status == TraceStatus::Succeeded)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DistributedExecutionError {
+    Placement(PlacementError),
+    MissingTransferredOutput {
+        source_step_id: String,
+        target_step_id: String,
+    },
+    LocalRejected {
+        runtime_ref: String,
+        error: String,
+    },
+    AgentUnavailable {
+        runtime_ref: String,
+        error: String,
+    },
+    AgentRejected {
+        runtime_ref: String,
+        error: String,
+    },
+    MalformedAgentResponse {
+        runtime_ref: String,
+        detail: String,
+    },
+}
+
+impl fmt::Display for DistributedExecutionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Placement(error) => write!(f, "invalid distributed placement: {error}"),
+            Self::MissingTransferredOutput {
+                source_step_id,
+                target_step_id,
+            } => write!(
+                f,
+                "distributed step '{target_step_id}' requires unavailable stdout from '{source_step_id}'"
+            ),
+            Self::LocalRejected { runtime_ref, error } => {
+                write!(f, "local runtime '{runtime_ref}' rejected execution: {error}")
+            }
+            Self::AgentUnavailable { runtime_ref, error } => {
+                write!(f, "runtime agent '{runtime_ref}' is unavailable: {error}")
+            }
+            Self::AgentRejected { runtime_ref, error } => {
+                write!(f, "runtime agent '{runtime_ref}' rejected execution: {error}")
+            }
+            Self::MalformedAgentResponse {
+                runtime_ref,
+                detail,
+            } => write!(
+                f,
+                "runtime agent '{runtime_ref}' returned malformed execution trace: {detail}"
+            ),
+        }
+    }
+}
+
+impl Error for DistributedExecutionError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Placement(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+pub struct DistributedRuntime;
+
+impl DistributedRuntime {
+    pub fn execute_with_agent<F>(
+        placed: &PlacedExecutionPlan,
+        endpoints: &[RuntimeEndpoint],
+        local_implementations: &ImplementationRegistry,
+        local_policy: &ExecutionPolicy,
+        external_inputs: &[RuntimeInput],
+        mut dispatch_agent: F,
+    ) -> Result<DistributedExecutionTrace, DistributedExecutionError>
+    where
+        F: FnMut(&str, RuntimeAgentRequest) -> Result<RuntimeAgentResponse, String>,
+    {
+        placed
+            .validate(endpoints)
+            .map_err(DistributedExecutionError::Placement)?;
+
+        let mut distributed_entries = Vec::with_capacity(placed.plan.steps.len());
+        let mut transfers = Vec::new();
+        let mut completed_stdout = BTreeMap::<String, String>::new();
+        let mut completed_runtime = BTreeMap::<String, String>::new();
+
+        let mut start = 0usize;
+        while start < placed.plan.steps.len() {
+            let runtime_ref = placed
+                .runtime_for_step(&placed.plan.steps[start].id)
+                .expect("validated placed Plan has runtime for every step")
+                .to_owned();
+
+            let mut end = start + 1;
+            while end < placed.plan.steps.len()
+                && placed.runtime_for_step(&placed.plan.steps[end].id) == Some(runtime_ref.as_str())
+            {
+                end += 1;
+            }
+
+            let endpoint = endpoints
+                .iter()
+                .find(|endpoint| endpoint.runtime_ref == runtime_ref)
+                .expect("validated placed Plan references known endpoint");
+
+            let segment_step_ids = placed.plan.steps[start..end]
+                .iter()
+                .map(|step| step.id.clone())
+                .collect::<BTreeSet<_>>();
+            let mut segment_steps = placed.plan.steps[start..end].to_vec();
+            let mut segment_inputs = external_inputs.to_vec();
+
+            for step in &mut segment_steps {
+                for binding in &mut step.argv_bindings {
+                    let source_step_id = match &binding.source {
+                        ArgvBindingSource::StepStdout { step_id }
+                            if !segment_step_ids.contains(step_id) =>
+                        {
+                            Some(step_id.clone())
+                        }
+                        _ => None,
+                    };
+
+                    let Some(source_step_id) = source_step_id else {
+                        continue;
+                    };
+
+                    let value = completed_stdout.get(&source_step_id).cloned().ok_or_else(|| {
+                        DistributedExecutionError::MissingTransferredOutput {
+                            source_step_id: source_step_id.clone(),
+                            target_step_id: step.id.clone(),
+                        }
+                    })?;
+                    let source_runtime_ref = completed_runtime
+                        .get(&source_step_id)
+                        .cloned()
+                        .ok_or_else(|| DistributedExecutionError::MissingTransferredOutput {
+                            source_step_id: source_step_id.clone(),
+                            target_step_id: step.id.clone(),
+                        })?;
+
+                    let transfer_block_id = format!("distributed:stdout:{source_step_id}");
+                    let transfer_port_id = binding.target_port_id.clone();
+                    binding.source = ArgvBindingSource::ExternalPort {
+                        block_id: transfer_block_id.clone(),
+                        port_id: transfer_port_id.clone(),
+                    };
+                    segment_inputs.push(RuntimeInput::new(
+                        transfer_block_id,
+                        transfer_port_id.clone(),
+                        value,
+                    ));
+
+                    if source_runtime_ref != runtime_ref {
+                        transfers.push(DistributedTransfer {
+                            source_step_id,
+                            target_step_id: step.id.clone(),
+                            target_port_id: transfer_port_id,
+                            source_runtime_ref,
+                            target_runtime_ref: runtime_ref.clone(),
+                        });
+                    }
+                }
+            }
+
+            let segment_plan = ExecutionPlan {
+                reference_graph_id: placed.plan.reference_graph_id.clone(),
+                steps: segment_steps,
+            };
+
+            let trace = match endpoint.class {
+                RuntimeLocationClass::LocalProcess => GuardedProcessRuntime::execute_with_inputs(
+                    &segment_plan,
+                    &segment_inputs,
+                    local_implementations,
+                    local_policy,
+                )
+                .map_err(|error| DistributedExecutionError::LocalRejected {
+                    runtime_ref: runtime_ref.clone(),
+                    error: error.to_string(),
+                })?,
+                RuntimeLocationClass::RuntimeAgent => {
+                    let response = dispatch_agent(
+                        &runtime_ref,
+                        RuntimeAgentRequest::new(segment_plan.clone(), segment_inputs),
+                    )
+                    .map_err(|error| DistributedExecutionError::AgentUnavailable {
+                        runtime_ref: runtime_ref.clone(),
+                        error,
+                    })?;
+
+                    match response {
+                        RuntimeAgentResponse::Executed { trace } => {
+                            validate_segment_trace(&runtime_ref, &segment_plan, &trace)?;
+                            trace
+                        }
+                        RuntimeAgentResponse::Rejected { error } => {
+                            return Err(DistributedExecutionError::AgentRejected {
+                                runtime_ref: runtime_ref.clone(),
+                                error,
+                            });
+                        }
+                    }
+                }
+            };
+
+            for entry in &trace.entries {
+                if entry.status == TraceStatus::Succeeded {
+                    completed_stdout.insert(entry.step_id.clone(), entry.stdout.clone());
+                    completed_runtime.insert(entry.step_id.clone(), runtime_ref.clone());
+                }
+                distributed_entries.push(DistributedTraceEntry {
+                    runtime_ref: runtime_ref.clone(),
+                    entry: entry.clone(),
+                });
+            }
+
+            if !trace.succeeded() {
+                for step in &placed.plan.steps[end..] {
+                    let later_runtime_ref = placed
+                        .runtime_for_step(&step.id)
+                        .expect("validated placed Plan has runtime for every step")
+                        .to_owned();
+                    distributed_entries.push(DistributedTraceEntry {
+                        runtime_ref: later_runtime_ref,
+                        entry: trace_entry(
+                            step,
+                            TraceStatus::NotRun,
+                            None,
+                            String::new(),
+                            String::new(),
+                        ),
+                    });
+                }
+                break;
+            }
+
+            start = end;
+        }
+
+        Ok(DistributedExecutionTrace {
+            reference_graph_id: placed.plan.reference_graph_id.clone(),
+            entries: distributed_entries,
+            transfers,
+        })
+    }
+}
+
+fn validate_segment_trace(
+    runtime_ref: &str,
+    plan: &ExecutionPlan,
+    trace: &ExecutionTrace,
+) -> Result<(), DistributedExecutionError> {
+    if trace.reference_graph_id != plan.reference_graph_id {
+        return Err(DistributedExecutionError::MalformedAgentResponse {
+            runtime_ref: runtime_ref.to_owned(),
+            detail: format!(
+                "reference Graph id '{}' does not match expected '{}'",
+                trace.reference_graph_id, plan.reference_graph_id
+            ),
+        });
+    }
+
+    if trace.entries.len() != plan.steps.len() {
+        return Err(DistributedExecutionError::MalformedAgentResponse {
+            runtime_ref: runtime_ref.to_owned(),
+            detail: format!(
+                "entry count {} does not match submitted step count {}",
+                trace.entries.len(),
+                plan.steps.len()
+            ),
+        });
+    }
+
+    for (step, entry) in plan.steps.iter().zip(&trace.entries) {
+        if entry.step_id != step.id {
+            return Err(DistributedExecutionError::MalformedAgentResponse {
+                runtime_ref: runtime_ref.to_owned(),
+                detail: format!(
+                    "trace step '{}' does not match submitted step '{}'",
+                    entry.step_id, step.id
+                ),
+            });
+        }
+    }
+
+    Ok(())
+}
+
 pub struct ProcessRuntime;
 
 impl ProcessRuntime {
