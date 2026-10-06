@@ -133,17 +133,9 @@ impl CapabilityListing {
                 implementation_ref,
                 logical_implementation_ref,
             } => {
-                require_nonempty(
-                    &self.listing_id,
-                    implementation_ref,
-                    "implementation_ref",
-                )?;
+                require_nonempty(&self.listing_id, implementation_ref, "implementation_ref")?;
                 if let Some(logical_ref) = logical_implementation_ref {
-                    require_nonempty(
-                        &self.listing_id,
-                        logical_ref,
-                        "logical_implementation_ref",
-                    )?;
+                    require_nonempty(&self.listing_id, logical_ref, "logical_implementation_ref")?;
                 }
             }
         }
@@ -214,9 +206,7 @@ impl CapabilityCatalog {
         for listing in &self.listings {
             listing.validate()?;
             if !listing_ids.insert(listing.listing_id.as_str()) {
-                return Err(CatalogError::DuplicateListingId(
-                    listing.listing_id.clone(),
-                ));
+                return Err(CatalogError::DuplicateListingId(listing.listing_id.clone()));
             }
         }
         Ok(())
@@ -528,8 +518,7 @@ mod tests {
 
     #[test]
     fn validation_keeps_commercial_terms_explicit_and_separate() {
-        let mut paid_without_price =
-            implementation_listing("paid-missing", PortDirection::In);
+        let mut paid_without_price = implementation_listing("paid-missing", PortDirection::In);
         paid_without_price.marketplace.price = None;
         assert!(matches!(
             paid_without_price.validate(),
