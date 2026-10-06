@@ -179,8 +179,10 @@ impl ResilienceAnalyzer {
                     else {
                         continue;
                     };
-                    let Some(target_contract) =
-                        target_port.contract.as_ref().and_then(|value| value.as_str())
+                    let Some(target_contract) = target_port
+                        .contract
+                        .as_ref()
+                        .and_then(|value| value.as_str())
                     else {
                         continue;
                     };
