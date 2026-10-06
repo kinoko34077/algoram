@@ -8,7 +8,8 @@
     "lint": "node scripts/lint.mjs",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
-    "perf:baseline": "node scripts/perf-baseline.mjs"
+    "perf:baseline": "node scripts/perf-baseline.mjs",
+    "test:navigation": "node --experimental-strip-types scripts/navigation-check.mjs"
   },
   "dependencies": {
     "@xyflow/react": "12.12.0",
