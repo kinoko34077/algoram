@@ -570,3 +570,472 @@ button {
     display: none;
   }
 }
+
+
+/* Comfy-style node workspace vertical slice.
+   Drag positions and draft edges are presentation-only; canonical Graph data is untouched. */
+
+.comfy-shell {
+  color: #dce3ea;
+  background: #0c0f13;
+}
+
+.comfy-shell .app-header {
+  background: #14181e;
+  border-bottom-color: #272e38;
+}
+
+.comfy-shell .app-header h1,
+.comfy-shell .header-status strong,
+.comfy-shell .header-status span {
+  color: #f1f4f7;
+}
+
+.comfy-shell .eyebrow,
+.comfy-shell .header-status small {
+  color: #8d98a7;
+}
+
+.comfy-shell .breadcrumbs {
+  background: #10141a;
+  border-bottom-color: #272e38;
+}
+
+.comfy-shell .breadcrumbs button {
+  color: #9ba7b6;
+}
+
+.comfy-shell .breadcrumbs button + button::before {
+  color: #566170;
+}
+
+.comfy-shell .breadcrumbs button[aria-current="page"] {
+  color: #f0f3f6;
+  background: #242a33;
+}
+
+.comfy-shell .search-panel {
+  background: #14181e;
+  border-bottom-color: #272e38;
+}
+
+.comfy-shell .search-controls label,
+.comfy-shell .search-summary,
+.comfy-shell .search-empty,
+.comfy-shell .search-hint {
+  color: #909cab;
+}
+
+.comfy-shell .search-controls input,
+.comfy-shell .search-controls select,
+.comfy-shell .annotation-panel textarea {
+  border-color: #343c48;
+  background: #0f1318;
+  color: #dce3ea;
+}
+
+.comfy-shell .search-controls button {
+  border-color: #6e57a4;
+  background: #1a1721;
+  color: #c5abff;
+}
+
+.comfy-shell .search-summary strong {
+  color: #dce3ea;
+}
+
+.comfy-shell .search-result {
+  border-color: #303844;
+  background: #171c23;
+  color: #dce3ea;
+}
+
+.comfy-shell .search-result:hover,
+.comfy-shell .search-result:focus-visible {
+  border-color: #755cae;
+  background: #211b2e;
+}
+
+.comfy-shell .search-result span,
+.comfy-shell .search-result small {
+  color: #8996a5;
+}
+
+.comfy-shell .graph-region {
+  background: #0c0f13;
+}
+
+.comfy-canvas {
+  position: relative;
+  background:
+    radial-gradient(circle at 20% 10%, rgb(102 75 155 / 8%), transparent 30%),
+    #0c0f13;
+}
+
+.canvas-toolbar {
+  position: absolute;
+  z-index: 12;
+  top: 12px;
+  left: 50%;
+  width: min(680px, calc(100% - 116px));
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto;
+  gap: 4px 14px;
+  align-items: center;
+  transform: translateX(-50%);
+  padding: 7px 9px 7px 12px;
+  border: 1px solid #343c48;
+  border-radius: 10px;
+  background: rgb(20 24 30 / 94%);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 30%);
+  backdrop-filter: blur(12px);
+}
+
+.workspace-mode {
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.workspace-mode strong {
+  color: #eef2f6;
+  font-size: 12px;
+}
+
+.workspace-mode span,
+.canvas-toolbar small {
+  color: #838f9e;
+  font-size: 10px;
+}
+
+.canvas-toolbar small {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-toolbar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.canvas-toolbar button {
+  border: 1px solid #685194;
+  border-radius: 7px;
+  background: #5d4788;
+  color: #f4efff;
+  cursor: pointer;
+  padding: 5px 9px;
+  font-size: 10px;
+}
+
+.canvas-toolbar button.secondary {
+  border-color: #3b4552;
+  background: #20262e;
+  color: #bec8d2;
+}
+
+.canvas-toolbar button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.comfy-canvas .react-flow {
+  background: transparent;
+}
+
+.comfy-canvas .react-flow__edge-path {
+  stroke: #687587;
+  stroke-width: 1.5;
+}
+
+.comfy-canvas .react-flow__edge-text {
+  fill: #8c98a7;
+  font-size: 8px;
+}
+
+.comfy-canvas .react-flow__edge-textbg {
+  fill: #11151a;
+  fill-opacity: 0.92;
+}
+
+.comfy-canvas .react-flow__edge.draft-edge .react-flow__edge-path {
+  stroke: #a978ff;
+  stroke-width: 2.2;
+  stroke-dasharray: 7 5;
+}
+
+.comfy-canvas .react-flow__edge.draft-edge .react-flow__edge-text {
+  fill: #c7adff;
+}
+
+.comfy-canvas .react-flow__controls {
+  overflow: hidden;
+  border: 1px solid #303844;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 28%);
+}
+
+.comfy-canvas .react-flow__controls-button {
+  border-bottom-color: #303844;
+  background: #171c23;
+  fill: #c5cdd6;
+}
+
+.comfy-canvas .react-flow__controls-button:hover {
+  background: #252c35;
+}
+
+.comfy-canvas .react-flow__minimap {
+  overflow: hidden;
+  border: 1px solid #303844;
+  border-radius: 8px;
+  background: #11151a;
+}
+
+.algoram-node {
+  width: 260px;
+  min-height: 108px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #3a4451;
+  border-radius: 9px;
+  background: #181d24;
+  color: #dce3ea;
+  box-shadow: 0 9px 24px rgb(0 0 0 / 34%);
+  transition:
+    border-color 100ms ease,
+    box-shadow 100ms ease,
+    transform 100ms ease;
+}
+
+.algoram-node:hover {
+  border-color: #536172;
+}
+
+.algoram-node.selected {
+  border-color: #a978ff;
+  box-shadow:
+    0 0 0 2px rgb(169 120 255 / 18%),
+    0 10px 26px rgb(0 0 0 / 38%);
+  transform: none;
+}
+
+.node-titlebar {
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  padding: 7px 9px;
+  border-bottom: 1px solid #343c48;
+  background: linear-gradient(180deg, #262d37, #20262e);
+}
+
+.node-grip {
+  color: #788493;
+  cursor: grab;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.node-title {
+  overflow: hidden;
+  color: #f1f4f7;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-badge {
+  padding: 2px 5px;
+  border: 1px solid #596d87;
+  border-radius: 5px;
+  color: #a9c8e9;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.node-badge.muted {
+  border-color: #48515e;
+  color: #929dab;
+}
+
+.node-subtitle {
+  overflow: hidden;
+  padding: 7px 10px 2px;
+  color: #7f8b99;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-port-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 7px 10px 8px;
+}
+
+.node-port-column {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+
+.node-port-column.outputs {
+  text-align: right;
+}
+
+.node-port-label {
+  min-width: 0;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  color: #b1bbc6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 9px;
+}
+
+.node-port-label.out {
+  justify-content: flex-end;
+}
+
+.node-port-label span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.port-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.port-dot.flow {
+  background: #69a5df;
+}
+
+.port-dot.data {
+  background: #b987dc;
+}
+
+.node-empty-ports {
+  padding: 8px 10px;
+  color: #697583;
+  font-size: 9px;
+}
+
+.algoram-node .node-meta {
+  min-height: 24px;
+  margin: 0;
+  padding: 4px 10px 7px;
+}
+
+.algoram-node .node-meta span {
+  background: #252b34;
+  color: #8996a5;
+}
+
+.algoram-handle {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #181d24;
+  box-shadow: 0 0 0 1px #4a5563;
+}
+
+.algoram-handle.flow {
+  background: #69a5df;
+}
+
+.algoram-handle.data {
+  background: #b987dc;
+}
+
+.algoram-handle:hover {
+  transform: scale(1.2);
+}
+
+.comfy-shell .inspector-region {
+  border-left-color: #272e38;
+  background: #11151a;
+}
+
+.comfy-shell .block-inspector,
+.comfy-shell .source-panel {
+  color: #dce3ea;
+}
+
+.comfy-shell .block-inspector {
+  border-bottom-color: #272e38;
+}
+
+.comfy-shell .block-id,
+.comfy-shell .hint,
+.comfy-shell .source-heading p,
+.comfy-shell .annotation-panel small {
+  color: #8794a3;
+}
+
+.comfy-shell .inspector-actions button {
+  border-color: #6b51a0;
+  background: #5d4788;
+}
+
+.comfy-shell .inspector-actions button.secondary,
+.comfy-shell .annotation-heading button {
+  border-color: #3c4653;
+  background: #1b2027;
+  color: #b9c4cf;
+}
+
+.comfy-shell .annotation-panel {
+  border-top-color: #2e3641;
+}
+
+.comfy-shell .source-heading > span {
+  background: #252c35;
+  color: #aab5c0;
+}
+
+.comfy-shell .selection-card,
+.comfy-shell .source-code {
+  border-color: #303844;
+  background: #171c23;
+}
+
+.comfy-shell .source-line {
+  color: #cfd7df;
+}
+
+.comfy-shell .source-line:hover,
+.comfy-shell .source-line.selected {
+  background: #242031;
+}
+
+.comfy-shell .line-number {
+  color: #606b78;
+}
+
+@media (max-width: 900px) {
+  .canvas-toolbar {
+    left: 12px;
+    width: calc(100% - 24px);
+    grid-template-columns: 1fr;
+    transform: none;
+  }
+
+  .canvas-toolbar-actions {
+    justify-content: flex-start;
+  }
+}
