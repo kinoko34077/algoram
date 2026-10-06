@@ -45,8 +45,9 @@ assert.match(
 assert.match(canvas, /Use the arrow keys to move a selected node/);
 assert.equal(canvas.includes("Press delete"), false);
 assert.match(canvas, /connectOnClick/);
-assert.match(canvas, /const handleSelectionChange = useCallback/);
-assert.match(canvas, /onSelectionChange=\{handleSelectionChange\}/);
+assert.match(canvas, /change\.type === "select"/);
+assert.match(canvas, /onSelectBlock\(selected\.id\)/);
+assert.equal(canvas.includes("onSelectionChange="), false);
 assert.match(canvas, /isValidConnection=\{isValidConnection\}/);
 assert.match(canvas, /aria-live="polite"/);
 assert.match(canvas, /Reset layout/);
