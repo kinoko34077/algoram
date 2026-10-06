@@ -1351,10 +1351,7 @@ mod tests {
         graph
     }
 
-    fn provider_registry(
-        default_ref: &str,
-        marker: &std::path::Path,
-    ) -> ImplementationRegistry {
+    fn provider_registry(default_ref: &str, marker: &std::path::Path) -> ImplementationRegistry {
         let mut registry = ImplementationRegistry::new();
         registry
             .register(
@@ -1429,15 +1426,9 @@ mod tests {
             candidates
                 .trusted_local
                 .iter()
-                .map(|candidate| (
-                    candidate.implementation_ref.as_str(),
-                    candidate.is_default
-                ))
+                .map(|candidate| (candidate.implementation_ref.as_str(), candidate.is_default))
                 .collect::<Vec<_>>(),
-            vec![
-                ("impl:provider-a", true),
-                ("impl:provider-b", false),
-            ]
+            vec![("impl:provider-a", true), ("impl:provider-b", false),]
         );
         assert_eq!(
             candidates
@@ -1536,7 +1527,11 @@ mod tests {
                 ))
                 .collect::<Vec<_>>(),
             vec![
-                ("runtime:agent-alt", false, RuntimeLocationClass::RuntimeAgent),
+                (
+                    "runtime:agent-alt",
+                    false,
+                    RuntimeLocationClass::RuntimeAgent
+                ),
                 (
                     "runtime:agent-current",
                     true,
@@ -1551,10 +1546,7 @@ mod tests {
 
         let replacement = PlacedExecutionPlan::new(
             plan.clone(),
-            [StepPlacement::new(
-                step.id.clone(),
-                "runtime:agent-alt",
-            )],
+            [StepPlacement::new(step.id.clone(), "runtime:agent-alt")],
         );
         replacement.validate(&endpoints).unwrap();
 
@@ -1593,10 +1585,8 @@ mod tests {
                 ["impl:provider-b"],
             ),
         ];
-        let placed = PlacedExecutionPlan::new(
-            plan,
-            [StepPlacement::new(step_id, "runtime:agent-current")],
-        );
+        let placed =
+            PlacedExecutionPlan::new(plan, [StepPlacement::new(step_id, "runtime:agent-current")]);
         placed.validate(&endpoints).unwrap();
 
         let mut policy = ExecutionPolicy::new();
@@ -1622,5 +1612,4 @@ mod tests {
         ));
         assert!(!marker.exists());
     }
-
 }
