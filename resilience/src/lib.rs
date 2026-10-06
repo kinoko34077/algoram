@@ -283,8 +283,7 @@ impl ResilienceAnalyzer {
             .into_iter()
             .filter_map(|listing| match &listing.asset {
                 CatalogAsset::Implementation {
-                    implementation_ref,
-                    ..
+                    implementation_ref, ..
                 } if !trusted_set.contains(implementation_ref.as_str()) => {
                     Some(CatalogImplementationCandidate {
                         listing_id: listing.listing_id.clone(),
@@ -1159,7 +1158,13 @@ mod tests {
 
         let registry = provider_registry("impl:trusted-a", &marker);
         let catalog = CapabilityCatalog::new([
-            provider_listing("listing:z-trusted", "trusted supplier", "impl:trusted-b", 1, 5000),
+            provider_listing(
+                "listing:z-trusted",
+                "trusted supplier",
+                "impl:trusted-b",
+                1,
+                5000,
+            ),
             provider_listing(
                 "listing:a-catalog-only",
                 "catalog supplier",
@@ -1181,10 +1186,7 @@ mod tests {
             candidates
                 .trusted_local
                 .iter()
-                .map(|candidate| (
-                    candidate.implementation_ref.as_str(),
-                    candidate.is_default
-                ))
+                .map(|candidate| (candidate.implementation_ref.as_str(), candidate.is_default))
                 .collect::<Vec<_>>(),
             vec![("impl:trusted-a", true), ("impl:trusted-b", false)]
         );
