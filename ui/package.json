@@ -11,7 +11,9 @@
     "perf:baseline": "node scripts/perf-baseline.mjs",
     "test:navigation": "node --experimental-strip-types scripts/navigation-check.mjs",
     "perf:navigation": "node --experimental-strip-types scripts/navigation-scale.mjs",
-    "test:annotations": "node --experimental-strip-types scripts/annotation-check.mjs"
+    "test:annotations": "node --experimental-strip-types scripts/annotation-check.mjs",
+    "test:presentation": "node --experimental-strip-types scripts/presentation-check.mjs",
+    "test:ui-protocol": "node scripts/ui-protocol-check.mjs"
   },
   "dependencies": {
     "@xyflow/react": "12.12.0",
