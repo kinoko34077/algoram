@@ -203,9 +203,7 @@ impl ImplementationRegistry {
                         )
                     })
             })
-            .min_by_key(|(observed_ns, non_default, index, _)| {
-                (*observed_ns, *non_default, *index)
-            })
+            .min_by_key(|(observed_ns, non_default, index, _)| (*observed_ns, *non_default, *index))
             .map(|(_, _, _, candidate_ref)| candidate_ref.as_str())
             .unwrap_or(choice.default_ref.as_str());
 
