@@ -101,6 +101,12 @@ assert.deepEqual(
   ["block:python-needle", "block:deep-target"],
 );
 
+const byBlockId = searchNavigation(index, "block:deep-target");
+assert.deepEqual(
+  byBlockId.map((record) => record.blockId),
+  ["block:deep-target"],
+);
+
 const bySource = searchNavigation(index, "src/common.ts");
 assert.deepEqual(
   bySource.map((record) => record.blockId),
