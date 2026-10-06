@@ -781,6 +781,205 @@ impl RuntimeInput {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionAccessClass {
+    AmbientHostProcess,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExecutionAccessRequirement {
+    pub step_id: String,
+    pub implementation_ref: String,
+    pub origin_block_ids: Vec<String>,
+    pub access_class: ExecutionAccessClass,
+    pub action: ProcessAction,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub argv_bindings: Vec<ArgvPortBinding>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExecutionAccessReport {
+    pub reference_graph_id: String,
+    pub requirements: Vec<ExecutionAccessRequirement>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ExecutionPolicy {
+    allowed_implementation_refs: BTreeSet<String>,
+}
+
+impl ExecutionPolicy {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn allow(&mut self, implementation_ref: impl Into<String>) {
+        self.allowed_implementation_refs
+            .insert(implementation_ref.into());
+    }
+
+    pub fn allows(&self, implementation_ref: &str) -> bool {
+        self.allowed_implementation_refs
+            .contains(implementation_ref)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExecutionSecurityError {
+    MissingTrustedImplementation {
+        step_id: String,
+        implementation_ref: String,
+    },
+    TrustedActionMismatch {
+        step_id: String,
+        implementation_ref: String,
+    },
+    ArgvBindingShapeMismatch {
+        step_id: String,
+        implementation_ref: String,
+        expected_ports: Vec<String>,
+        found_ports: Vec<String>,
+    },
+    DeniedImplementation {
+        step_id: String,
+        implementation_ref: String,
+    },
+}
+
+impl fmt::Display for ExecutionSecurityError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingTrustedImplementation {
+                step_id,
+                implementation_ref,
+            } => write!(
+                f,
+                "step '{step_id}' references implementation '{implementation_ref}' that is not a trusted local concrete action"
+            ),
+            Self::TrustedActionMismatch {
+                step_id,
+                implementation_ref,
+            } => write!(
+                f,
+                "step '{step_id}' action does not match trusted local implementation '{implementation_ref}'"
+            ),
+            Self::ArgvBindingShapeMismatch {
+                step_id,
+                implementation_ref,
+                expected_ports,
+                found_ports,
+            } => write!(
+                f,
+                "step '{step_id}' argv binding shape for implementation '{implementation_ref}' does not match trusted argv_ports: expected [{}], found [{}]",
+                expected_ports.join(", "),
+                found_ports.join(", ")
+            ),
+            Self::DeniedImplementation {
+                step_id,
+                implementation_ref,
+            } => write!(
+                f,
+                "step '{step_id}' implementation '{implementation_ref}' is not allowed by execution policy"
+            ),
+        }
+    }
+}
+
+impl Error for ExecutionSecurityError {}
+
+pub struct GuardedProcessRuntime;
+
+impl GuardedProcessRuntime {
+    pub fn inspect(
+        plan: &ExecutionPlan,
+        trusted_implementations: &ImplementationRegistry,
+    ) -> Result<ExecutionAccessReport, ExecutionSecurityError> {
+        let mut requirements = Vec::with_capacity(plan.steps.len());
+
+        for step in &plan.steps {
+            let trusted_action = trusted_implementations
+                .action(&step.implementation_ref)
+                .ok_or_else(|| ExecutionSecurityError::MissingTrustedImplementation {
+                    step_id: step.id.clone(),
+                    implementation_ref: step.implementation_ref.clone(),
+                })?;
+
+            if trusted_action != &step.action {
+                return Err(ExecutionSecurityError::TrustedActionMismatch {
+                    step_id: step.id.clone(),
+                    implementation_ref: step.implementation_ref.clone(),
+                });
+            }
+
+            let found_ports = step
+                .argv_bindings
+                .iter()
+                .map(|binding| binding.target_port_id.clone())
+                .collect::<Vec<_>>();
+            if found_ports != trusted_action.argv_ports {
+                return Err(ExecutionSecurityError::ArgvBindingShapeMismatch {
+                    step_id: step.id.clone(),
+                    implementation_ref: step.implementation_ref.clone(),
+                    expected_ports: trusted_action.argv_ports.clone(),
+                    found_ports,
+                });
+            }
+
+            requirements.push(ExecutionAccessRequirement {
+                step_id: step.id.clone(),
+                implementation_ref: step.implementation_ref.clone(),
+                origin_block_ids: step.origin_block_ids.clone(),
+                access_class: ExecutionAccessClass::AmbientHostProcess,
+                action: step.action.clone(),
+                argv_bindings: step.argv_bindings.clone(),
+            });
+        }
+
+        Ok(ExecutionAccessReport {
+            reference_graph_id: plan.reference_graph_id.clone(),
+            requirements,
+        })
+    }
+
+    pub fn preflight(
+        plan: &ExecutionPlan,
+        trusted_implementations: &ImplementationRegistry,
+        policy: &ExecutionPolicy,
+    ) -> Result<ExecutionAccessReport, ExecutionSecurityError> {
+        let report = Self::inspect(plan, trusted_implementations)?;
+
+        for requirement in &report.requirements {
+            if !policy.allows(&requirement.implementation_ref) {
+                return Err(ExecutionSecurityError::DeniedImplementation {
+                    step_id: requirement.step_id.clone(),
+                    implementation_ref: requirement.implementation_ref.clone(),
+                });
+            }
+        }
+
+        Ok(report)
+    }
+
+    pub fn execute(
+        plan: &ExecutionPlan,
+        trusted_implementations: &ImplementationRegistry,
+        policy: &ExecutionPolicy,
+    ) -> Result<ExecutionTrace, ExecutionSecurityError> {
+        Self::execute_with_inputs(plan, &[], trusted_implementations, policy)
+    }
+
+    pub fn execute_with_inputs(
+        plan: &ExecutionPlan,
+        inputs: &[RuntimeInput],
+        trusted_implementations: &ImplementationRegistry,
+        policy: &ExecutionPolicy,
+    ) -> Result<ExecutionTrace, ExecutionSecurityError> {
+        Self::preflight(plan, trusted_implementations, policy)?;
+        Ok(ProcessRuntime::execute_with_inputs(plan, inputs))
+    }
+}
+
 pub struct ProcessRuntime;
 
 impl ProcessRuntime {
@@ -1279,6 +1478,204 @@ mod tests {
         assert_eq!(trace.entries[0].status, TraceStatus::Failed);
         assert_eq!(trace.entries[1].status, TraceStatus::NotRun);
         assert!(trace.failed_entry().is_some());
+    }
+
+    fn marker_action(marker: &Path, value: &str) -> ProcessAction {
+        ProcessAction::new(
+            "python3",
+            [
+                "-c".to_owned(),
+                "from pathlib import Path; import sys; Path(sys.argv[1]).write_text(sys.argv[2])"
+                    .to_owned(),
+                marker.display().to_string(),
+                value.to_owned(),
+            ],
+        )
+    }
+
+    fn single_step_plan(implementation_ref: &str, action: ProcessAction) -> ExecutionPlan {
+        ExecutionPlan {
+            reference_graph_id: "graph:guarded".to_owned(),
+            steps: vec![ExecutionStep {
+                id: "step:guarded".to_owned(),
+                implementation_ref: implementation_ref.to_owned(),
+                action,
+                origin_block_ids: vec!["block:guarded".to_owned()],
+                source_anchors: Vec::new(),
+                route_connector_ids: Vec::new(),
+                argv_bindings: Vec::new(),
+            }],
+        }
+    }
+
+    #[test]
+    fn guarded_inspection_reports_actual_ambient_host_action() {
+        let action = ProcessAction::new(
+            "python3",
+            ["-c".to_owned(), "print('GUARDED_INSPECT')".to_owned()],
+        );
+        let plan = single_step_plan("impl:guarded", action.clone());
+
+        let mut trusted = ImplementationRegistry::new();
+        trusted.register("impl:guarded", action.clone()).unwrap();
+
+        let report = GuardedProcessRuntime::inspect(&plan, &trusted).unwrap();
+
+        assert_eq!(report.reference_graph_id, "graph:guarded");
+        assert_eq!(report.requirements.len(), 1);
+        let requirement = &report.requirements[0];
+        assert_eq!(requirement.step_id, "step:guarded");
+        assert_eq!(requirement.implementation_ref, "impl:guarded");
+        assert_eq!(requirement.origin_block_ids, vec!["block:guarded"]);
+        assert_eq!(
+            requirement.access_class,
+            ExecutionAccessClass::AmbientHostProcess
+        );
+        assert_eq!(requirement.action, action);
+        assert!(requirement.argv_bindings.is_empty());
+    }
+
+    #[test]
+    fn guarded_execution_is_default_deny_and_explicit_allow_succeeds() {
+        let action = ProcessAction::new(
+            "python3",
+            ["-c".to_owned(), "print('GUARDED_OK')".to_owned()],
+        );
+        let plan = single_step_plan("impl:guarded", action.clone());
+
+        let mut trusted = ImplementationRegistry::new();
+        trusted.register("impl:guarded", action).unwrap();
+
+        let denied =
+            GuardedProcessRuntime::execute(&plan, &trusted, &ExecutionPolicy::new()).unwrap_err();
+        assert!(matches!(
+            denied,
+            ExecutionSecurityError::DeniedImplementation { .. }
+        ));
+
+        let mut policy = ExecutionPolicy::new();
+        policy.allow("impl:guarded");
+        let trace = GuardedProcessRuntime::execute(&plan, &trusted, &policy).unwrap();
+        assert!(trace.succeeded());
+        assert_eq!(trace.entries[0].implementation_ref, "impl:guarded");
+        assert_eq!(trace.entries[0].origin_block_ids, vec!["block:guarded"]);
+        assert_eq!(trace.entries[0].stdout.trim(), "GUARDED_OK");
+    }
+
+    #[test]
+    fn guarded_full_plan_denial_prevents_all_process_launches() {
+        let marker_first = std::env::temp_dir().join(format!(
+            "algoram-guarded-first-must-not-run-{}",
+            std::process::id()
+        ));
+        let marker_second = std::env::temp_dir().join(format!(
+            "algoram-guarded-second-must-not-run-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&marker_first);
+        let _ = fs::remove_file(&marker_second);
+
+        let first_action = marker_action(&marker_first, "first");
+        let second_action = marker_action(&marker_second, "second");
+        let plan = ExecutionPlan {
+            reference_graph_id: "graph:guarded-full-plan".to_owned(),
+            steps: vec![
+                ExecutionStep {
+                    id: "step:first".to_owned(),
+                    implementation_ref: "impl:first".to_owned(),
+                    action: first_action.clone(),
+                    origin_block_ids: vec!["block:first".to_owned()],
+                    source_anchors: Vec::new(),
+                    route_connector_ids: Vec::new(),
+                    argv_bindings: Vec::new(),
+                },
+                ExecutionStep {
+                    id: "step:second".to_owned(),
+                    implementation_ref: "impl:second".to_owned(),
+                    action: second_action.clone(),
+                    origin_block_ids: vec!["block:second".to_owned()],
+                    source_anchors: Vec::new(),
+                    route_connector_ids: Vec::new(),
+                    argv_bindings: Vec::new(),
+                },
+            ],
+        };
+
+        let mut trusted = ImplementationRegistry::new();
+        trusted.register("impl:first", first_action).unwrap();
+        trusted.register("impl:second", second_action).unwrap();
+
+        let mut policy = ExecutionPolicy::new();
+        policy.allow("impl:first");
+
+        let error = GuardedProcessRuntime::execute(&plan, &trusted, &policy).unwrap_err();
+        assert!(matches!(
+            error,
+            ExecutionSecurityError::DeniedImplementation {
+                implementation_ref,
+                ..
+            } if implementation_ref == "impl:second"
+        ));
+        assert!(!marker_first.exists());
+        assert!(!marker_second.exists());
+    }
+
+    #[test]
+    fn guarded_missing_or_tampered_action_fails_before_launch() {
+        let marker = std::env::temp_dir().join(format!(
+            "algoram-guarded-tampered-must-not-run-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&marker);
+
+        let tampered_action = marker_action(&marker, "tampered");
+        let plan = single_step_plan("impl:guarded", tampered_action);
+
+        let trusted_action =
+            ProcessAction::new("python3", ["-c".to_owned(), "print('TRUSTED')".to_owned()]);
+        let mut trusted = ImplementationRegistry::new();
+        trusted.register("impl:guarded", trusted_action).unwrap();
+
+        let mut policy = ExecutionPolicy::new();
+        policy.allow("impl:guarded");
+
+        let tampered = GuardedProcessRuntime::execute(&plan, &trusted, &policy).unwrap_err();
+        assert!(matches!(
+            tampered,
+            ExecutionSecurityError::TrustedActionMismatch { .. }
+        ));
+        assert!(!marker.exists());
+
+        let missing =
+            GuardedProcessRuntime::inspect(&plan, &ImplementationRegistry::new()).unwrap_err();
+        assert!(matches!(
+            missing,
+            ExecutionSecurityError::MissingTrustedImplementation { .. }
+        ));
+        assert!(!marker.exists());
+    }
+
+    #[test]
+    fn guarded_argv_binding_shape_cannot_exceed_trusted_action_contract() {
+        let trusted_action = ProcessAction::new(
+            "python3",
+            ["-c".to_owned(), "print('BINDING_SHAPE')".to_owned()],
+        )
+        .with_argv_ports(["value"]);
+        let plan = single_step_plan("impl:guarded", trusted_action.clone());
+
+        let mut trusted = ImplementationRegistry::new();
+        trusted.register("impl:guarded", trusted_action).unwrap();
+
+        let error = GuardedProcessRuntime::inspect(&plan, &trusted).unwrap_err();
+        assert!(matches!(
+            error,
+            ExecutionSecurityError::ArgvBindingShapeMismatch {
+                expected_ports,
+                found_ports,
+                ..
+            } if expected_ports == vec!["value"] && found_ports.is_empty()
+        ));
     }
 
     fn repo_root() -> PathBuf {
