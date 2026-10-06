@@ -245,6 +245,218 @@ pub struct ExecutionPlan {
     pub steps: Vec<ExecutionStep>,
 }
 
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeLocationClass {
+    LocalProcess,
+    RuntimeAgent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeEndpoint {
+    pub runtime_ref: String,
+    pub class: RuntimeLocationClass,
+    #[serde(default)]
+    pub implementation_refs: Vec<String>,
+}
+
+impl RuntimeEndpoint {
+    pub fn new(
+        runtime_ref: impl Into<String>,
+        class: RuntimeLocationClass,
+        implementation_refs: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        Self {
+            runtime_ref: runtime_ref.into(),
+            class,
+            implementation_refs: implementation_refs.into_iter().map(Into::into).collect(),
+        }
+    }
+
+    pub fn supports(&self, implementation_ref: &str) -> bool {
+        self.implementation_refs
+            .iter()
+            .any(|candidate| candidate == implementation_ref)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StepPlacement {
+    pub step_id: String,
+    pub runtime_ref: String,
+}
+
+impl StepPlacement {
+    pub fn new(step_id: impl Into<String>, runtime_ref: impl Into<String>) -> Self {
+        Self {
+            step_id: step_id.into(),
+            runtime_ref: runtime_ref.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlacedExecutionPlan {
+    pub plan: ExecutionPlan,
+    pub placements: Vec<StepPlacement>,
+}
+
+impl PlacedExecutionPlan {
+    pub fn new(
+        plan: ExecutionPlan,
+        placements: impl IntoIterator<Item = StepPlacement>,
+    ) -> Self {
+        Self {
+            plan,
+            placements: placements.into_iter().collect(),
+        }
+    }
+
+    pub fn validate(&self, endpoints: &[RuntimeEndpoint]) -> Result<(), PlacementError> {
+        let mut step_ids = BTreeSet::new();
+        for step in &self.plan.steps {
+            if !step_ids.insert(step.id.as_str()) {
+                return Err(PlacementError::DuplicatePlanStepId(step.id.clone()));
+            }
+        }
+
+        let mut endpoint_by_ref = BTreeMap::<&str, &RuntimeEndpoint>::new();
+        for endpoint in endpoints {
+            if endpoint.runtime_ref.trim().is_empty() {
+                return Err(PlacementError::EmptyRuntimeRef);
+            }
+            if endpoint_by_ref
+                .insert(endpoint.runtime_ref.as_str(), endpoint)
+                .is_some()
+            {
+                return Err(PlacementError::DuplicateRuntimeRef(
+                    endpoint.runtime_ref.clone(),
+                ));
+            }
+        }
+
+        let step_by_id = self
+            .plan
+            .steps
+            .iter()
+            .map(|step| (step.id.as_str(), step))
+            .collect::<BTreeMap<_, _>>();
+        let mut placed_step_ids = BTreeSet::new();
+
+        for placement in &self.placements {
+            let step = step_by_id.get(placement.step_id.as_str()).ok_or_else(|| {
+                PlacementError::UnknownPlacementStep {
+                    step_id: placement.step_id.clone(),
+                }
+            })?;
+
+            if !placed_step_ids.insert(placement.step_id.as_str()) {
+                return Err(PlacementError::DuplicatePlacement {
+                    step_id: placement.step_id.clone(),
+                });
+            }
+
+            let endpoint = endpoint_by_ref
+                .get(placement.runtime_ref.as_str())
+                .ok_or_else(|| PlacementError::UnknownRuntime {
+                    step_id: placement.step_id.clone(),
+                    runtime_ref: placement.runtime_ref.clone(),
+                })?;
+
+            if !endpoint.supports(&step.implementation_ref) {
+                return Err(PlacementError::ImplementationUnavailable {
+                    step_id: step.id.clone(),
+                    runtime_ref: endpoint.runtime_ref.clone(),
+                    implementation_ref: step.implementation_ref.clone(),
+                });
+            }
+        }
+
+        for step in &self.plan.steps {
+            if !placed_step_ids.contains(step.id.as_str()) {
+                return Err(PlacementError::MissingPlacement {
+                    step_id: step.id.clone(),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn runtime_for_step(&self, step_id: &str) -> Option<&str> {
+        self.placements
+            .iter()
+            .find(|placement| placement.step_id == step_id)
+            .map(|placement| placement.runtime_ref.as_str())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PlacementError {
+    DuplicatePlanStepId(String),
+    EmptyRuntimeRef,
+    DuplicateRuntimeRef(String),
+    UnknownPlacementStep {
+        step_id: String,
+    },
+    DuplicatePlacement {
+        step_id: String,
+    },
+    MissingPlacement {
+        step_id: String,
+    },
+    UnknownRuntime {
+        step_id: String,
+        runtime_ref: String,
+    },
+    ImplementationUnavailable {
+        step_id: String,
+        runtime_ref: String,
+        implementation_ref: String,
+    },
+}
+
+impl fmt::Display for PlacementError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DuplicatePlanStepId(step_id) => {
+                write!(f, "execution Plan contains duplicate step id '{step_id}'")
+            }
+            Self::EmptyRuntimeRef => write!(f, "runtime endpoint ref must not be empty"),
+            Self::DuplicateRuntimeRef(runtime_ref) => {
+                write!(f, "duplicate runtime endpoint ref '{runtime_ref}'")
+            }
+            Self::UnknownPlacementStep { step_id } => {
+                write!(f, "placement references unknown execution step '{step_id}'")
+            }
+            Self::DuplicatePlacement { step_id } => {
+                write!(f, "execution step '{step_id}' is placed more than once")
+            }
+            Self::MissingPlacement { step_id } => {
+                write!(f, "execution step '{step_id}' has no runtime placement")
+            }
+            Self::UnknownRuntime {
+                step_id,
+                runtime_ref,
+            } => write!(
+                f,
+                "execution step '{step_id}' references unknown runtime '{runtime_ref}'"
+            ),
+            Self::ImplementationUnavailable {
+                step_id,
+                runtime_ref,
+                implementation_ref,
+            } => write!(
+                f,
+                "execution step '{step_id}' implementation '{implementation_ref}' is unavailable at runtime '{runtime_ref}'"
+            ),
+        }
+    }
+}
+
+impl Error for PlacementError {}
+
 pub struct Planner;
 
 impl Planner {
@@ -1191,6 +1403,200 @@ mod tests {
             },
             extensions: Extensions::new(),
         }
+    }
+
+
+    fn placement_test_plan() -> ExecutionPlan {
+        ExecutionPlan {
+            reference_graph_id: "graph:placement".to_owned(),
+            steps: vec![
+                ExecutionStep {
+                    id: "step:local".to_owned(),
+                    implementation_ref: "impl:local".to_owned(),
+                    action: ProcessAction::new("local-program", std::iter::empty::<&str>()),
+                    origin_block_ids: vec!["block:local".to_owned()],
+                    source_anchors: Vec::new(),
+                    route_connector_ids: Vec::new(),
+                    argv_bindings: Vec::new(),
+                },
+                ExecutionStep {
+                    id: "step:agent".to_owned(),
+                    implementation_ref: "impl:agent".to_owned(),
+                    action: ProcessAction::new("agent-program", std::iter::empty::<&str>()),
+                    origin_block_ids: vec!["block:agent".to_owned()],
+                    source_anchors: Vec::new(),
+                    route_connector_ids: Vec::new(),
+                    argv_bindings: Vec::new(),
+                },
+            ],
+        }
+    }
+
+    fn placement_test_endpoints() -> Vec<RuntimeEndpoint> {
+        vec![
+            RuntimeEndpoint::new(
+                "runtime:local",
+                RuntimeLocationClass::LocalProcess,
+                ["impl:local"],
+            ),
+            RuntimeEndpoint::new(
+                "runtime:agent",
+                RuntimeLocationClass::RuntimeAgent,
+                ["impl:agent"],
+            ),
+        ]
+    }
+
+    fn valid_placed_plan() -> PlacedExecutionPlan {
+        PlacedExecutionPlan::new(
+            placement_test_plan(),
+            [
+                StepPlacement::new("step:local", "runtime:local"),
+                StepPlacement::new("step:agent", "runtime:agent"),
+            ],
+        )
+    }
+
+    #[test]
+    fn placed_plan_validates_multi_endpoint_assignment_and_round_trips() {
+        let placed = valid_placed_plan();
+        let endpoints = placement_test_endpoints();
+
+        placed.validate(&endpoints).unwrap();
+        assert_eq!(
+            placed.runtime_for_step("step:local"),
+            Some("runtime:local")
+        );
+        assert_eq!(
+            placed.runtime_for_step("step:agent"),
+            Some("runtime:agent")
+        );
+
+        let original_plan_json = serde_json::to_value(&placed.plan).unwrap();
+        assert!(original_plan_json.get("placements").is_none());
+        assert!(original_plan_json.get("runtime_ref").is_none());
+
+        let serialized = serde_json::to_string(&placed).unwrap();
+        let restored: PlacedExecutionPlan = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(restored, placed);
+        assert_eq!(restored.plan, placed.plan);
+        assert_eq!(serde_json::to_value(&restored.plan).unwrap(), original_plan_json);
+        restored.validate(&endpoints).unwrap();
+    }
+
+    #[test]
+    fn placed_plan_rejects_missing_duplicate_and_unknown_step_placements() {
+        let endpoints = placement_test_endpoints();
+
+        let missing = PlacedExecutionPlan::new(
+            placement_test_plan(),
+            [StepPlacement::new("step:local", "runtime:local")],
+        );
+        assert!(matches!(
+            missing.validate(&endpoints),
+            Err(PlacementError::MissingPlacement { step_id })
+                if step_id == "step:agent"
+        ));
+
+        let duplicate = PlacedExecutionPlan::new(
+            placement_test_plan(),
+            [
+                StepPlacement::new("step:local", "runtime:local"),
+                StepPlacement::new("step:local", "runtime:local"),
+                StepPlacement::new("step:agent", "runtime:agent"),
+            ],
+        );
+        assert!(matches!(
+            duplicate.validate(&endpoints),
+            Err(PlacementError::DuplicatePlacement { step_id })
+                if step_id == "step:local"
+        ));
+
+        let unknown = PlacedExecutionPlan::new(
+            placement_test_plan(),
+            [
+                StepPlacement::new("step:local", "runtime:local"),
+                StepPlacement::new("step:agent", "runtime:agent"),
+                StepPlacement::new("step:ghost", "runtime:local"),
+            ],
+        );
+        assert!(matches!(
+            unknown.validate(&endpoints),
+            Err(PlacementError::UnknownPlacementStep { step_id })
+                if step_id == "step:ghost"
+        ));
+    }
+
+    #[test]
+    fn placed_plan_rejects_unknown_runtime_and_unavailable_implementation() {
+        let endpoints = placement_test_endpoints();
+
+        let unknown_runtime = PlacedExecutionPlan::new(
+            placement_test_plan(),
+            [
+                StepPlacement::new("step:local", "runtime:missing"),
+                StepPlacement::new("step:agent", "runtime:agent"),
+            ],
+        );
+        assert!(matches!(
+            unknown_runtime.validate(&endpoints),
+            Err(PlacementError::UnknownRuntime {
+                step_id,
+                runtime_ref,
+            }) if step_id == "step:local" && runtime_ref == "runtime:missing"
+        ));
+
+        let unavailable = PlacedExecutionPlan::new(
+            placement_test_plan(),
+            [
+                StepPlacement::new("step:local", "runtime:agent"),
+                StepPlacement::new("step:agent", "runtime:local"),
+            ],
+        );
+        assert!(matches!(
+            unavailable.validate(&endpoints),
+            Err(PlacementError::ImplementationUnavailable {
+                step_id,
+                runtime_ref,
+                implementation_ref,
+            }) if step_id == "step:local"
+                && runtime_ref == "runtime:agent"
+                && implementation_ref == "impl:local"
+        ));
+    }
+
+    #[test]
+    fn placed_plan_rejects_ambiguous_plan_or_runtime_identity() {
+        let mut duplicate_step_plan = placement_test_plan();
+        duplicate_step_plan.steps[1].id = "step:local".to_owned();
+        let duplicate_step = PlacedExecutionPlan::new(
+            duplicate_step_plan,
+            [StepPlacement::new("step:local", "runtime:local")],
+        );
+        assert!(matches!(
+            duplicate_step.validate(&placement_test_endpoints()),
+            Err(PlacementError::DuplicatePlanStepId(step_id))
+                if step_id == "step:local"
+        ));
+
+        let duplicate_runtime = vec![
+            RuntimeEndpoint::new(
+                "runtime:same",
+                RuntimeLocationClass::LocalProcess,
+                ["impl:local"],
+            ),
+            RuntimeEndpoint::new(
+                "runtime:same",
+                RuntimeLocationClass::RuntimeAgent,
+                ["impl:agent"],
+            ),
+        ];
+        assert!(matches!(
+            valid_placed_plan().validate(&duplicate_runtime),
+            Err(PlacementError::DuplicateRuntimeRef(runtime_ref))
+                if runtime_ref == "runtime:same"
+        ));
     }
 
     #[test]
