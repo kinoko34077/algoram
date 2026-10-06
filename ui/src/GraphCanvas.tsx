@@ -328,11 +328,7 @@ function CanvasBody({
         <MiniMap
           pannable
           zoomable
-          nodeColor={(node) =>
-            node.selected ? "#a978ff" : node.data.block.internal_graph_ref
-              ? "#3f7eb8"
-              : "#46505e"
-          }
+          nodeColor={(node) => (node.selected ? "#a978ff" : "#46505e")}
           maskColor="rgb(10 12 16 / 72%)"
         />
         <Controls />
