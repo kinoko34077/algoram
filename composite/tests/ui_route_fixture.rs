@@ -11,7 +11,7 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn accepted_route_graph() -> Graph {
+fn python_c_route_graph() -> Graph {
     let mut registry = RouteRegistry::new();
     registry
         .register(
@@ -43,31 +43,95 @@ fn accepted_route_graph() -> Graph {
         ))
         .unwrap()
         .route()
-        .expect("accepted prototype route resolves")
+        .expect("accepted Python/C route resolves")
         .to_inspection_graph()
         .unwrap()
 }
 
-#[test]
-fn checked_in_ui_route_graph_matches_accepted_interop_projection() {
-    let path = repo_root().join("ui/src/generated/phase1-route.json");
-    let text = fs::read_to_string(path).expect("checked-in UI route fixture exists");
-    let checked_in: Graph =
-        serde_json::from_str(&text).expect("checked-in UI route fixture is valid Graph JSON");
+fn python_rust_route_graph() -> Graph {
+    let mut registry = RouteRegistry::new();
+    registry
+        .register(
+            Connector::new(
+                "python-ctypes-c-abi-int32",
+                ContractId::from("python:ctypes:c_int"),
+                ContractId::from("c:abi:int32"),
+                "fixture:python-c-ctypes",
+            )
+            .with_transfer(TransferMode::Copy),
+        )
+        .unwrap();
+    registry
+        .register(
+            Connector::new(
+                "c-abi-call-rust-algoram-checked-triple",
+                ContractId::from("c:abi:int32"),
+                ContractId::from(
+                    "rust:extern-c:function:algoram_checked_triple:int32",
+                ),
+                "fixture:rust:extern-c:algoram_checked_triple",
+            )
+            .with_transfer(TransferMode::Copy),
+        )
+        .unwrap();
 
-    let expected = accepted_route_graph();
+    registry
+        .resolve(&RouteRequest::automatic(
+            "python:ctypes:c_int",
+            "rust:extern-c:function:algoram_checked_triple:int32",
+        ))
+        .unwrap()
+        .route()
+        .expect("accepted Python/Rust route resolves")
+        .to_inspection_graph()
+        .unwrap()
+}
+
+fn checked_in_graph(relative_path: &str) -> Graph {
+    let path = repo_root().join(relative_path);
+    let text = fs::read_to_string(path).expect("checked-in UI route fixture exists");
+    serde_json::from_str(&text).expect("checked-in UI route fixture is valid Graph JSON")
+}
+
+#[test]
+fn checked_in_phase1_route_graph_matches_accepted_interop_projection() {
+    let checked_in = checked_in_graph("ui/src/generated/phase1-route.json");
+    let expected = python_c_route_graph();
 
     assert_eq!(checked_in, expected);
     checked_in.validate().unwrap();
 }
 
 #[test]
-fn checked_in_ui_route_fixture_contains_no_manual_equivalence_claim() {
-    let path = repo_root().join("ui/src/generated/phase1-route.json");
-    let text = fs::read_to_string(path).expect("checked-in UI route fixture exists");
-    let value: Value = serde_json::from_str(&text).unwrap();
+fn checked_in_phase2_rust_route_graph_matches_accepted_interop_projection() {
+    let checked_in = checked_in_graph("ui/src/generated/phase2-rust-route.json");
+    let expected = python_rust_route_graph();
 
-    let serialized = serde_json::to_string(&value).unwrap();
-    assert!(!serialized.contains("equivalent"));
-    assert!(!serialized.contains("substitutable"));
+    assert_eq!(checked_in, expected);
+    checked_in.validate().unwrap();
+    assert_eq!(checked_in.blocks.len(), 2);
+    assert_eq!(
+        checked_in.blocks[0].extensions["interop"]["connector_id"],
+        Value::String("python-ctypes-c-abi-int32".to_owned())
+    );
+    assert_eq!(
+        checked_in.blocks[1].extensions["interop"]["connector_id"],
+        Value::String("c-abi-call-rust-algoram-checked-triple".to_owned())
+    );
+}
+
+#[test]
+fn checked_in_ui_route_fixtures_contain_no_manual_equivalence_claim() {
+    for relative_path in [
+        "ui/src/generated/phase1-route.json",
+        "ui/src/generated/phase2-rust-route.json",
+    ] {
+        let path = repo_root().join(relative_path);
+        let text = fs::read_to_string(path).expect("checked-in UI route fixture exists");
+        let value: Value = serde_json::from_str(&text).unwrap();
+
+        let serialized = serde_json::to_string(&value).unwrap();
+        assert!(!serialized.contains("equivalent"));
+        assert!(!serialized.contains("substitutable"));
+    }
 }
