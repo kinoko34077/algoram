@@ -5,6 +5,7 @@ edition = "2021"
 description = "Read-only failure impact and recovery analysis for Algoram"
 
 [dependencies]
+algoram-catalog = { path = "../catalog" }
 algoram-core = { path = "../core" }
 algoram-interop = { path = "../interop" }
 algoram-runtime = { path = "../runtime" }
