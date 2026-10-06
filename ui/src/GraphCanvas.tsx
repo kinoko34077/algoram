@@ -352,6 +352,13 @@ function CanvasBody({
     [graph, onPresentationChange, presentation],
   );
 
+  const handleSelectionChange = useCallback(
+    ({ nodes: selectedNodes }: { nodes: FlowBlockNode[] }) => {
+      onSelectBlock(selectedNodes.at(-1)?.id ?? null);
+    },
+    [onSelectBlock],
+  );
+
   const resetLayout = useCallback(() => {
     onPresentationChange(resetNodePositions);
     void loadLayout(false);
@@ -416,9 +423,7 @@ function CanvasBody({
           onConnect={connectDraft}
           isValidConnection={isValidConnection}
           onNodeClick={(_, node) => onSelectBlock(node.id)}
-          onSelectionChange={({ nodes: selectedNodes }) =>
-            onSelectBlock(selectedNodes.at(-1)?.id ?? null)
-          }
+          onSelectionChange={handleSelectionChange}
           onNodeDoubleClick={(_, node) => {
             const reference = node.data.block.internal_graph_ref;
             if (reference) {
