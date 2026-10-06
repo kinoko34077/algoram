@@ -1528,5 +1528,4 @@ mod tests {
             }) if expected == "graph:other" && actual == "graph:primary"
         ));
     }
-
 }
