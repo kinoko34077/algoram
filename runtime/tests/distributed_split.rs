@@ -186,7 +186,7 @@ fn local_stdout_crosses_agent_boundary_and_returns_one_attributed_trace() {
             assert_eq!(request.inputs.len(), 1);
             assert_eq!(request.inputs[0].value, "LOCAL_VALUE");
             assert!(matches!(
-                request.plan.steps[0].argv_bindings[0].source,
+                &request.plan.steps[0].argv_bindings[0].source,
                 ArgvBindingSource::ExternalPort { .. }
             ));
             Ok(run_child_agent(&request, "success"))
@@ -223,8 +223,8 @@ fn local_stdout_crosses_agent_boundary_and_returns_one_attributed_trace() {
     assert_eq!(placed.plan, plan);
     assert_eq!(placed.plan.steps[1].action, remote_action());
     assert!(matches!(
-        placed.plan.steps[1].argv_bindings[0].source,
-        ArgvBindingSource::StepStdout { ref step_id } if step_id == "step:local"
+        &placed.plan.steps[1].argv_bindings[0].source,
+        ArgvBindingSource::StepStdout { step_id } if step_id == "step:local"
     ));
 
     let serialized = serde_json::to_string(&trace).unwrap();
