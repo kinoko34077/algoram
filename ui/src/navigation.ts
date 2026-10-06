@@ -68,9 +68,7 @@ export function buildNavigationIndex(bundle: ReferenceBundle): NavigationIndex {
   const records: NavigationRecord[] = [];
   const containmentEdges: NavigationContainmentEdge[] = [];
 
-  const graphIds = Object.keys(bundle.graphs).sort((left, right) =>
-    left.localeCompare(right),
-  );
+  const graphIds = Object.keys(bundle.graphs).sort(compareText);
 
   for (const graphId of graphIds) {
     const graph = bundle.graphs[graphId];
@@ -117,14 +115,24 @@ export function buildNavigationIndex(bundle: ReferenceBundle): NavigationIndex {
   };
 }
 
+function compareText(left: string, right: string): number {
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
+}
+
 function compareRecords(
   left: NavigationRecord,
   right: NavigationRecord,
 ): number {
   return (
-    left.label.localeCompare(right.label) ||
-    left.graphId.localeCompare(right.graphId) ||
-    left.blockId.localeCompare(right.blockId)
+    compareText(left.label, right.label) ||
+    compareText(left.graphId, right.graphId) ||
+    compareText(left.blockId, right.blockId)
   );
 }
 
@@ -133,9 +141,9 @@ function compareEdges(
   right: NavigationContainmentEdge,
 ): number {
   return (
-    left.parentGraphId.localeCompare(right.parentGraphId) ||
-    left.childGraphId.localeCompare(right.childGraphId) ||
-    left.viaBlockId.localeCompare(right.viaBlockId)
+    compareText(left.parentGraphId, right.parentGraphId) ||
+    compareText(left.childGraphId, right.childGraphId) ||
+    compareText(left.viaBlockId, right.viaBlockId)
   );
 }
 
@@ -147,7 +155,7 @@ function searchableText(record: NavigationRecord): string[] {
     record.semanticKey,
   ]
     .filter((value): value is string => value !== undefined)
-    .map((value) => value.toLocaleLowerCase());
+    .map((value) => value.toLowerCase());
 }
 
 export function searchNavigation(
@@ -155,14 +163,14 @@ export function searchNavigation(
   query: string,
   options: NavigationSearchOptions = {},
 ): NavigationRecord[] {
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  const language = options.language?.trim().toLocaleLowerCase();
+  const normalizedQuery = query.trim().toLowerCase();
+  const language = options.language?.trim().toLowerCase();
 
   return index.records
     .filter((record) => {
       if (
         language &&
-        record.sourceLanguage?.toLocaleLowerCase() !== language
+        record.sourceLanguage?.toLowerCase() !== language
       ) {
         return false;
       }
