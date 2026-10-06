@@ -13,12 +13,7 @@ const IMPLEMENTATION_REF: &str = "fixture:replay-process";
 const SOURCE_ARTIFACT_ID: &str = "artifact:plan-replay";
 const SOURCE_TEXT: &str = "print('replayed-plan')\n";
 
-fn port(
-    id: &str,
-    direction: PortDirection,
-    channel: PortChannel,
-    contract: Option<&str>,
-) -> Port {
+fn port(id: &str, direction: PortDirection, channel: PortChannel, contract: Option<&str>) -> Port {
     Port {
         id: id.to_owned(),
         direction,
