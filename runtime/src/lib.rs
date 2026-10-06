@@ -966,6 +966,7 @@ mod tests {
                     origin_block_ids: vec!["block:fail".to_owned()],
                     source_anchors: Vec::new(),
                     route_connector_ids: Vec::new(),
+                    argv_bindings: Vec::new(),
                 },
                 ExecutionStep {
                     id: "step:later".to_owned(),
@@ -977,6 +978,7 @@ mod tests {
                     origin_block_ids: vec!["block:later".to_owned()],
                     source_anchors: Vec::new(),
                     route_connector_ids: Vec::new(),
+                    argv_bindings: Vec::new(),
                 },
             ],
         };
