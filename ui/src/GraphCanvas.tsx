@@ -165,14 +165,12 @@ function CanvasBody({
     useNodesState<FlowBlockNode>([]);
   const [edges, setEdges] = useEdgesState<Edge>([]);
   const [layoutError, setLayoutError] = useState<string | null>(null);
-  const [draftCount, setDraftCount] = useState(0);
   const draftSequence = useRef(0);
   const { fitView } = useReactFlow<FlowBlockNode>();
 
   const restoreCanonicalEdges = useCallback(() => {
     setEdges(toFlowEdges(graph));
     draftSequence.current = 0;
-    setDraftCount(0);
   }, [graph, setEdges]);
 
   const autoLayout = useCallback(async () => {
@@ -244,6 +242,11 @@ function CanvasBody({
     [baseNodes, selectedBlockId],
   );
 
+  const draftCount = useMemo(
+    () => edges.filter((edge) => edge.id.startsWith("draft:")).length,
+    [edges],
+  );
+
   const connectDraft = useCallback(
     (connection: Connection) => {
       if (!connection.source || !connection.target) {
@@ -265,7 +268,6 @@ function CanvasBody({
           current,
         ),
       );
-      setDraftCount((count) => count + 1);
     },
     [graph.id, setEdges],
   );
