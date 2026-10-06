@@ -1,0 +1,78 @@
+{
+  "schema_version": "algoram.graph/0.1",
+  "id": "graph:interop:python_ctypes_c_int->c_function_algoram_checked_double_int32",
+  "label": "Interop route: python:ctypes:c_int → c:function:algoram_checked_double:int32",
+  "blocks": [
+    {
+      "id": "interop:connector:python-ctypes-c-abi-int32",
+      "label": "python-ctypes-c-abi-int32",
+      "ports": [
+        {
+          "id": "in",
+          "direction": "in",
+          "channel": "data",
+          "contract": "python:ctypes:c_int"
+        },
+        {
+          "id": "out",
+          "direction": "out",
+          "channel": "data",
+          "contract": "c:abi:int32"
+        }
+      ],
+      "implementation_ref": "fixture:python-c-ctypes",
+      "extensions": {
+        "interop": {
+          "connector_id": "python-ctypes-c-abi-int32",
+          "source_contract": "python:ctypes:c_int",
+          "target_contract": "c:abi:int32",
+          "implementation_ref": "fixture:python-c-ctypes",
+          "transfer": "copy",
+          "scheduling": "sync"
+        }
+      }
+    },
+    {
+      "id": "interop:connector:c-abi-call-algoram-checked-double",
+      "label": "c-abi-call-algoram-checked-double",
+      "ports": [
+        {
+          "id": "in",
+          "direction": "in",
+          "channel": "data",
+          "contract": "c:abi:int32"
+        },
+        {
+          "id": "out",
+          "direction": "out",
+          "channel": "data",
+          "contract": "c:function:algoram_checked_double:int32"
+        }
+      ],
+      "implementation_ref": "fixture:c:function:algoram_checked_double",
+      "extensions": {
+        "interop": {
+          "connector_id": "c-abi-call-algoram-checked-double",
+          "source_contract": "c:abi:int32",
+          "target_contract": "c:function:algoram_checked_double:int32",
+          "implementation_ref": "fixture:c:function:algoram_checked_double",
+          "transfer": "copy",
+          "scheduling": "sync"
+        }
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "route:interop:connector:python-ctypes-c-abi-int32->interop:connector:c-abi-call-algoram-checked-double",
+      "source": {
+        "block_id": "interop:connector:python-ctypes-c-abi-int32",
+        "port_id": "out"
+      },
+      "target": {
+        "block_id": "interop:connector:c-abi-call-algoram-checked-double",
+        "port_id": "in"
+      }
+    }
+  ]
+}
