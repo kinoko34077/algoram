@@ -20,12 +20,7 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn port(
-    id: &str,
-    direction: PortDirection,
-    channel: PortChannel,
-    contract: Option<&str>,
-) -> Port {
+fn port(id: &str, direction: PortDirection, channel: PortChannel, contract: Option<&str>) -> Port {
     Port {
         id: id.to_owned(),
         direction,
@@ -111,10 +106,7 @@ fn implementations(value: i32) -> ImplementationRegistry {
     implementations
         .register(
             PROCESS_IMPL,
-            ProcessAction::new(
-                "python3",
-                [script.display().to_string(), value.to_string()],
-            ),
+            ProcessAction::new("python3", [script.display().to_string(), value.to_string()]),
         )
         .unwrap();
     implementations
