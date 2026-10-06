@@ -89,7 +89,10 @@ fn json_only_imported_package_is_default_denied_then_explicitly_guarded() {
 
     let instance = package
         .definition
-        .instantiate("block:guarded-consumer-instance", "Guarded imported instance")
+        .instantiate(
+            "block:guarded-consumer-instance",
+            "Guarded imported instance",
+        )
         .unwrap();
 
     let marker = std::env::temp_dir().join(format!(
@@ -144,10 +147,7 @@ fn json_only_imported_package_is_default_denied_then_explicitly_guarded() {
     assert!(trace.succeeded());
     assert_eq!(trace.entries.len(), 1);
     assert_eq!(trace.entries[0].status, TraceStatus::Succeeded);
-    assert_eq!(
-        trace.entries[0].implementation_ref,
-        "impl:guarded-package"
-    );
+    assert_eq!(trace.entries[0].implementation_ref, "impl:guarded-package");
     assert_eq!(
         trace.entries[0].origin_block_ids,
         vec![
@@ -160,10 +160,7 @@ fn json_only_imported_package_is_default_denied_then_explicitly_guarded() {
         "artifact:guarded-portable-source"
     );
     assert_eq!(
-        trace.entries[0]
-            .source_anchors[0]
-            .semantic_key
-            .as_deref(),
+        trace.entries[0].source_anchors[0].semantic_key.as_deref(),
         Some("python:guarded_portable.main")
     );
     assert_eq!(trace.entries[0].stdout.trim(), "GUARDED_PACKAGE_OK");
