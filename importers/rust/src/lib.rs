@@ -342,7 +342,10 @@ impl<'a> Builder<'a> {
         ids: &mut IdAllocator,
     ) -> Result<Block, RustImportError> {
         let name = child_text(node, "name", self.source).unwrap_or("<anonymous>");
-        let block_id = ids.allocate(parent_identity, &format!("struct:{}", stable_fragment(name)));
+        let block_id = ids.allocate(
+            parent_identity,
+            &format!("struct:{}", stable_fragment(name)),
+        );
         let graph_id = format!("graph:{block_id}");
 
         let mut block = block_for_node(
@@ -406,12 +409,8 @@ impl<'a> Builder<'a> {
 
         if let Some(body) = node.child_by_field_name("body") {
             block.internal_graph_ref = Some(graph_id.clone());
-            let nested = self.build_scope(
-                &graph_id,
-                Some(label),
-                &block_id,
-                named_children(body),
-            )?;
+            let nested =
+                self.build_scope(&graph_id, Some(label), &block_id, named_children(body))?;
             self.nested_graphs.insert(graph_id, nested);
         }
 
@@ -425,7 +424,10 @@ impl<'a> Builder<'a> {
         ids: &mut IdAllocator,
     ) -> Result<Block, RustImportError> {
         let name = child_text(node, "name", self.source).unwrap_or("<anonymous>");
-        let block_id = ids.allocate(parent_identity, &format!("module:{}", stable_fragment(name)));
+        let block_id = ids.allocate(
+            parent_identity,
+            &format!("module:{}", stable_fragment(name)),
+        );
         let graph_id = format!("graph:{block_id}");
 
         let mut block = block_for_node(
@@ -989,7 +991,9 @@ extern "C" fn exported(x: i32) -> i32 {
         imported.validate().unwrap();
 
         let blocks = all_blocks(&imported);
-        assert!(blocks.iter().any(|block| kind(block) == Some("struct_item")));
+        assert!(blocks
+            .iter()
+            .any(|block| kind(block) == Some("struct_item")));
         assert!(blocks.iter().any(|block| kind(block) == Some("impl_item")));
 
         let double = function_named(&imported, "double");
@@ -1024,10 +1028,7 @@ extern "C" fn exported(x: i32) -> i32 {
             .any(|block| kind(block) == Some("return_expression")));
 
         let exported = function_named(&imported, "exported");
-        assert_eq!(
-            rust_syntax(exported)["extern_abi"],
-            json!("extern \"C\"")
-        );
+        assert_eq!(rust_syntax(exported)["extern_abi"], json!("extern \"C\""));
     }
 
     #[test]
@@ -1055,7 +1056,10 @@ extern "C" fn exported(x: i32) -> i32 {
         let first = import_rust("artifact:rust-stable", "stable.rs", base).unwrap();
         let second = import_rust("artifact:rust-stable", "stable.rs", shifted).unwrap();
 
-        assert_eq!(function_named(&first, "f").id, function_named(&second, "f").id);
+        assert_eq!(
+            function_named(&first, "f").id,
+            function_named(&second, "f").id
+        );
 
         let first_struct = all_blocks(&first)
             .into_iter()
