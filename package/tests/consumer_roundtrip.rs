@@ -70,7 +70,10 @@ fn json_only_consumer_can_inspect_instantiate_compose_and_execute_package() {
     let artifact = &package.definition.internal_graph.source_artifacts[0];
     assert_eq!(artifact.origin, "src/portable.py");
     assert_eq!(artifact.revision.as_deref(), Some("source-rev-1"));
-    assert_eq!(artifact.repository_origin.as_deref(), Some("producer/repository"));
+    assert_eq!(
+        artifact.repository_origin.as_deref(),
+        Some("producer/repository")
+    );
     assert_eq!(artifact.license.as_deref(), Some("MIT"));
 
     let executable = package
@@ -124,10 +127,7 @@ fn json_only_consumer_can_inspect_instantiate_compose_and_execute_package() {
     assert_eq!(trace.entries.len(), 1);
     assert_eq!(trace.entries[0].status, TraceStatus::Succeeded);
     assert_eq!(trace.entries[0].stdout.trim(), "PACKAGE_CONSUMER_OK");
-    assert_eq!(
-        trace.entries[0].implementation_ref,
-        "impl:packaged-hello"
-    );
+    assert_eq!(trace.entries[0].implementation_ref, "impl:packaged-hello");
     assert_eq!(
         trace.entries[0].origin_block_ids,
         vec!["block:consumer-instance", "block:packaged-executable"]
