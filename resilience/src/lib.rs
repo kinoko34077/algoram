@@ -663,9 +663,16 @@ impl Error for ResilienceError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use algoram_catalog::{
+        CapabilityListing, CommercialAvailability, Inspectability, MarketplaceMetadata, Price,
+        RatingSummary, SourceAvailability,
+    };
     use algoram_core::{Block, Connection, Extensions, Port, PortDirection, PortRef, SourceAnchor};
     use algoram_interop::{Connector, ContractId};
-    use algoram_runtime::{DistributedTraceEntry, ExecutionStep, ProcessAction, TraceStatus};
+    use algoram_runtime::{
+        DistributedTraceEntry, PlacedExecutionPlan, Planner, ProcessAction, StepPlacement,
+        TraceStatus,
+    };
     use std::fs;
 
     fn data_port(id: &str, direction: PortDirection) -> Port {
@@ -1062,6 +1069,228 @@ mod tests {
         assert_eq!(graph, graph_before);
         assert_eq!(plan, plan_before);
         assert_eq!(routes.connectors().len(), connector_count);
+        assert!(!marker.exists());
+    }
+
+    fn provider_listing(
+        listing_id: &str,
+        supplier: &str,
+        implementation_ref: &str,
+        amount_minor: u64,
+        rating_score: u16,
+    ) -> CapabilityListing {
+        CapabilityListing {
+            listing_id: listing_id.to_owned(),
+            title: format!("{supplier} provider"),
+            supplier: supplier.to_owned(),
+            source: format!("catalog://{supplier}"),
+            version: "1".to_owned(),
+            last_updated: "2026-10-06".to_owned(),
+            asset: CatalogAsset::Implementation {
+                implementation_ref: implementation_ref.to_owned(),
+                logical_implementation_ref: Some("logical:provider".to_owned()),
+            },
+            supported_ports: Vec::new(),
+            marketplace: MarketplaceMetadata {
+                commercial_availability: CommercialAvailability::Paid,
+                source_availability: SourceAvailability::Closed,
+                price: Some(Price {
+                    amount_minor,
+                    currency: "JPY".to_owned(),
+                }),
+                rating: Some(RatingSummary {
+                    score_millis: rating_score,
+                    max_score_millis: 5000,
+                    review_count: 10,
+                }),
+                reputation: None,
+                inspectability: Inspectability::MetadataOnly,
+                support_statement: None,
+                warranty_statement: None,
+            },
+        }
+    }
+
+    fn provider_graph() -> Graph {
+        let mut graph = Graph::new("graph:provider-recovery");
+        let mut provider = block("provider");
+        provider.implementation_ref = Some("logical:provider".to_owned());
+        graph.blocks.push(provider);
+        graph
+    }
+
+    fn provider_registry(default_ref: &str, marker: &std::path::Path) -> ImplementationRegistry {
+        let mut registry = ImplementationRegistry::new();
+        registry
+            .register(
+                "impl:trusted-a",
+                ProcessAction::new(
+                    "sh",
+                    ["-c".to_owned(), format!("touch {}", marker.display())],
+                ),
+            )
+            .unwrap();
+        registry
+            .register(
+                "impl:trusted-b",
+                ProcessAction::new(
+                    "sh",
+                    ["-c".to_owned(), format!("touch {}", marker.display())],
+                ),
+            )
+            .unwrap();
+        registry
+            .register_choice(
+                "logical:provider",
+                ["impl:trusted-a", "impl:trusted-b"],
+                default_ref,
+            )
+            .unwrap();
+        registry
+    }
+
+    #[test]
+    fn provider_candidates_separate_trusted_local_from_catalog_only_without_ranking_execution() {
+        let marker = std::env::temp_dir().join(format!(
+            "algoram-resilience-provider-candidates-must-not-execute-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&marker);
+
+        let registry = provider_registry("impl:trusted-a", &marker);
+        let catalog = CapabilityCatalog::new([
+            provider_listing("listing:z-trusted", "trusted supplier", "impl:trusted-b", 1, 5000),
+            provider_listing(
+                "listing:a-catalog-only",
+                "catalog supplier",
+                "impl:catalog-only",
+                999_999,
+                100,
+            ),
+        ]);
+        let catalog_before = catalog.clone();
+
+        let candidates = ResilienceAnalyzer::implementation_recovery_candidates(
+            "logical:provider",
+            &registry,
+            &catalog,
+        )
+        .unwrap();
+
+        assert_eq!(
+            candidates
+                .trusted_local
+                .iter()
+                .map(|candidate| (
+                    candidate.implementation_ref.as_str(),
+                    candidate.is_default
+                ))
+                .collect::<Vec<_>>(),
+            vec![("impl:trusted-a", true), ("impl:trusted-b", false)]
+        );
+        assert_eq!(candidates.catalog_only.len(), 1);
+        assert_eq!(
+            candidates.catalog_only[0].implementation_ref,
+            "impl:catalog-only"
+        );
+        assert_eq!(
+            candidates.catalog_only[0].listing_id,
+            "listing:a-catalog-only"
+        );
+        assert_eq!(catalog, catalog_before);
+        assert!(!marker.exists());
+    }
+
+    #[test]
+    fn explicit_provider_switch_and_runtime_replacement_keep_graph_unchanged() {
+        let marker = std::env::temp_dir().join(format!(
+            "algoram-resilience-manual-switch-must-not-execute-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&marker);
+
+        let graph = provider_graph();
+        let graph_before = graph.clone();
+
+        let plan_a = Planner::lower(
+            &graph,
+            &provider_registry("impl:trusted-a", &marker),
+            &RouteRegistry::new(),
+        )
+        .unwrap();
+        let plan_b = Planner::lower(
+            &graph,
+            &provider_registry("impl:trusted-b", &marker),
+            &RouteRegistry::new(),
+        )
+        .unwrap();
+
+        assert_eq!(graph, graph_before);
+        assert_eq!(plan_a.steps[0].implementation_ref, "impl:trusted-a");
+        assert_eq!(plan_b.steps[0].implementation_ref, "impl:trusted-b");
+
+        let serialized = serde_json::to_string(&plan_b).unwrap();
+        let replayed: ExecutionPlan = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(replayed.steps[0].implementation_ref, "impl:trusted-b");
+
+        let endpoints = vec![
+            RuntimeEndpoint::new(
+                "runtime:agent-current",
+                RuntimeLocationClass::RuntimeAgent,
+                ["impl:trusted-b"],
+            ),
+            RuntimeEndpoint::new(
+                "runtime:local-alternate",
+                RuntimeLocationClass::LocalProcess,
+                ["impl:trusted-b"],
+            ),
+            RuntimeEndpoint::new(
+                "runtime:unrelated",
+                RuntimeLocationClass::LocalProcess,
+                ["impl:trusted-a"],
+            ),
+        ];
+
+        let runtime_candidates = ResilienceAnalyzer::runtime_recovery_candidates(
+            &plan_b.steps[0],
+            "runtime:agent-current",
+            &endpoints,
+        );
+        assert_eq!(
+            runtime_candidates
+                .iter()
+                .map(|candidate| (candidate.runtime_ref.as_str(), candidate.is_current))
+                .collect::<Vec<_>>(),
+            vec![
+                ("runtime:agent-current", true),
+                ("runtime:local-alternate", false),
+            ]
+        );
+
+        let current = PlacedExecutionPlan::new(
+            plan_b.clone(),
+            [StepPlacement::new(
+                plan_b.steps[0].id.clone(),
+                "runtime:agent-current",
+            )],
+        );
+        current.validate(&endpoints).unwrap();
+
+        let recovered = PlacedExecutionPlan::new(
+            plan_b.clone(),
+            [StepPlacement::new(
+                plan_b.steps[0].id.clone(),
+                "runtime:local-alternate",
+            )],
+        );
+        recovered.validate(&endpoints).unwrap();
+
+        assert_eq!(graph, graph_before);
+        assert_eq!(recovered.plan, plan_b);
+        assert_eq!(
+            recovered.runtime_for_step(&plan_b.steps[0].id),
+            Some("runtime:local-alternate")
+        );
         assert!(!marker.exists());
     }
 }
