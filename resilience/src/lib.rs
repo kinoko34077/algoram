@@ -1,5 +1,5 @@
 use algoram_core::{Graph, GraphError, PortChannel};
-use algoram_interop::RouteRegistry;
+use algoram_interop::{Resolution, RouteError, RouteRegistry, RouteRequest};
 use algoram_runtime::{
     DistributedExecutionTrace, ExecutionPlan, ExecutionTrace, TraceEntry, TraceStatus,
 };
@@ -52,6 +52,16 @@ pub struct ResilienceReport {
     pub failures: Vec<FailureEvidence>,
     pub impact: DependencyImpact,
     pub selected_route_health: Vec<SelectedRouteHealth>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AlternativeRouteCandidate {
+    pub step_id: String,
+    pub origin_block_ids: Vec<String>,
+    pub connection_id: String,
+    pub source_contract: String,
+    pub target_contract: String,
+    pub connector_ids: Vec<String>,
 }
 
 pub struct ResilienceAnalyzer;
@@ -110,6 +120,102 @@ impl ResilienceAnalyzer {
             .collect::<Vec<_>>();
 
         Self::build_report(graph, plan, failures, routes)
+    }
+
+    pub fn alternative_route_candidates(
+        graph: &Graph,
+        plan: &ExecutionPlan,
+        routes: &RouteRegistry,
+    ) -> Result<Vec<AlternativeRouteCandidate>, ResilienceError> {
+        validate_graph_and_plan(graph, plan)?;
+
+        let unhealthy_step_ids = selected_route_health(plan, routes)
+            .into_iter()
+            .filter(|health| health.health != RouteConnectorHealth::Available)
+            .map(|health| health.step_id)
+            .collect::<BTreeSet<_>>();
+
+        let mut candidates = BTreeMap::<(String, String), AlternativeRouteCandidate>::new();
+
+        for step in &plan.steps {
+            if !unhealthy_step_ids.contains(&step.id) {
+                continue;
+            }
+
+            for origin_block_id in &step.origin_block_ids {
+                let mut incoming = graph
+                    .connections
+                    .iter()
+                    .filter(|connection| connection.target.block_id == *origin_block_id)
+                    .collect::<Vec<_>>();
+                incoming.sort_by(|left, right| left.id.cmp(&right.id));
+
+                for connection in incoming {
+                    let source_port = find_graph_port(
+                        graph,
+                        &connection.id,
+                        &connection.source.block_id,
+                        &connection.source.port_id,
+                        true,
+                    )?;
+                    let target_port = find_graph_port(
+                        graph,
+                        &connection.id,
+                        &connection.target.block_id,
+                        &connection.target.port_id,
+                        false,
+                    )?;
+
+                    if source_port.channel != PortChannel::Data
+                        || target_port.channel != PortChannel::Data
+                    {
+                        continue;
+                    }
+
+                    let Some(source_contract) =
+                        source_port.contract.as_ref().and_then(serde_json_string)
+                    else {
+                        continue;
+                    };
+                    let Some(target_contract) =
+                        target_port.contract.as_ref().and_then(serde_json_string)
+                    else {
+                        continue;
+                    };
+                    if source_contract == target_contract {
+                        continue;
+                    }
+
+                    let resolution = routes
+                        .resolve(&RouteRequest::automatic(source_contract, target_contract))
+                        .map_err(ResilienceError::Route)?;
+                    let Resolution::Resolved { route, .. } = resolution else {
+                        continue;
+                    };
+                    if route.steps.is_empty() {
+                        continue;
+                    }
+
+                    candidates.insert(
+                        (step.id.clone(), connection.id.clone()),
+                        AlternativeRouteCandidate {
+                            step_id: step.id.clone(),
+                            origin_block_ids: step.origin_block_ids.clone(),
+                            connection_id: connection.id.clone(),
+                            source_contract: source_contract.to_owned(),
+                            target_contract: target_contract.to_owned(),
+                            connector_ids: route
+                                .connector_ids()
+                                .into_iter()
+                                .map(str::to_owned)
+                                .collect(),
+                        },
+                    );
+                }
+            }
+        }
+
+        Ok(candidates.into_values().collect())
     }
 
     fn build_report(
@@ -184,6 +290,39 @@ fn validate_graph_and_plan(graph: &Graph, plan: &ExecutionPlan) -> Result<(), Re
         });
     }
     Ok(())
+}
+
+fn serde_json_string(value: &serde_json::Value) -> Option<&str> {
+    value.as_str()
+}
+
+fn find_graph_port<'a>(
+    graph: &'a Graph,
+    connection_id: &str,
+    block_id: &str,
+    port_id: &str,
+    source: bool,
+) -> Result<&'a algoram_core::Port, ResilienceError> {
+    graph
+        .blocks
+        .iter()
+        .find(|block| block.id == block_id)
+        .and_then(|block| block.ports.iter().find(|port| port.id == port_id))
+        .ok_or_else(|| {
+            if source {
+                ResilienceError::MissingConnectionSourcePort {
+                    connection_id: connection_id.to_owned(),
+                    block_id: block_id.to_owned(),
+                    port_id: port_id.to_owned(),
+                }
+            } else {
+                ResilienceError::MissingConnectionTargetPort {
+                    connection_id: connection_id.to_owned(),
+                    block_id: block_id.to_owned(),
+                    port_id: port_id.to_owned(),
+                }
+            }
+        })
 }
 
 fn validate_failure_attribution(
@@ -332,7 +471,13 @@ pub enum ResilienceError {
         step_id: String,
         block_id: String,
     },
+    Route(RouteError),
     MissingConnectionSourcePort {
+        connection_id: String,
+        block_id: String,
+        port_id: String,
+    },
+    MissingConnectionTargetPort {
         connection_id: String,
         block_id: String,
         port_id: String,
@@ -372,6 +517,7 @@ impl fmt::Display for ResilienceError {
                 f,
                 "failed trace step '{step_id}' references unknown origin block '{block_id}'"
             ),
+            Self::Route(error) => write!(f, "route candidate resolution failed: {error}"),
             Self::MissingConnectionSourcePort {
                 connection_id,
                 block_id,
@@ -379,6 +525,14 @@ impl fmt::Display for ResilienceError {
             } => write!(
                 f,
                 "connection '{connection_id}' references missing source port '{block_id}.{port_id}'"
+            ),
+            Self::MissingConnectionTargetPort {
+                connection_id,
+                block_id,
+                port_id,
+            } => write!(
+                f,
+                "connection '{connection_id}' references missing target port '{block_id}.{port_id}'"
             ),
         }
     }
@@ -388,6 +542,7 @@ impl Error for ResilienceError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Graph(error) => Some(error),
+            Self::Route(error) => Some(error),
             _ => None,
         }
     }
