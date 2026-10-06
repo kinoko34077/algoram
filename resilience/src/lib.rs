@@ -1579,7 +1579,7 @@ mod tests {
         let graph = provider_graph();
         let registry = provider_registry("impl:provider-b", &marker);
         let plan = Planner::lower(&graph, &registry, &RouteRegistry::new()).unwrap();
-        let step = &plan.steps[0];
+        let step_id = plan.steps[0].id.clone();
 
         let endpoints = vec![
             RuntimeEndpoint::new(
@@ -1595,10 +1595,7 @@ mod tests {
         ];
         let placed = PlacedExecutionPlan::new(
             plan,
-            [StepPlacement::new(
-                step.id.clone(),
-                "runtime:agent-current",
-            )],
+            [StepPlacement::new(step_id, "runtime:agent-current")],
         );
         placed.validate(&endpoints).unwrap();
 
