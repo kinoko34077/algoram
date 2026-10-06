@@ -276,7 +276,7 @@ impl Planner {
 
             steps.push(ExecutionStep {
                 id: format!("step:{}", block.id),
-                implementation_ref: implementation_ref.to_owned(),
+                implementation_ref: selected_implementation_ref.to_owned(),
                 action,
                 origin_block_ids: vec![block.id.clone()],
                 source_anchors: block.source_anchor.clone().into_iter().collect(),
