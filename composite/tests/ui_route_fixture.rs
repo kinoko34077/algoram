@@ -1,7 +1,5 @@
 use algoram_core::Graph;
-use algoram_interop::{
-    Connector, ContractId, RouteRegistry, RouteRequest, TransferMode,
-};
+use algoram_interop::{Connector, ContractId, RouteRegistry, RouteRequest, TransferMode};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
