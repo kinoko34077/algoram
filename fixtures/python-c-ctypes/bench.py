@@ -4,8 +4,22 @@ import ctypes
 import json
 import pathlib
 import platform
+import subprocess
 import sys
 import time
+
+
+def tool_version(program: str) -> str:
+    try:
+        result = subprocess.run(
+            [program, "--version"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return "unavailable"
+    return result.stdout.splitlines()[0] if result.stdout else "unavailable"
 
 
 def main() -> int:
@@ -42,6 +56,7 @@ def main() -> int:
                 "ns_per_call": elapsed_ns / iterations,
                 "checksum": checksum,
                 "python": platform.python_version(),
+                "compiler": tool_version("cc"),
                 "platform": platform.platform(),
             },
             separators=(",", ":"),
