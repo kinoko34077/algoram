@@ -186,6 +186,16 @@ export function searchNavigation(
     .sort(compareRecords);
 }
 
+export function listSourceLanguages(index: NavigationIndex): string[] {
+  return Array.from(
+    new Set(
+      index.records
+        .map((record) => record.sourceLanguage)
+        .filter((language): language is string => language !== undefined),
+    ),
+  ).sort(compareText);
+}
+
 export function resolveGraphPath(
   index: NavigationIndex,
   targetGraphId: string,

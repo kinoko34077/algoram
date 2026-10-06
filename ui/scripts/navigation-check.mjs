@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   buildNavigationIndex,
+  listSourceLanguages,
   resolveGraphPath,
   searchNavigation,
 } from "../src/navigation.ts";
@@ -126,6 +127,8 @@ assert.deepEqual(
   filtered.map((record) => record.blockId),
   ["block:deep-target"],
 );
+
+assert.deepEqual(listSourceLanguages(index), ["python", "typescript"]);
 
 const commonPath = resolveGraphPath(index, "graph:common");
 assert.deepEqual(

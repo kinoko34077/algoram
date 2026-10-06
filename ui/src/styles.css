@@ -25,7 +25,7 @@ button {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 .app-header {
@@ -107,6 +107,139 @@ button {
   color: #15202b;
   background: #edf2f7;
   font-weight: 650;
+}
+
+
+.search-panel {
+  padding: 10px 24px 12px;
+  background: white;
+  border-bottom: 1px solid #e3e8ef;
+}
+
+.search-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.search-controls label {
+  display: grid;
+  gap: 4px;
+  color: #617080;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.search-controls input,
+.search-controls select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #ccd6e0;
+  border-radius: 8px;
+  background: white;
+  color: #18202a;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.search-controls button {
+  min-height: 36px;
+  border: 1px solid #345f88;
+  border-radius: 8px;
+  background: white;
+  color: #345f88;
+  cursor: pointer;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+.search-controls button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.search-results {
+  margin-top: 10px;
+}
+
+.search-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #6a7a8a;
+  font-size: 11px;
+}
+
+.search-summary strong {
+  color: #263746;
+  font-size: 13px;
+}
+
+.search-summary small {
+  margin-left: auto;
+}
+
+.search-result-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 7px;
+  margin-top: 7px;
+}
+
+.search-result {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  border: 1px solid #d7e0e8;
+  border-radius: 8px;
+  background: #fbfcfd;
+  color: inherit;
+  cursor: pointer;
+  padding: 8px 9px;
+  text-align: left;
+}
+
+.search-result:hover,
+.search-result:focus-visible {
+  border-color: #7f9bb6;
+  background: #f3f7fa;
+}
+
+.search-result strong,
+.search-result span,
+.search-result small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result strong {
+  font-size: 12px;
+}
+
+.search-result span {
+  color: #637486;
+  font-size: 10px;
+}
+
+.search-result small {
+  color: #82909e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 9px;
+}
+
+.search-status,
+.search-empty,
+.search-hint {
+  margin: 8px 0 0;
+  color: #718096;
+  font-size: 11px;
+}
+
+.search-status {
+  color: #8a4f4f;
 }
 
 .workspace {
@@ -358,6 +491,10 @@ button {
   .workspace {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(520px, 58vh) auto;
+  }
+
+  .search-controls {
+    grid-template-columns: 1fr;
   }
 
   .inspector-region {
