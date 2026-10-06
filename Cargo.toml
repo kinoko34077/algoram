@@ -1,3 +1,3 @@
 [workspace]
-members = ["core", "importers/python", "importers/c", "importers/rust", "interop", "runtime", "perf", "composite", "package", "catalog"]
+members = ["core", "importers/python", "importers/c", "importers/rust", "interop", "runtime", "perf", "composite", "package", "catalog", "resilience"]
 resolver = "2"
