@@ -1,7 +1,9 @@
+use algoram_catalog::{CapabilityCatalog, CatalogAsset, CatalogError};
 use algoram_core::{Graph, GraphError, PortChannel};
 use algoram_interop::{Resolution, RouteError, RouteRegistry, RouteRequest};
 use algoram_runtime::{
-    DistributedExecutionTrace, ExecutionPlan, ExecutionTrace, TraceEntry, TraceStatus,
+    DistributedExecutionTrace, ExecutionPlan, ExecutionStep, ExecutionTrace,
+    ImplementationRegistry, RuntimeEndpoint, RuntimeLocationClass, TraceEntry, TraceStatus,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -62,6 +64,33 @@ pub struct AlternativeRouteCandidate {
     pub source_contract: String,
     pub target_contract: String,
     pub connector_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrustedImplementationCandidate {
+    pub implementation_ref: String,
+    pub is_default: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CatalogImplementationCandidate {
+    pub listing_id: String,
+    pub supplier: String,
+    pub implementation_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImplementationRecoveryCandidates {
+    pub logical_implementation_ref: String,
+    pub trusted_local: Vec<TrustedImplementationCandidate>,
+    pub catalog_only: Vec<CatalogImplementationCandidate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeRecoveryCandidate {
+    pub runtime_ref: String,
+    pub class: RuntimeLocationClass,
+    pub is_current: bool,
 }
 
 pub struct ResilienceAnalyzer;
@@ -220,6 +249,76 @@ impl ResilienceAnalyzer {
         }
 
         Ok(candidates.into_values().collect())
+    }
+
+    pub fn implementation_recovery_candidates(
+        logical_implementation_ref: &str,
+        implementations: &ImplementationRegistry,
+        catalog: &CapabilityCatalog,
+    ) -> Result<ImplementationRecoveryCandidates, ResilienceError> {
+        let choice = implementations
+            .choice(logical_implementation_ref)
+            .ok_or_else(|| ResilienceError::MissingImplementationChoice {
+                logical_implementation_ref: logical_implementation_ref.to_owned(),
+            })?;
+
+        let trusted_set = choice
+            .candidates
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+
+        let trusted_local = choice
+            .candidates
+            .iter()
+            .map(|implementation_ref| TrustedImplementationCandidate {
+                implementation_ref: implementation_ref.clone(),
+                is_default: implementation_ref == &choice.default_ref,
+            })
+            .collect::<Vec<_>>();
+
+        let catalog_only = catalog
+            .search_logical_implementations(logical_implementation_ref)
+            .map_err(ResilienceError::Catalog)?
+            .into_iter()
+            .filter_map(|listing| match &listing.asset {
+                CatalogAsset::Implementation {
+                    implementation_ref, ..
+                } if !trusted_set.contains(implementation_ref.as_str()) => {
+                    Some(CatalogImplementationCandidate {
+                        listing_id: listing.listing_id.clone(),
+                        supplier: listing.supplier.clone(),
+                        implementation_ref: implementation_ref.clone(),
+                    })
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        Ok(ImplementationRecoveryCandidates {
+            logical_implementation_ref: logical_implementation_ref.to_owned(),
+            trusted_local,
+            catalog_only,
+        })
+    }
+
+    pub fn runtime_recovery_candidates(
+        step: &ExecutionStep,
+        current_runtime_ref: &str,
+        endpoints: &[RuntimeEndpoint],
+    ) -> Vec<RuntimeRecoveryCandidate> {
+        let mut candidates = endpoints
+            .iter()
+            .filter(|endpoint| endpoint.supports(&step.implementation_ref))
+            .map(|endpoint| RuntimeRecoveryCandidate {
+                runtime_ref: endpoint.runtime_ref.clone(),
+                class: endpoint.class,
+                is_current: endpoint.runtime_ref == current_runtime_ref,
+            })
+            .collect::<Vec<_>>();
+
+        candidates.sort_by(|left, right| left.runtime_ref.cmp(&right.runtime_ref));
+        candidates
     }
 
     fn build_report(
@@ -451,6 +550,10 @@ fn selected_route_health(plan: &ExecutionPlan, routes: &RouteRegistry) -> Vec<Se
 #[derive(Debug)]
 pub enum ResilienceError {
     Graph(GraphError),
+    Catalog(CatalogError),
+    MissingImplementationChoice {
+        logical_implementation_ref: String,
+    },
     PlanGraphMismatch {
         graph_id: String,
         plan_graph_id: String,
@@ -488,6 +591,13 @@ impl fmt::Display for ResilienceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Graph(error) => write!(f, "invalid reference graph: {error}"),
+            Self::Catalog(error) => write!(f, "invalid capability catalog: {error}"),
+            Self::MissingImplementationChoice {
+                logical_implementation_ref,
+            } => write!(
+                f,
+                "no trusted local implementation choice exists for logical ref '{logical_implementation_ref}'"
+            ),
             Self::PlanGraphMismatch {
                 graph_id,
                 plan_graph_id,
@@ -542,6 +652,7 @@ impl Error for ResilienceError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Graph(error) => Some(error),
+            Self::Catalog(error) => Some(error),
             Self::Route(error) => Some(error),
             _ => None,
         }
@@ -551,9 +662,16 @@ impl Error for ResilienceError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use algoram_catalog::{
+        CapabilityListing, CommercialAvailability, Inspectability, MarketplaceMetadata, Price,
+        RatingSummary, SourceAvailability,
+    };
     use algoram_core::{Block, Connection, Extensions, Port, PortDirection, PortRef, SourceAnchor};
     use algoram_interop::{Connector, ContractId};
-    use algoram_runtime::{DistributedTraceEntry, ExecutionStep, ProcessAction, TraceStatus};
+    use algoram_runtime::{
+        DistributedExecutionError, DistributedRuntime, DistributedTraceEntry, ExecutionPolicy,
+        PlacedExecutionPlan, Planner, ProcessAction, StepPlacement, TraceStatus,
+    };
     use std::fs;
 
     fn data_port(id: &str, direction: PortDirection) -> Port {
@@ -950,6 +1068,323 @@ mod tests {
         assert_eq!(graph, graph_before);
         assert_eq!(plan, plan_before);
         assert_eq!(routes.connectors().len(), connector_count);
+        assert!(!marker.exists());
+    }
+
+    fn provider_listing(
+        listing_id: &str,
+        supplier: &str,
+        implementation_ref: &str,
+        amount_minor: u64,
+        score_millis: u16,
+    ) -> CapabilityListing {
+        CapabilityListing {
+            listing_id: listing_id.to_owned(),
+            title: format!("{supplier} provider"),
+            supplier: supplier.to_owned(),
+            source: format!("https://example.invalid/{supplier}"),
+            version: "1.0.0".to_owned(),
+            last_updated: "2026-10-06".to_owned(),
+            asset: CatalogAsset::Implementation {
+                implementation_ref: implementation_ref.to_owned(),
+                logical_implementation_ref: Some("logical:provider".to_owned()),
+            },
+            supported_ports: Vec::new(),
+            marketplace: MarketplaceMetadata {
+                commercial_availability: CommercialAvailability::Paid,
+                source_availability: SourceAvailability::Closed,
+                price: Some(Price {
+                    amount_minor,
+                    currency: "JPY".to_owned(),
+                }),
+                rating: Some(RatingSummary {
+                    score_millis,
+                    max_score_millis: 5000,
+                    review_count: 10,
+                }),
+                reputation: None,
+                inspectability: Inspectability::MetadataOnly,
+                support_statement: None,
+                warranty_statement: None,
+            },
+        }
+    }
+
+    fn provider_graph() -> Graph {
+        let mut graph = Graph::new("graph:provider-recovery");
+        graph.blocks.push(Block {
+            id: "block:provider".to_owned(),
+            label: "provider".to_owned(),
+            ports: Vec::new(),
+            internal_graph_ref: None,
+            implementation_ref: Some("logical:provider".to_owned()),
+            definition_ref: None,
+            source_anchor: None,
+            extensions: Extensions::new(),
+            diagnostics: Vec::new(),
+        });
+        graph
+    }
+
+    fn provider_registry(default_ref: &str, marker: &std::path::Path) -> ImplementationRegistry {
+        let mut registry = ImplementationRegistry::new();
+        registry
+            .register(
+                "impl:provider-a",
+                ProcessAction::new(
+                    "sh",
+                    ["-c".to_owned(), format!("touch {}", marker.display())],
+                ),
+            )
+            .unwrap();
+        registry
+            .register(
+                "impl:provider-b",
+                ProcessAction::new(
+                    "sh",
+                    ["-c".to_owned(), format!("touch {}", marker.display())],
+                ),
+            )
+            .unwrap();
+        registry
+            .register_choice(
+                "logical:provider",
+                ["impl:provider-a", "impl:provider-b"],
+                default_ref,
+            )
+            .unwrap();
+        registry
+    }
+
+    #[test]
+    fn provider_recovery_separates_trusted_local_from_catalog_only_without_execution() {
+        let marker = std::env::temp_dir().join(format!(
+            "algoram-provider-candidate-must-not-execute-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&marker);
+
+        let registry = provider_registry("impl:provider-a", &marker);
+        let catalog = CapabilityCatalog::new([
+            provider_listing(
+                "listing:a-expensive",
+                "catalog-expensive",
+                "impl:catalog-expensive",
+                999_900,
+                100,
+            ),
+            provider_listing(
+                "listing:trusted-b",
+                "trusted-b-listing",
+                "impl:provider-b",
+                1,
+                5000,
+            ),
+            provider_listing(
+                "listing:z-cheap",
+                "catalog-cheap",
+                "impl:catalog-cheap",
+                1,
+                5000,
+            ),
+        ]);
+
+        let candidates = ResilienceAnalyzer::implementation_recovery_candidates(
+            "logical:provider",
+            &registry,
+            &catalog,
+        )
+        .unwrap();
+
+        assert_eq!(candidates.logical_implementation_ref, "logical:provider");
+        assert_eq!(
+            candidates
+                .trusted_local
+                .iter()
+                .map(|candidate| (candidate.implementation_ref.as_str(), candidate.is_default))
+                .collect::<Vec<_>>(),
+            vec![("impl:provider-a", true), ("impl:provider-b", false),]
+        );
+        assert_eq!(
+            candidates
+                .catalog_only
+                .iter()
+                .map(|candidate| (
+                    candidate.listing_id.as_str(),
+                    candidate.implementation_ref.as_str()
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                ("listing:a-expensive", "impl:catalog-expensive"),
+                ("listing:z-cheap", "impl:catalog-cheap"),
+            ]
+        );
+        assert!(!candidates
+            .catalog_only
+            .iter()
+            .any(|candidate| candidate.implementation_ref == "impl:provider-b"));
+        assert!(!marker.exists());
+    }
+
+    #[test]
+    fn explicit_provider_switch_reuses_existing_choice_and_keeps_graph_unchanged() {
+        let marker = std::env::temp_dir().join(format!(
+            "algoram-provider-switch-must-not-execute-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&marker);
+
+        let graph = provider_graph();
+        let graph_before = graph.clone();
+        let registry = provider_registry("impl:provider-b", &marker);
+        let plan = Planner::lower(&graph, &registry, &RouteRegistry::new()).unwrap();
+
+        assert_eq!(graph, graph_before);
+        assert_eq!(plan.steps.len(), 1);
+        assert_eq!(plan.steps[0].implementation_ref, "impl:provider-b");
+
+        let serialized = serde_json::to_string(&plan).unwrap();
+        let replayed: ExecutionPlan = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(replayed.steps[0].implementation_ref, "impl:provider-b");
+        assert!(!marker.exists());
+    }
+
+    #[test]
+    fn runtime_recovery_candidates_are_deterministic_and_manual_replacement_validates() {
+        let marker = std::env::temp_dir().join(format!(
+            "algoram-runtime-candidate-must-not-execute-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&marker);
+
+        let graph = provider_graph();
+        let graph_before = graph.clone();
+        let registry = provider_registry("impl:provider-b", &marker);
+        let plan = Planner::lower(&graph, &registry, &RouteRegistry::new()).unwrap();
+        let plan_before = plan.clone();
+        let step = &plan.steps[0];
+
+        let endpoints = vec![
+            RuntimeEndpoint::new(
+                "runtime:local-b",
+                RuntimeLocationClass::LocalProcess,
+                ["impl:provider-b"],
+            ),
+            RuntimeEndpoint::new(
+                "runtime:agent-current",
+                RuntimeLocationClass::RuntimeAgent,
+                ["impl:provider-b"],
+            ),
+            RuntimeEndpoint::new(
+                "runtime:agent-alt",
+                RuntimeLocationClass::RuntimeAgent,
+                ["impl:provider-b"],
+            ),
+            RuntimeEndpoint::new(
+                "runtime:unsupported",
+                RuntimeLocationClass::RuntimeAgent,
+                ["impl:other"],
+            ),
+        ];
+
+        let candidates = ResilienceAnalyzer::runtime_recovery_candidates(
+            step,
+            "runtime:agent-current",
+            &endpoints,
+        );
+        assert_eq!(
+            candidates
+                .iter()
+                .map(|candidate| (
+                    candidate.runtime_ref.as_str(),
+                    candidate.is_current,
+                    candidate.class
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    "runtime:agent-alt",
+                    false,
+                    RuntimeLocationClass::RuntimeAgent
+                ),
+                (
+                    "runtime:agent-current",
+                    true,
+                    RuntimeLocationClass::RuntimeAgent
+                ),
+                ("runtime:local-b", false, RuntimeLocationClass::LocalProcess),
+            ]
+        );
+        assert!(!candidates
+            .iter()
+            .any(|candidate| candidate.runtime_ref == "runtime:unsupported"));
+
+        let replacement = PlacedExecutionPlan::new(
+            plan.clone(),
+            [StepPlacement::new(step.id.clone(), "runtime:agent-alt")],
+        );
+        replacement.validate(&endpoints).unwrap();
+
+        assert_eq!(replacement.plan, plan);
+        assert_eq!(
+            replacement.runtime_for_step(&step.id),
+            Some("runtime:agent-alt")
+        );
+        assert_eq!(graph, graph_before);
+        assert_eq!(plan, plan_before);
+        assert!(!marker.exists());
+    }
+
+    #[test]
+    fn remote_failure_does_not_silently_run_local_recovery_candidate() {
+        let marker = std::env::temp_dir().join(format!(
+            "algoram-runtime-no-fallback-must-not-execute-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&marker);
+
+        let graph = provider_graph();
+        let registry = provider_registry("impl:provider-b", &marker);
+        let plan = Planner::lower(&graph, &registry, &RouteRegistry::new()).unwrap();
+        let step_id = plan.steps[0].id.clone();
+
+        let endpoints = vec![
+            RuntimeEndpoint::new(
+                "runtime:agent-current",
+                RuntimeLocationClass::RuntimeAgent,
+                ["impl:provider-b"],
+            ),
+            RuntimeEndpoint::new(
+                "runtime:local-recovery",
+                RuntimeLocationClass::LocalProcess,
+                ["impl:provider-b"],
+            ),
+        ];
+        let placed =
+            PlacedExecutionPlan::new(plan, [StepPlacement::new(step_id, "runtime:agent-current")]);
+        placed.validate(&endpoints).unwrap();
+
+        let mut policy = ExecutionPolicy::new();
+        policy.allow("impl:provider-b");
+
+        let error = DistributedRuntime::execute_with_agent(
+            &placed,
+            &endpoints,
+            &registry,
+            &policy,
+            &[],
+            |runtime_ref, _request| {
+                assert_eq!(runtime_ref, "runtime:agent-current");
+                Err("agent offline".to_owned())
+            },
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            error,
+            DistributedExecutionError::AgentUnavailable { runtime_ref, .. }
+                if runtime_ref == "runtime:agent-current"
+        ));
         assert!(!marker.exists());
     }
 }
