@@ -2828,4 +2828,245 @@ mod tests {
 
         let _ = fs::remove_file(&shared_library);
     }
+
+    fn route_override_graph() -> Graph {
+        let mut graph = Graph::new("graph:manual-route");
+        let mut source = block("block:route-source", None);
+        source.ports.push(port(
+            "out",
+            PortDirection::Out,
+            PortChannel::Data,
+            Some("contract:a"),
+        ));
+        let mut target = block("block:route-target", Some("impl:route-target"));
+        target.ports.push(port(
+            "in",
+            PortDirection::In,
+            PortChannel::Data,
+            Some("contract:c"),
+        ));
+        graph.blocks.extend([source, target]);
+        graph.connections.push(Connection {
+            id: "data:manual-route".to_owned(),
+            source: PortRef {
+                block_id: "block:route-source".to_owned(),
+                port_id: "out".to_owned(),
+            },
+            target: PortRef {
+                block_id: "block:route-target".to_owned(),
+                port_id: "in".to_owned(),
+            },
+            extensions: Extensions::new(),
+        });
+        graph
+    }
+
+    fn route_override_implementations(action: ProcessAction) -> ImplementationRegistry {
+        let mut implementations = ImplementationRegistry::new();
+        implementations
+            .register("impl:route-target", action)
+            .unwrap();
+        implementations
+    }
+
+    fn route_override_registry() -> RouteRegistry {
+        let mut routes = RouteRegistry::new();
+        routes
+            .register(
+                Connector::new(
+                    "primary",
+                    ContractId::from("contract:a"),
+                    ContractId::from("contract:c"),
+                    "impl:primary-route",
+                )
+                .unavailable(),
+            )
+            .unwrap();
+        routes
+            .register(Connector::new(
+                "a-1",
+                ContractId::from("contract:a"),
+                ContractId::from("contract:b"),
+                "impl:a-1",
+            ))
+            .unwrap();
+        routes
+            .register(Connector::new(
+                "a-2",
+                ContractId::from("contract:b"),
+                ContractId::from("contract:c"),
+                "impl:a-2",
+            ))
+            .unwrap();
+        routes
+            .register(Connector::new(
+                "z-1",
+                ContractId::from("contract:a"),
+                ContractId::from("contract:d"),
+                "impl:z-1",
+            ))
+            .unwrap();
+        routes
+            .register(Connector::new(
+                "z-2",
+                ContractId::from("contract:d"),
+                ContractId::from("contract:c"),
+                "impl:z-2",
+            ))
+            .unwrap();
+        routes
+    }
+
+    #[test]
+    fn explicit_route_override_can_choose_valid_non_default_route_on_same_graph() {
+        let graph = route_override_graph();
+        let graph_before = graph.clone();
+        let implementations = route_override_implementations(ProcessAction::new(
+            "target",
+            std::iter::empty::<&str>(),
+        ));
+        let routes = route_override_registry();
+
+        let automatic = Planner::lower(&graph, &implementations, &routes).unwrap();
+        assert_eq!(automatic.steps[0].route_connector_ids, vec!["a-1", "a-2"]);
+
+        let manual = Planner::lower_with_route_overrides(
+            &graph,
+            &implementations,
+            &routes,
+            &[RouteOverride::new("data:manual-route", ["z-1", "z-2"])],
+        )
+        .unwrap();
+
+        assert_eq!(graph, graph_before);
+        assert_eq!(manual.steps[0].route_connector_ids, vec!["z-1", "z-2"]);
+
+        let serialized = serde_json::to_string(&manual).unwrap();
+        let replayed: ExecutionPlan = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(replayed.steps[0].route_connector_ids, vec!["z-1", "z-2"]);
+    }
+
+    #[test]
+    fn unavailable_explicit_route_fails_during_planning_without_execution() {
+        let marker = std::env::temp_dir().join(format!(
+            "algoram-route-override-must-not-execute-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&marker);
+
+        let graph = route_override_graph();
+        let implementations = route_override_implementations(ProcessAction::new(
+            "sh",
+            ["-c".to_owned(), format!("touch {}", marker.display())],
+        ));
+        let routes = route_override_registry();
+
+        let error = Planner::lower_with_route_overrides(
+            &graph,
+            &implementations,
+            &routes,
+            &[RouteOverride::new("data:manual-route", ["primary"])],
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            error,
+            PlannerError::Route(RouteError::ConnectorUnavailable(id)) if id == "primary"
+        ));
+        assert!(!marker.exists());
+    }
+
+    #[test]
+    fn route_override_identity_errors_are_visible() {
+        let graph = route_override_graph();
+        let implementations = route_override_implementations(ProcessAction::new(
+            "target",
+            std::iter::empty::<&str>(),
+        ));
+        let routes = route_override_registry();
+
+        let unknown = Planner::lower_with_route_overrides(
+            &graph,
+            &implementations,
+            &routes,
+            &[RouteOverride::new("data:missing", ["z-1", "z-2"])],
+        )
+        .unwrap_err();
+        assert!(matches!(
+            unknown,
+            PlannerError::UnknownRouteOverrideConnection { connection_id }
+                if connection_id == "data:missing"
+        ));
+
+        let duplicate = Planner::lower_with_route_overrides(
+            &graph,
+            &implementations,
+            &routes,
+            &[
+                RouteOverride::new("data:manual-route", ["z-1", "z-2"]),
+                RouteOverride::new("data:manual-route", ["a-1", "a-2"]),
+            ],
+        )
+        .unwrap_err();
+        assert!(matches!(
+            duplicate,
+            PlannerError::DuplicateRouteOverride { connection_id }
+                if connection_id == "data:manual-route"
+        ));
+    }
+
+    #[test]
+    fn route_override_on_same_contract_connection_is_not_applicable() {
+        let mut graph = Graph::new("graph:route-override-not-applicable");
+        let mut source = block("block:same-source", None);
+        source.ports.push(port(
+            "out",
+            PortDirection::Out,
+            PortChannel::Data,
+            Some("contract:same"),
+        ));
+        let mut target = block("block:same-target", Some("impl:same-target"));
+        target.ports.push(port(
+            "in",
+            PortDirection::In,
+            PortChannel::Data,
+            Some("contract:same"),
+        ));
+        graph.blocks.extend([source, target]);
+        graph.connections.push(Connection {
+            id: "data:same".to_owned(),
+            source: PortRef {
+                block_id: "block:same-source".to_owned(),
+                port_id: "out".to_owned(),
+            },
+            target: PortRef {
+                block_id: "block:same-target".to_owned(),
+                port_id: "in".to_owned(),
+            },
+            extensions: Extensions::new(),
+        });
+
+        let mut implementations = ImplementationRegistry::new();
+        implementations
+            .register(
+                "impl:same-target",
+                ProcessAction::new("target", std::iter::empty::<&str>()),
+            )
+            .unwrap();
+
+        let error = Planner::lower_with_route_overrides(
+            &graph,
+            &implementations,
+            &RouteRegistry::new(),
+            &[RouteOverride::new("data:same", ["unused"])],
+        )
+        .unwrap_err();
+
+        assert!(matches!(
+            error,
+            PlannerError::RouteOverrideNotApplicable { connection_id }
+                if connection_id == "data:same"
+        ));
+    }
+
 }
