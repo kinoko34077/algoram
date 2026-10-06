@@ -247,7 +247,7 @@ fn dependency_impact(
                         .iter()
                         .find(|port| port.id == connection.source.port_id)
                 })
-                .map(|port| port.channel)
+                .map(|port| port.channel.clone())
                 .ok_or_else(|| ResilienceError::MissingConnectionSourcePort {
                     connection_id: connection.id.clone(),
                     block_id: connection.source.block_id.clone(),
