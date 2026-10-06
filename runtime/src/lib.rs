@@ -551,11 +551,37 @@ impl ExecutionTrace {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeInput {
+    pub source_block_id: String,
+    pub source_port_id: String,
+    pub value: String,
+}
+
+impl RuntimeInput {
+    pub fn new(
+        source_block_id: impl Into<String>,
+        source_port_id: impl Into<String>,
+        value: impl Into<String>,
+    ) -> Self {
+        Self {
+            source_block_id: source_block_id.into(),
+            source_port_id: source_port_id.into(),
+            value: value.into(),
+        }
+    }
+}
+
 pub struct ProcessRuntime;
 
 impl ProcessRuntime {
     pub fn execute(plan: &ExecutionPlan) -> ExecutionTrace {
+        Self::execute_with_inputs(plan, &[])
+    }
+
+    pub fn execute_with_inputs(plan: &ExecutionPlan, inputs: &[RuntimeInput]) -> ExecutionTrace {
         let mut entries = Vec::with_capacity(plan.steps.len());
+        let mut successful_stdout = BTreeMap::<String, String>::new();
         let mut prior_failure = false;
 
         for step in &plan.steps {
@@ -570,15 +596,34 @@ impl ProcessRuntime {
                 continue;
             }
 
+            let dynamic_args = match resolve_argv_bindings(step, inputs, &successful_stdout) {
+                Ok(values) => values,
+                Err(error) => {
+                    prior_failure = true;
+                    entries.push(trace_entry(
+                        step,
+                        TraceStatus::Failed,
+                        None,
+                        String::new(),
+                        bounded_string(&error),
+                    ));
+                    continue;
+                }
+            };
+
             let mut command = Command::new(&step.action.program);
             command.args(&step.action.args);
+            command.args(&dynamic_args);
             if let Some(current_dir) = &step.action.current_dir {
                 command.current_dir(current_dir);
             }
 
             match command.output() {
                 Ok(output) => {
+                    let stdout = bounded_text(&output.stdout);
+                    let stderr = bounded_text(&output.stderr);
                     let status = if output.status.success() {
+                        successful_stdout.insert(step.id.clone(), stdout.clone());
                         TraceStatus::Succeeded
                     } else {
                         prior_failure = true;
@@ -588,8 +633,8 @@ impl ProcessRuntime {
                         step,
                         status,
                         output.status.code(),
-                        bounded_text(&output.stdout),
-                        bounded_text(&output.stderr),
+                        stdout,
+                        stderr,
                     ));
                 }
                 Err(error) => {
@@ -610,6 +655,43 @@ impl ProcessRuntime {
             entries,
         }
     }
+}
+
+fn resolve_argv_bindings(
+    step: &ExecutionStep,
+    inputs: &[RuntimeInput],
+    successful_stdout: &BTreeMap<String, String>,
+) -> Result<Vec<String>, String> {
+    let mut values = Vec::with_capacity(step.argv_bindings.len());
+
+    for binding in &step.argv_bindings {
+        let value = match &binding.source {
+            ArgvBindingSource::ExternalPort { block_id, port_id } => inputs
+                .iter()
+                .find(|input| {
+                    input.source_block_id == *block_id && input.source_port_id == *port_id
+                })
+                .map(|input| input.value.clone())
+                .ok_or_else(|| {
+                    format!(
+                        "missing runtime input for external Port '{}.{}' required by step '{}' argv Port '{}'",
+                        block_id, port_id, step.id, binding.target_port_id
+                    )
+                })?,
+            ArgvBindingSource::StepStdout { step_id } => successful_stdout
+                .get(step_id)
+                .cloned()
+                .ok_or_else(|| {
+                    format!(
+                        "missing successful stdout from step '{}' required by step '{}' argv Port '{}'",
+                        step_id, step.id, binding.target_port_id
+                    )
+                })?,
+        };
+        values.push(value);
+    }
+
+    Ok(values)
 }
 
 fn trace_entry(
