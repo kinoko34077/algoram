@@ -170,9 +170,12 @@ const nodeTypes: NodeTypes = {
   algoramBlock: BlockNode,
 };
 
+const nodeA11yDescription =
+  "Press Enter or Space to select a node. Use the arrow keys to move a selected node. Press Escape to clear selection.";
+
 const ariaLabelConfig = {
-  "node.a11yDescription.default":
-    "Press Enter or Space to select a node. Use the arrow keys to move a selected node. Press Escape to clear selection.",
+  "node.a11yDescription.default": nodeA11yDescription,
+  "node.a11yDescription.keyboardDisabled": nodeA11yDescription,
   "edge.a11yDescription.default":
     "Connection between Blocks. Connections are not directly editable in this presentation workspace.",
 };
