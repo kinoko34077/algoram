@@ -132,25 +132,15 @@ fn same_graph_can_replan_to_different_concrete_implementation_from_stored_eviden
 
         profiles.record("env:a", "impl:first", 200);
         profiles.record("env:a", "impl:second", 100);
-        let second_plan = Planner::lower_with_profiles(
-            &graph,
-            &implementations,
-            &routes,
-            &profiles,
-            "env:a",
-        )
-        .unwrap();
+        let second_plan =
+            Planner::lower_with_profiles(&graph, &implementations, &routes, &profiles, "env:a")
+                .unwrap();
         assert_eq!(second_plan.steps[0].implementation_ref, "impl:second");
 
         profiles.record("env:a", "impl:first", 50);
-        let first_plan = Planner::lower_with_profiles(
-            &graph,
-            &implementations,
-            &routes,
-            &profiles,
-            "env:a",
-        )
-        .unwrap();
+        let first_plan =
+            Planner::lower_with_profiles(&graph, &implementations, &routes, &profiles, "env:a")
+                .unwrap();
         assert_eq!(first_plan.steps[0].implementation_ref, "impl:first");
 
         (
