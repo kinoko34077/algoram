@@ -1,6 +1,4 @@
-use algoram_core::{
-    Block, Extensions, Graph, GraphError, Port, PortDirection, PortRef,
-};
+use algoram_core::{Block, Extensions, Graph, GraphError, Port, PortDirection, PortRef};
 use algoram_interop::RouteRegistry;
 use algoram_runtime::{
     ExecutionPlan, ExecutionTrace, ImplementationRegistry, Planner, PlannerError, ProcessRuntime,
@@ -214,8 +212,8 @@ impl CompositeDefinition {
         self.validate()?;
         self.validate_instance(instance)?;
 
-        let mut plan =
-            Planner::lower(&self.internal_graph, implementations, routes).map_err(CompositeError::Planner)?;
+        let mut plan = Planner::lower(&self.internal_graph, implementations, routes)
+            .map_err(CompositeError::Planner)?;
 
         for step in &mut plan.steps {
             if !step.origin_block_ids.iter().any(|id| id == &instance.id) {
@@ -423,9 +421,7 @@ impl Error for CompositeError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algoram_core::{
-        Connection, PortChannel, SourceAnchor, SourceArtifact,
-    };
+    use algoram_core::{Connection, PortChannel, SourceAnchor, SourceArtifact};
     use algoram_interop::{Connector, ContractId, TransferMode};
     use algoram_runtime::{ProcessAction, TraceStatus};
     use serde_json::json;
@@ -559,10 +555,7 @@ mod tests {
             .instantiate("block:basic-instance", "Basic instance")
             .unwrap();
 
-        assert_eq!(
-            instance.definition_ref.as_deref(),
-            Some("definition:basic")
-        );
+        assert_eq!(instance.definition_ref.as_deref(), Some("definition:basic"));
         assert_eq!(
             instance.internal_graph_ref.as_deref(),
             Some("graph:composite:basic")
@@ -583,11 +576,9 @@ mod tests {
         ));
 
         let mut ambiguous = basic_definition();
-        ambiguous.boundary_bindings.push(BoundaryBinding::new(
-            "value",
-            "boundary:input",
-            "value",
-        ));
+        ambiguous
+            .boundary_bindings
+            .push(BoundaryBinding::new("value", "boundary:input", "value"));
         assert!(matches!(
             ambiguous.validate(),
             Err(CompositeError::AmbiguousExternalBinding { .. })
@@ -736,8 +727,7 @@ mod tests {
             PortChannel::Data,
             Some("python:ctypes:c_int"),
         ));
-        boundary_input.source_anchor =
-            Some(whole_anchor("artifact:composite-python", PY_SOURCE));
+        boundary_input.source_anchor = Some(whole_anchor("artifact:composite-python", PY_SOURCE));
 
         let mut build = structural_block("block:build-c");
         build.implementation_ref = Some("fixture:composite-build-c".to_owned());
@@ -751,12 +741,9 @@ mod tests {
 
         let mut invoke = structural_block("block:invoke-c");
         invoke.implementation_ref = Some("fixture:composite-invoke-c".to_owned());
-        invoke.ports.push(port(
-            "flow_in",
-            PortDirection::In,
-            PortChannel::Flow,
-            None,
-        ));
+        invoke
+            .ports
+            .push(port("flow_in", PortDirection::In, PortChannel::Flow, None));
         invoke.ports.push(port(
             "value",
             PortDirection::In,
@@ -778,8 +765,7 @@ mod tests {
             PortChannel::Data,
             Some("c:abi:int32"),
         ));
-        boundary_output.source_anchor =
-            Some(whole_anchor("artifact:composite-python", PY_SOURCE));
+        boundary_output.source_anchor = Some(whole_anchor("artifact:composite-python", PY_SOURCE));
 
         graph
             .blocks
@@ -861,10 +847,7 @@ mod tests {
             .to_path_buf()
     }
 
-    fn heterogeneous_implementations(
-        shared_library: &Path,
-        value: i32,
-    ) -> ImplementationRegistry {
+    fn heterogeneous_implementations(shared_library: &Path, value: i32) -> ImplementationRegistry {
         let root = repo_root();
         let c_source = root.join("fixtures/execution-plan/bridge.c");
         let py_source = root.join("fixtures/execution-plan/call.py");
