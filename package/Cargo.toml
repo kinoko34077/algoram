@@ -1,0 +1,11 @@
+[package]
+name = "algoram-package"
+version = "0.1.0"
+edition = "2021"
+description = "Portable reusable Block package envelope for Algoram"
+
+[dependencies]
+algoram-core = { path = "../core" }
+algoram-composite = { path = "../composite" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
