@@ -47,9 +47,16 @@ impl ProcessAction {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImplementationChoice {
+    pub candidates: Vec<String>,
+    pub default_ref: String,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct ImplementationRegistry {
     actions: BTreeMap<String, ProcessAction>,
+    choices: BTreeMap<String, ImplementationChoice>,
 }
 
 impl ImplementationRegistry {
@@ -63,15 +70,81 @@ impl ImplementationRegistry {
         action: ProcessAction,
     ) -> Result<(), PlannerError> {
         let implementation_ref = implementation_ref.into();
-        if self.actions.contains_key(&implementation_ref) {
+        if self.actions.contains_key(&implementation_ref)
+            || self.choices.contains_key(&implementation_ref)
+        {
             return Err(PlannerError::DuplicateImplementationRef(implementation_ref));
         }
         self.actions.insert(implementation_ref, action);
         Ok(())
     }
 
+    pub fn register_choice(
+        &mut self,
+        logical_ref: impl Into<String>,
+        candidates: impl IntoIterator<Item = impl Into<String>>,
+        default_ref: impl Into<String>,
+    ) -> Result<(), PlannerError> {
+        let logical_ref = logical_ref.into();
+        if self.actions.contains_key(&logical_ref) || self.choices.contains_key(&logical_ref) {
+            return Err(PlannerError::DuplicateImplementationRef(logical_ref));
+        }
+
+        let candidates = candidates.into_iter().map(Into::into).collect::<Vec<_>>();
+        if candidates.is_empty() {
+            return Err(PlannerError::EmptyImplementationChoice { logical_ref });
+        }
+
+        let mut seen = BTreeSet::new();
+        for candidate_ref in &candidates {
+            if !seen.insert(candidate_ref.as_str()) {
+                return Err(PlannerError::DuplicateImplementationCandidate {
+                    logical_ref,
+                    candidate_ref: candidate_ref.clone(),
+                });
+            }
+            if !self.actions.contains_key(candidate_ref) {
+                return Err(PlannerError::MissingImplementationCandidate {
+                    logical_ref,
+                    candidate_ref: candidate_ref.clone(),
+                });
+            }
+        }
+
+        let default_ref = default_ref.into();
+        if !candidates.iter().any(|candidate| candidate == &default_ref) {
+            return Err(PlannerError::DefaultImplementationNotCandidate {
+                logical_ref,
+                default_ref,
+            });
+        }
+
+        self.choices.insert(
+            logical_ref,
+            ImplementationChoice {
+                candidates,
+                default_ref,
+            },
+        );
+        Ok(())
+    }
+
     pub fn action(&self, implementation_ref: &str) -> Option<&ProcessAction> {
         self.actions.get(implementation_ref)
+    }
+
+    pub fn choice(&self, logical_ref: &str) -> Option<&ImplementationChoice> {
+        self.choices.get(logical_ref)
+    }
+
+    pub fn resolve(&self, implementation_ref: &str) -> Option<(&str, &ProcessAction)> {
+        if let Some((concrete_ref, action)) = self.actions.get_key_value(implementation_ref) {
+            return Some((concrete_ref.as_str(), action));
+        }
+
+        let choice = self.choices.get(implementation_ref)?;
+        let (concrete_ref, action) = self.actions.get_key_value(&choice.default_ref)?;
+        Some((concrete_ref.as_str(), action))
     }
 }
 
@@ -127,13 +200,13 @@ impl Planner {
                 continue;
             };
 
-            let action = implementations
-                .action(implementation_ref)
-                .cloned()
+            let (selected_implementation_ref, action) = implementations
+                .resolve(implementation_ref)
                 .ok_or_else(|| PlannerError::MissingImplementation {
                     block_id: block.id.clone(),
                     implementation_ref: implementation_ref.to_owned(),
                 })?;
+            let action = action.clone();
 
             let argv_bindings = derive_argv_bindings(graph, block, &action)?;
             let mut route_connector_ids = Vec::new();
@@ -203,7 +276,7 @@ impl Planner {
 
             steps.push(ExecutionStep {
                 id: format!("step:{}", block.id),
-                implementation_ref: implementation_ref.to_owned(),
+                implementation_ref: selected_implementation_ref.to_owned(),
                 action,
                 origin_block_ids: vec![block.id.clone()],
                 source_anchors: block.source_anchor.clone().into_iter().collect(),
@@ -392,6 +465,21 @@ pub enum PlannerError {
     Graph(GraphError),
     Route(RouteError),
     DuplicateImplementationRef(String),
+    EmptyImplementationChoice {
+        logical_ref: String,
+    },
+    DuplicateImplementationCandidate {
+        logical_ref: String,
+        candidate_ref: String,
+    },
+    MissingImplementationCandidate {
+        logical_ref: String,
+        candidate_ref: String,
+    },
+    DefaultImplementationNotCandidate {
+        logical_ref: String,
+        default_ref: String,
+    },
     MissingImplementation {
         block_id: String,
         implementation_ref: String,
@@ -441,6 +529,30 @@ impl fmt::Display for PlannerError {
             Self::DuplicateImplementationRef(reference) => {
                 write!(f, "duplicate implementation ref '{reference}'")
             }
+            Self::EmptyImplementationChoice { logical_ref } => {
+                write!(f, "implementation choice '{logical_ref}' has no candidates")
+            }
+            Self::DuplicateImplementationCandidate {
+                logical_ref,
+                candidate_ref,
+            } => write!(
+                f,
+                "implementation choice '{logical_ref}' contains duplicate candidate '{candidate_ref}'"
+            ),
+            Self::MissingImplementationCandidate {
+                logical_ref,
+                candidate_ref,
+            } => write!(
+                f,
+                "implementation choice '{logical_ref}' references unregistered candidate '{candidate_ref}'"
+            ),
+            Self::DefaultImplementationNotCandidate {
+                logical_ref,
+                default_ref,
+            } => write!(
+                f,
+                "implementation choice '{logical_ref}' default '{default_ref}' is not one of its candidates"
+            ),
             Self::MissingImplementation {
                 block_id,
                 implementation_ref,
