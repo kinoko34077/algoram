@@ -1,4 +1,5 @@
 import phase1RouteGraphData from "./generated/phase1-route.json";
+import phase2RustRouteGraphData from "./generated/phase2-rust-route.json";
 import type {
   AlgoramBlock,
   AlgoramConnection,
@@ -60,6 +61,52 @@ ALGORAM_EXPORT int32_t algoram_checked_double(int32_t value) {
 }
 `;
 
+
+const rustPythonSource = `#!/usr/bin/env python3
+
+import ctypes
+import pathlib
+import sys
+
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        raise SystemExit("usage: call.py <shared-library> <integer>")
+
+    library_path = pathlib.Path(sys.argv[1]).resolve()
+    value = int(sys.argv[2])
+
+    library = ctypes.CDLL(str(library_path))
+    function = library.algoram_checked_triple
+    function.argtypes = [ctypes.c_int32]
+    function.restype = ctypes.c_int32
+
+    result = function(value)
+    if result < 0:
+        print(
+            f"native failure: algoram_checked_triple({value}) returned {result}",
+            file=sys.stderr,
+        )
+        return 23
+
+    print(result)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+`;
+
+const rustSource = `#[no_mangle]
+pub extern "C" fn algoram_checked_triple(value: i32) -> i32 {
+    if value < 0 {
+        -1
+    } else {
+        value * 3
+    }
+}
+`;
+
 const pythonArtifact: SourceArtifact = {
   id: "artifact:phase1-python",
   origin: "fixtures/execution-plan/call.py",
@@ -71,6 +118,21 @@ const cArtifact: SourceArtifact = {
   id: "artifact:phase1-c",
   origin: "fixtures/execution-plan/bridge.c",
   language: "c",
+  revision: "accepted-fixture",
+};
+
+
+const rustPythonArtifact: SourceArtifact = {
+  id: "artifact:phase2-python-rust",
+  origin: "fixtures/python-rust-cabi/call.py",
+  language: "python",
+  revision: "accepted-fixture",
+};
+
+const rustArtifact: SourceArtifact = {
+  id: "artifact:python-rust-cabi",
+  origin: "fixtures/python-rust-cabi/bridge.rs",
+  language: "rust",
   revision: "accepted-fixture",
 };
 
@@ -150,6 +212,9 @@ const rootGraphId = "graph:phase1:e2e-root";
 const internalGraphId = "graph:composite:python-c";
 const routeGraph = phase1RouteGraphData as AlgoramGraph;
 const routeGraphId = routeGraph.id;
+const rustInternalGraphId = "graph:phase2:python-rust-cabi";
+const rustRouteGraph = phase2RustRouteGraphData as AlgoramGraph;
+const rustRouteGraphId = rustRouteGraph.id;
 
 const compositeBlock: AlgoramBlock = {
   id: "block:phase1-composite",
@@ -168,11 +233,29 @@ const compositeBlock: AlgoramBlock = {
   },
 };
 
+
+const rustCompositeBlock: AlgoramBlock = {
+  id: "block:phase2-python-rust",
+  label: "Python/Rust checked triple",
+  ports: [
+    port("value", "in", "data", "python:ctypes:c_int"),
+    port("result", "out", "data", "c:abi:int32"),
+  ],
+  internal_graph_ref: rustInternalGraphId,
+  definition_ref: "definition:python-rust-triple",
+  extensions: {
+    composite: {
+      definition_id: "definition:python-rust-triple",
+      internal_graph_id: rustInternalGraphId,
+    },
+  },
+};
+
 const rootGraph: AlgoramGraph = {
   schema_version: "algoram.graph/0.1",
   id: rootGraphId,
-  label: "Phase 1 high-level composition",
-  blocks: [compositeBlock],
+  label: "Algoram heterogeneous capability proofs",
+  blocks: [compositeBlock, rustCompositeBlock],
   connections: [],
 };
 
@@ -251,12 +334,100 @@ const internalGraph: AlgoramGraph = {
   source_artifacts: [cArtifact, pythonArtifact],
 };
 
+
+const rustBoundaryInput: AlgoramBlock = {
+  id: "block:phase2-python-input",
+  label: "Python ctypes input boundary",
+  ports: [port("value", "out", "data", "python:ctypes:c_int")],
+  source_anchor: anchorWhole(rustPythonArtifact, rustPythonSource),
+};
+
+const rustBuild: AlgoramBlock = {
+  id: "block:phase2-build-rust",
+  label: "Build Rust cdylib",
+  ports: [port("flow_out", "out", "flow")],
+  implementation_ref: "fixture:build-rust-cdylib",
+  source_anchor: anchorWhole(rustArtifact, rustSource),
+};
+
+const rustInvoke: AlgoramBlock = {
+  id: "rust:artifact:python-rust-cabi:file/function:algoram_checked_triple",
+  label: "Invoke Rust extern C function",
+  ports: [
+    port("flow_in", "in", "flow"),
+    port(
+      "value",
+      "in",
+      "data",
+      "rust:extern-c:function:algoram_checked_triple:int32",
+    ),
+    port("result", "out", "data", "c:abi:int32"),
+  ],
+  implementation_ref: "fixture:invoke-rust-through-python-ctypes",
+  source_anchor: anchorFragment(
+    rustArtifact,
+    rustSource,
+    'pub extern "C" fn algoram_checked_triple',
+    "rust:algoram_checked_triple",
+  ),
+  extensions: {
+    rust: {
+      semantic_kind: "function_item",
+      syntax: {
+        kind: "function_item",
+        name: "algoram_checked_triple",
+        extern_abi: 'extern "C"',
+      },
+    },
+  },
+};
+
+const rustBoundaryOutput: AlgoramBlock = {
+  id: "block:phase2-python-output",
+  label: "Python ctypes result boundary",
+  ports: [port("result", "in", "data", "c:abi:int32")],
+  source_anchor: anchorWhole(rustPythonArtifact, rustPythonSource),
+};
+
+const rustInternalGraph: AlgoramGraph = {
+  schema_version: "algoram.graph/0.1",
+  id: rustInternalGraphId,
+  label: "Python/Rust checked triple — internal graph",
+  blocks: [rustBoundaryInput, rustBuild, rustInvoke, rustBoundaryOutput],
+  connections: [
+    connection(
+      "flow:phase2-build-invoke",
+      rustBuild.id,
+      "flow_out",
+      rustInvoke.id,
+      "flow_in",
+    ),
+    connection(
+      "data:phase2-input-invoke",
+      rustBoundaryInput.id,
+      "value",
+      rustInvoke.id,
+      "value",
+    ),
+    connection(
+      "data:phase2-invoke-output",
+      rustInvoke.id,
+      "result",
+      rustBoundaryOutput.id,
+      "result",
+    ),
+  ],
+  source_artifacts: [rustArtifact, rustPythonArtifact],
+};
+
 export const demoBundle: ReferenceBundle = {
   rootGraphId,
   graphs: {
     [rootGraph.id]: rootGraph,
     [internalGraph.id]: internalGraph,
     [routeGraph.id]: routeGraph,
+    [rustInternalGraph.id]: rustInternalGraph,
+    [rustRouteGraph.id]: rustRouteGraph,
   },
   sources: {
     [cArtifact.id]: {
@@ -267,8 +438,17 @@ export const demoBundle: ReferenceBundle = {
       artifact: pythonArtifact,
       text: pythonSource,
     },
+    [rustArtifact.id]: {
+      artifact: rustArtifact,
+      text: rustSource,
+    },
+    [rustPythonArtifact.id]: {
+      artifact: rustPythonArtifact,
+      text: rustPythonSource,
+    },
   },
   routeInspections: {
     [invokeC.id]: routeGraphId,
+    [rustInvoke.id]: rustRouteGraphId,
   },
 };
