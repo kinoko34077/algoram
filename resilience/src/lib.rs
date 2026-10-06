@@ -860,7 +860,7 @@ mod tests {
             id: "out".to_owned(),
             direction: PortDirection::Out,
             channel: PortChannel::Data,
-            contract: Some(serde_json::json!("contract:a")),
+            contract: Some("contract:a".into()),
             extensions: Extensions::new(),
         });
         let mut target = block("route-target");
@@ -869,7 +869,7 @@ mod tests {
             id: "in".to_owned(),
             direction: PortDirection::In,
             channel: PortChannel::Data,
-            contract: Some(serde_json::json!("contract:c")),
+            contract: Some("contract:c".into()),
             extensions: Extensions::new(),
         });
         graph.blocks.extend([source, target]);
