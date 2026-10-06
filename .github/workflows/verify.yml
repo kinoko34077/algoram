@@ -50,6 +50,8 @@ jobs:
         run: npm run test:navigation
       - name: Navigation scale baseline
         run: npm run perf:navigation
+      - name: Annotation checks
+        run: npm run test:annotations
       - name: ELK layout performance baseline
         run: npm run perf:baseline
 

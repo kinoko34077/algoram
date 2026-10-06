@@ -395,6 +395,66 @@ button {
   line-height: 1.55;
 }
 
+.annotation-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #dce4eb;
+}
+
+.annotation-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.annotation-heading strong {
+  font-size: 13px;
+}
+
+.annotation-heading button {
+  border: 1px solid #8799aa;
+  border-radius: 7px;
+  background: white;
+  color: #536779;
+  cursor: pointer;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+.annotation-heading button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.annotation-panel label {
+  display: grid;
+  gap: 5px;
+  color: #607080;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.annotation-panel textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #ccd6e0;
+  border-radius: 8px;
+  background: white;
+  color: #18202a;
+  padding: 8px 9px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.annotation-panel small {
+  color: #7b8997;
+  line-height: 1.45;
+}
+
 .source-panel {
   padding: 18px;
 }

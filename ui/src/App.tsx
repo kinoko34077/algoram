@@ -1,5 +1,12 @@
 import { useMemo, useState } from "react";
 import type { AlgoramBlock } from "./algoram";
+import {
+  getBlockAnnotation,
+  removeBlockAnnotation,
+  setBlockAnnotation,
+  type BlockAnnotations,
+} from "./annotations";
+import { AnnotationPanel } from "./AnnotationPanel";
 import { demoBundle } from "./fixture";
 import { GraphCanvas } from "./GraphCanvas";
 import {
@@ -28,6 +35,7 @@ export function App() {
   ]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [navigationStatus, setNavigationStatus] = useState<string | null>(null);
+  const [annotations, setAnnotations] = useState<BlockAnnotations>({});
 
   const navigationIndex = useMemo(
     () => buildNavigationIndex(demoBundle),
@@ -52,6 +60,11 @@ export function App() {
       ? undefined
       : demoBundle.routeInspections?.[selectedBlockId];
 
+  const selectedAnnotation =
+    selectedBlock === null
+      ? ""
+      : getBlockAnnotation(annotations, selectedBlock.id);
+
   function openGraphWithLabel(graphId: string, label: string) {
     if (!demoBundle.graphs[graphId]) {
       return;
@@ -75,6 +88,26 @@ export function App() {
     setPath((current) => current.slice(0, index + 1));
     setSelectedBlockId(null);
     setNavigationStatus(null);
+  }
+
+  function updateSelectedAnnotation(value: string) {
+    if (!selectedBlock) {
+      return;
+    }
+
+    setAnnotations((current) =>
+      setBlockAnnotation(current, selectedBlock.id, value),
+    );
+  }
+
+  function removeSelectedAnnotation() {
+    if (!selectedBlock) {
+      return;
+    }
+
+    setAnnotations((current) =>
+      removeBlockAnnotation(current, selectedBlock.id),
+    );
   }
 
   function jumpToSearchResult(record: NavigationRecord) {
@@ -185,6 +218,13 @@ export function App() {
                     Clear selection
                   </button>
                 </div>
+
+                <AnnotationPanel
+                  blockId={selectedBlock.id}
+                  value={selectedAnnotation}
+                  onChange={updateSelectedAnnotation}
+                  onRemove={removeSelectedAnnotation}
+                />
               </>
             ) : (
               <p className="hint">
