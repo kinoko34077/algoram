@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { AlgoramBlock } from "./algoram";
 import {
   getBlockAnnotation,
@@ -8,12 +8,20 @@ import {
 } from "./annotations";
 import { AnnotationPanel } from "./AnnotationPanel";
 import { demoBundle } from "./fixture";
+import { DraftLinkPanel } from "./DraftLinkPanel";
 import { GraphCanvas } from "./GraphCanvas";
 import {
   buildNavigationIndex,
   resolveBlockPath,
   type NavigationRecord,
 } from "./navigation";
+import {
+  addDraftLink,
+  EMPTY_GRAPH_PRESENTATION,
+  validateDraftLink,
+  type DraftLink,
+  type GraphPresentationState,
+} from "./presentation";
 import { SearchPanel } from "./SearchPanel";
 import { SourcePanel } from "./SourcePanel";
 
@@ -21,6 +29,9 @@ interface Breadcrumb {
   graphId: string;
   label: string;
 }
+
+type PresentationByGraph = Record<string, GraphPresentationState>;
+type SelectionByGraph = Record<string, string | null>;
 
 function graphLabel(graphId: string): string {
   return demoBundle.graphs[graphId]?.label ?? graphId;
@@ -33,9 +44,14 @@ export function App() {
       label: graphLabel(demoBundle.rootGraphId),
     },
   ]);
-  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [selectionByGraph, setSelectionByGraph] = useState<SelectionByGraph>(
+    {},
+  );
+  const [presentationByGraph, setPresentationByGraph] =
+    useState<PresentationByGraph>({});
   const [navigationStatus, setNavigationStatus] = useState<string | null>(null);
   const [annotations, setAnnotations] = useState<BlockAnnotations>({});
+  const [inspectorOpen, setInspectorOpen] = useState(true);
 
   const navigationIndex = useMemo(
     () => buildNavigationIndex(demoBundle),
@@ -48,6 +64,10 @@ export function App() {
   if (!currentGraph) {
     throw new Error(`Missing graph fixture: ${currentGraphId}`);
   }
+
+  const selectedBlockId = selectionByGraph[currentGraphId] ?? null;
+  const currentPresentation =
+    presentationByGraph[currentGraphId] ?? EMPTY_GRAPH_PRESENTATION;
 
   const selectedBlock = useMemo(
     () =>
@@ -65,6 +85,50 @@ export function App() {
       ? ""
       : getBlockAnnotation(annotations, selectedBlock.id);
 
+  const updatePresentation = useCallback(
+    (
+      graphId: string,
+      update: (current: GraphPresentationState) => GraphPresentationState,
+    ) => {
+      setPresentationByGraph((current) => {
+        const previous = current[graphId] ?? EMPTY_GRAPH_PRESENTATION;
+        const next = update(previous);
+        if (next === previous) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [graphId]: next,
+        };
+      });
+    },
+    [],
+  );
+
+  const selectBlock = useCallback(
+    (blockId: string | null) => {
+      setSelectionByGraph((current) => {
+        const previous = current[currentGraphId] ?? null;
+        if (previous === blockId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [currentGraphId]: blockId,
+        };
+      });
+    },
+    [currentGraphId],
+  );
+
+  const updateCurrentPresentation = useCallback(
+    (update: (current: GraphPresentationState) => GraphPresentationState) =>
+      updatePresentation(currentGraphId, update),
+    [currentGraphId, updatePresentation],
+  );
+
   function openGraphWithLabel(graphId: string, label: string) {
     if (!demoBundle.graphs[graphId]) {
       return;
@@ -77,7 +141,7 @@ export function App() {
         label,
       },
     ]);
-    setSelectedBlockId(null);
+    setNavigationStatus(null);
   }
 
   function openGraph(graphId: string, viaBlock: AlgoramBlock) {
@@ -86,7 +150,6 @@ export function App() {
 
   function jumpTo(index: number) {
     setPath((current) => current.slice(0, index + 1));
-    setSelectedBlockId(null);
     setNavigationStatus(null);
   }
 
@@ -101,7 +164,11 @@ export function App() {
   }
 
   function removeSelectedAnnotation() {
-    if (!selectedBlock) {
+    if (!selectedBlock || selectedAnnotation.length === 0) {
+      return;
+    }
+
+    if (!window.confirm("Clear this local note? This cannot be undone.")) {
       return;
     }
 
@@ -125,21 +192,48 @@ export function App() {
         label: entry.label,
       })),
     );
-    setSelectedBlockId(record.blockId);
+    setSelectionByGraph((current) => ({
+      ...current,
+      [record.graphId]: record.blockId,
+    }));
     setNavigationStatus(null);
   }
 
+  function addDraftFromInspector(link: DraftLink): string | null {
+    const error = validateDraftLink(currentGraph, currentPresentation, link);
+    if (error) {
+      return error;
+    }
+
+    updatePresentation(currentGraphId, (current) =>
+      addDraftLink(currentGraph, current, link),
+    );
+    return null;
+  }
+
   return (
-    <div className="app-shell comfy-shell">
+    <div className="app-shell">
       <header className="app-header">
-        <div>
-          <p className="eyebrow">ALGOram / Node Workspace</p>
+        <div className="title-block">
+          <p className="eyebrow">ALGOram</p>
           <h1>{currentGraph.label ?? currentGraph.id}</h1>
         </div>
-        <div className="header-status">
-          <strong>{currentGraph.blocks.length}</strong>
-          <span>visible Blocks</span>
-          <small>Comfy-style presentation layer · canonical Graph unchanged.</small>
+
+        <div className="header-actions">
+          <div className="header-stat" aria-label="Visible Blocks">
+            <strong>{currentGraph.blocks.length}</strong>
+            <span>Blocks</span>
+          </div>
+          <button
+            type="button"
+            className="tertiary-action"
+            aria-controls="inspector-panel"
+            aria-expanded={inspectorOpen}
+            aria-pressed={inspectorOpen}
+            onClick={() => setInspectorOpen((open) => !open)}
+          >
+            Inspector
+          </button>
         </div>
       </header>
 
@@ -162,85 +256,111 @@ export function App() {
         onSelectResult={jumpToSearchResult}
       />
 
-      <main className="workspace">
-        <section className="graph-region">
+      <main
+        className={
+          inspectorOpen ? "workspace inspector-open" : "workspace inspector-closed"
+        }
+      >
+        <section className="graph-region" aria-label="Graph editor">
           <GraphCanvas
             graph={currentGraph}
             selectedBlockId={selectedBlockId}
-            onSelectBlock={setSelectedBlockId}
+            presentation={currentPresentation}
+            onPresentationChange={updateCurrentPresentation}
+            onSelectBlock={selectBlock}
             onOpenGraph={openGraph}
           />
         </section>
 
-        <section className="inspector-region">
-          <div className="block-inspector">
-            <div>
-              <p className="eyebrow">Current level</p>
-              <strong>{currentGraph.id}</strong>
-            </div>
-
-            {selectedBlock ? (
-              <>
-                <h2>{selectedBlock.label}</h2>
-                <p className="block-id">{selectedBlock.id}</p>
-                <div className="inspector-actions">
-                  {selectedBlock.internal_graph_ref ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        openGraph(
-                          selectedBlock.internal_graph_ref as string,
-                          selectedBlock,
-                        )
-                      }
-                    >
-                      Open internal graph
-                    </button>
-                  ) : null}
-                  {selectedRouteGraphId ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        openGraphWithLabel(
-                          selectedRouteGraphId,
-                          "Actual selected route",
-                        )
-                      }
-                    >
-                      Inspect actual route
-                    </button>
-                  ) : null}
+        {inspectorOpen ? (
+          <aside
+            id="inspector-panel"
+            className="inspector-region"
+            aria-label="Block inspector"
+          >
+            <section className="block-inspector">
+              <div className="panel-heading-row">
+                <div>
+                  <p className="eyebrow">Current level</p>
+                  <strong>{currentGraph.id}</strong>
+                </div>
+                {selectedBlock ? (
                   <button
                     type="button"
-                    className="secondary"
-                    onClick={() => setSelectedBlockId(null)}
+                    className="tertiary-action"
+                    onClick={() => selectBlock(null)}
                   >
                     Clear selection
                   </button>
-                </div>
+                ) : null}
+              </div>
 
-                <AnnotationPanel
-                  blockId={selectedBlock.id}
-                  value={selectedAnnotation}
-                  onChange={updateSelectedAnnotation}
-                  onRemove={removeSelectedAnnotation}
-                />
-              </>
-            ) : (
-              <p className="hint">
-                Select a Block. Double-click an openable Block to descend one
-                hierarchy level.
-              </p>
-            )}
-          </div>
+              {selectedBlock ? (
+                <>
+                  <h2>{selectedBlock.label}</h2>
+                  <p className="block-id">{selectedBlock.id}</p>
 
-          <SourcePanel
-            bundle={demoBundle}
-            graph={currentGraph}
-            selectedBlock={selectedBlock}
-            onSelectBlock={setSelectedBlockId}
-          />
-        </section>
+                  <div className="inspector-actions">
+                    {selectedBlock.internal_graph_ref ? (
+                      <button
+                        type="button"
+                        className="secondary-action"
+                        onClick={() =>
+                          openGraph(
+                            selectedBlock.internal_graph_ref as string,
+                            selectedBlock,
+                          )
+                        }
+                      >
+                        Open graph
+                      </button>
+                    ) : null}
+                    {selectedRouteGraphId ? (
+                      <button
+                        type="button"
+                        className="secondary-action"
+                        onClick={() =>
+                          openGraphWithLabel(
+                            selectedRouteGraphId,
+                            "Actual selected route",
+                          )
+                        }
+                      >
+                        Route
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <DraftLinkPanel
+                    graph={currentGraph}
+                    selectedBlock={selectedBlock}
+                    presentation={currentPresentation}
+                    onAdd={addDraftFromInspector}
+                  />
+
+                  <AnnotationPanel
+                    blockId={selectedBlock.id}
+                    value={selectedAnnotation}
+                    onChange={updateSelectedAnnotation}
+                    onRemove={removeSelectedAnnotation}
+                  />
+                </>
+              ) : (
+                <p className="hint">
+                  Select a Block to inspect properties, source, or create a
+                  presentation-only draft link.
+                </p>
+              )}
+            </section>
+
+            <SourcePanel
+              bundle={demoBundle}
+              graph={currentGraph}
+              selectedBlock={selectedBlock}
+              onSelectBlock={selectBlock}
+            />
+          </aside>
+        ) : null}
       </main>
     </div>
   );

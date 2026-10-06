@@ -176,6 +176,7 @@ export function SourcePanel({
               key={line.number}
               type="button"
               className={highlighted ? "source-line selected" : "source-line"}
+              aria-pressed={highlighted}
               onClick={() => {
                 if (line.probeByte === null) {
                   return;

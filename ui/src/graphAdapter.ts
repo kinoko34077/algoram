@@ -21,6 +21,7 @@ export async function toFlowNodes(
     id: block.id,
     type: "algoramBlock",
     position: positions.get(block.id) ?? { x: 0, y: 0 },
+    ariaLabel: `${block.label} Block`,
     data: { block },
   }));
 }

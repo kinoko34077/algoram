@@ -41,7 +41,7 @@ export function SearchPanel({
   }
 
   return (
-    <section className="search-panel" aria-label="Repository navigation search">
+    <section className="search-panel" aria-label="Graph search">
       <div className="search-controls">
         <label>
           <span>Find Block</span>
@@ -49,7 +49,13 @@ export function SearchPanel({
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Label, ID, source path, semantic key"
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && active) {
+                event.preventDefault();
+                clear();
+              }
+            }}
+            placeholder="Label, ID, source, semantic key"
           />
         </label>
 
@@ -59,7 +65,7 @@ export function SearchPanel({
             value={language}
             onChange={(event) => setLanguage(event.target.value)}
           >
-            <option value="">All languages</option>
+            <option value="">All</option>
             {languages.map((item) => (
               <option key={item} value={item}>
                 {item}
@@ -70,7 +76,7 @@ export function SearchPanel({
 
         <button
           type="button"
-          className="secondary"
+          className="tertiary-action"
           onClick={clear}
           disabled={!active}
         >
@@ -78,7 +84,11 @@ export function SearchPanel({
         </button>
       </div>
 
-      {status ? <p className="search-status">{status}</p> : null}
+      {status ? (
+        <p className="search-status" role="status" aria-live="polite">
+          {status}
+        </p>
+      ) : null}
 
       {active ? (
         <div className="search-results">
@@ -86,43 +96,38 @@ export function SearchPanel({
             <strong>{results.length}</strong>
             <span>matches</span>
             {results.length > RESULT_LIMIT ? (
-              <small>Showing first {RESULT_LIMIT}</small>
+              <small>first {RESULT_LIMIT}</small>
             ) : null}
           </div>
 
           {visibleResults.length > 0 ? (
-            <div className="search-result-list">
+            <ul className="search-result-list">
               {visibleResults.map((record) => (
-                <button
-                  key={`${record.graphId}:${record.blockId}`}
-                  type="button"
-                  className="search-result"
-                  onClick={() => onSelectResult(record)}
-                >
-                  <strong>{record.label}</strong>
-                  <span>
-                    {record.graphLabel ?? record.graphId}
-                    {record.sourceLanguage
-                      ? ` · ${record.sourceLanguage}`
-                      : ""}
-                  </span>
-                  {record.sourceOrigin ? (
-                    <small>{record.sourceOrigin}</small>
-                  ) : (
-                    <small>{record.blockId}</small>
-                  )}
-                </button>
+                <li key={`${record.graphId}:${record.blockId}`}>
+                  <button
+                    type="button"
+                    className="search-result"
+                    onClick={() => onSelectResult(record)}
+                  >
+                    <strong>{record.label}</strong>
+                    <span>{record.graphLabel ?? record.graphId}</span>
+                    <small>
+                      {record.sourceOrigin ?? record.blockId}
+                      {record.sourceLanguage
+                        ? ` · ${record.sourceLanguage}`
+                        : ""}
+                    </small>
+                  </button>
+                </li>
               ))}
-            </div>
+            </ul>
           ) : (
-            <p className="search-empty">No matching Blocks.</p>
+            <p className="search-empty" role="status">
+              No matching Blocks.
+            </p>
           )}
         </div>
-      ) : (
-        <p className="search-hint">
-          Search across loaded Graphs without rendering sibling hierarchy levels.
-        </p>
-      )}
+      ) : null}
     </section>
   );
 }
