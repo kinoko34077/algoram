@@ -45,6 +45,8 @@ fn main() {
     measure_import_cache_hit();
     measure_plan_cold_and_cached();
     measure_single_process_runtime();
+    measure_runtime_origin_scaling();
+    measure_runtime_boundary_scaling();
 }
 
 fn command_version(program: &str) -> String {
@@ -310,4 +312,98 @@ fn measure_single_process_runtime() {
         assert_eq!(trace.entries.len(), 1);
         black_box(trace.entries[0].stdout.as_str());
     });
+}
+
+
+fn measure_runtime_origin_scaling() {
+    for origin_count in [1usize, 100, 10_000] {
+        measure_runtime_structure_case(
+            "runtime_fixed_boundary_origin_scaling",
+            origin_count,
+            1,
+            3,
+        );
+    }
+}
+
+fn measure_runtime_boundary_scaling() {
+    for step_count in [1usize, 2, 4] {
+        measure_runtime_structure_case(
+            "runtime_boundary_scaling",
+            100,
+            step_count,
+            3,
+        );
+    }
+}
+
+fn measure_runtime_structure_case(
+    metric: &str,
+    origin_count: usize,
+    step_count: usize,
+    iterations: usize,
+) {
+    let plan = runtime_structure_plan(origin_count, step_count);
+
+    let mut execute = || {
+        let trace = ProcessRuntime::execute(&plan);
+        assert!(trace.succeeded());
+        assert_eq!(trace.entries.len(), step_count);
+        assert_eq!(
+            trace
+                .entries
+                .iter()
+                .map(|entry| entry.origin_block_ids.len())
+                .sum::<usize>(),
+            origin_count
+        );
+        black_box(trace.entries.len());
+    };
+
+    execute();
+    let start = Instant::now();
+    for _ in 0..iterations {
+        execute();
+    }
+
+    emit_metric(
+        metric,
+        origin_count,
+        iterations,
+        start.elapsed(),
+        json!({
+            "origin_blocks": origin_count,
+            "execution_steps": step_count,
+            "trace_entries_per_execution": step_count,
+            "process_dispatches_per_execution": step_count
+        }),
+    );
+}
+
+fn runtime_structure_plan(origin_count: usize, step_count: usize) -> ExecutionPlan {
+    assert!(step_count > 0);
+    assert!(origin_count >= step_count);
+
+    let steps = (0..step_count)
+        .map(|step_index| {
+            let start = origin_count * step_index / step_count;
+            let end = origin_count * (step_index + 1) / step_count;
+            algoram_runtime::ExecutionStep {
+                id: format!("step:boundary:{step_index}"),
+                implementation_ref: format!("impl:boundary:{step_index}"),
+                action: ProcessAction::new("python3", ["-c", "pass"]),
+                origin_block_ids: (start..end)
+                    .map(|origin_index| format!("block:origin:{origin_index}"))
+                    .collect(),
+                source_anchors: Vec::new(),
+                route_connector_ids: Vec::new(),
+                argv_bindings: Vec::new(),
+            }
+        })
+        .collect();
+
+    ExecutionPlan {
+        reference_graph_id: "graph:runtime-boundary-scaling".to_owned(),
+        steps,
+    }
 }
