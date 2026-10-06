@@ -34,7 +34,13 @@ assert.match(canvas, /edgesFocusable=\{false\}/);
 assert.match(canvas, /disableKeyboardA11y=\{false\}/);
 assert.match(canvas, /const ariaLabelConfig = \{/);
 assert.match(canvas, /ariaLabelConfig=\{ariaLabelConfig\}/);
+assert.match(canvas, /"node\.a11yDescription\.default": nodeA11yDescription/);
+assert.match(
+  canvas,
+  /"node\.a11yDescription\.keyboardDisabled": nodeA11yDescription/,
+);
 assert.match(canvas, /Use the arrow keys to move a selected node/);
+assert.equal(canvas.includes("Press delete"), false);
 assert.match(canvas, /connectOnClick/);
 assert.match(canvas, /isValidConnection=\{isValidConnection\}/);
 assert.match(canvas, /aria-live="polite"/);
