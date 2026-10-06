@@ -28,6 +28,9 @@ assert.match(app, /presentationByGraph/);
 assert.match(app, /type SelectionByGraph/);
 assert.match(app, /inspectorOpen/);
 assert.match(app, /aria-expanded=\{inspectorOpen\}/);
+assert.match(app, /const selectBlock = useCallback/);
+assert.match(app, /if \(previous === blockId\)/);
+assert.match(app, /onPresentationChange=\{updateCurrentPresentation\}/);
 
 assert.match(canvas, /nodesFocusable/);
 assert.match(canvas, /edgesFocusable=\{false\}/);
@@ -42,6 +45,8 @@ assert.match(
 assert.match(canvas, /Use the arrow keys to move a selected node/);
 assert.equal(canvas.includes("Press delete"), false);
 assert.match(canvas, /connectOnClick/);
+assert.match(canvas, /const handleSelectionChange = useCallback/);
+assert.match(canvas, /onSelectionChange=\{handleSelectionChange\}/);
 assert.match(canvas, /isValidConnection=\{isValidConnection\}/);
 assert.match(canvas, /aria-live="polite"/);
 assert.match(canvas, /Reset layout/);
