@@ -12,8 +12,7 @@ use std::path::{Path, PathBuf};
 
 const PYTHON_C_ABI_CONNECTOR_ID: &str = "python-ctypes-c-abi-int32";
 const RUST_C_ABI_CONNECTOR_ID: &str = "c-abi-call-rust-algoram-checked-triple";
-const RUST_FUNCTION_CONTRACT: &str =
-    "rust:extern-c:function:algoram_checked_triple:int32";
+const RUST_FUNCTION_CONTRACT: &str = "rust:extern-c:function:algoram_checked_triple:int32";
 const BUILD_IMPL: &str = "fixture:build-rust-cdylib";
 const INVOKE_IMPL: &str = "fixture:invoke-rust-through-python-ctypes";
 
@@ -24,12 +23,7 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn port(
-    id: &str,
-    direction: PortDirection,
-    channel: PortChannel,
-    contract: Option<&str>,
-) -> Port {
+fn port(id: &str, direction: PortDirection, channel: PortChannel, contract: Option<&str>) -> Port {
     Port {
         id: id.to_owned(),
         direction,
@@ -160,9 +154,12 @@ fn execution_graph(imported: &RustImport) -> Graph {
 
     let mut build = structural_block("block:build-rust");
     build.implementation_ref = Some(BUILD_IMPL.to_owned());
-    build
-        .ports
-        .push(port("flow_out", PortDirection::Out, PortChannel::Flow, None));
+    build.ports.push(port(
+        "flow_out",
+        PortDirection::Out,
+        PortChannel::Flow,
+        None,
+    ));
     build.source_anchor = imported.root.blocks[0].source_anchor.clone();
 
     let mut invoke = imported_function;
