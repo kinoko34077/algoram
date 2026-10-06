@@ -1,0 +1,12 @@
+[package]
+name = "algoram-composite"
+version = "0.1.0"
+edition = "2021"
+description = "Bounded recursive Composite Block proof for Algoram"
+
+[dependencies]
+algoram-core = { path = "../core" }
+algoram-interop = { path = "../interop" }
+algoram-runtime = { path = "../runtime" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
