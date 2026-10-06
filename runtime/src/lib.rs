@@ -1233,7 +1233,6 @@ impl RuntimeAgent {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DistributedTraceEntry {
     pub runtime_ref: String,
@@ -1394,12 +1393,14 @@ impl DistributedRuntime {
                         continue;
                     };
 
-                    let value = completed_stdout.get(&source_step_id).cloned().ok_or_else(|| {
-                        DistributedExecutionError::MissingTransferredOutput {
-                            source_step_id: source_step_id.clone(),
-                            target_step_id: step.id.clone(),
-                        }
-                    })?;
+                    let value =
+                        completed_stdout
+                            .get(&source_step_id)
+                            .cloned()
+                            .ok_or_else(|| DistributedExecutionError::MissingTransferredOutput {
+                                source_step_id: source_step_id.clone(),
+                                target_step_id: step.id.clone(),
+                            })?;
                     let source_runtime_ref = completed_runtime
                         .get(&source_step_id)
                         .cloned()
@@ -1453,9 +1454,11 @@ impl DistributedRuntime {
                         &runtime_ref,
                         RuntimeAgentRequest::new(segment_plan.clone(), segment_inputs),
                     )
-                    .map_err(|error| DistributedExecutionError::AgentUnavailable {
-                        runtime_ref: runtime_ref.clone(),
-                        error,
+                    .map_err(|error| {
+                        DistributedExecutionError::AgentUnavailable {
+                            runtime_ref: runtime_ref.clone(),
+                            error,
+                        }
                     })?;
 
                     match response {
