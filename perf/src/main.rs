@@ -300,7 +300,7 @@ fn measure_single_process_runtime() {
             origin_block_ids: (0..100).map(|index| format!("block:{index}")).collect(),
             source_anchors: Vec::new(),
             route_connector_ids: Vec::new(),
-                    argv_bindings: Vec::new(),
+            argv_bindings: Vec::new(),
         }],
     };
 
