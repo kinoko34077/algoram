@@ -277,10 +277,7 @@ fn dependency_impact(
     })
 }
 
-fn selected_route_health(
-    plan: &ExecutionPlan,
-    routes: &RouteRegistry,
-) -> Vec<SelectedRouteHealth> {
+fn selected_route_health(plan: &ExecutionPlan, routes: &RouteRegistry) -> Vec<SelectedRouteHealth> {
     let mut report = Vec::new();
 
     for step in &plan.steps {
@@ -362,7 +359,10 @@ impl fmt::Display for ResilienceError {
             ),
             Self::NoObservedFailure => write!(f, "execution evidence contains no failed step"),
             Self::UnknownTraceStep { step_id } => {
-                write!(f, "failed trace step '{step_id}' is not present in the execution plan")
+                write!(
+                    f,
+                    "failed trace step '{step_id}' is not present in the execution plan"
+                )
             }
             Self::TracePlanMismatch { step_id, field } => write!(
                 f,
@@ -396,13 +396,9 @@ impl Error for ResilienceError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algoram_core::{
-        Block, Connection, Extensions, Port, PortDirection, PortRef, SourceAnchor,
-    };
+    use algoram_core::{Block, Connection, Extensions, Port, PortDirection, PortRef, SourceAnchor};
     use algoram_interop::{Connector, ContractId};
-    use algoram_runtime::{
-        DistributedTraceEntry, ExecutionStep, ProcessAction, TraceStatus,
-    };
+    use algoram_runtime::{DistributedTraceEntry, ExecutionStep, ProcessAction, TraceStatus};
     use std::fs;
 
     fn data_port(id: &str, direction: PortDirection) -> Port {
@@ -480,7 +476,11 @@ mod tests {
             steps: vec![
                 step(
                     "a",
-                    ["connector:available", "connector:unavailable", "connector:unknown"],
+                    [
+                        "connector:available",
+                        "connector:unavailable",
+                        "connector:unknown",
+                    ],
                     ProcessAction::new(
                         "sh",
                         ["-c".to_owned(), format!("touch {}", marker.display())],
