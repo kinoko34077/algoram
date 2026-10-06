@@ -205,11 +205,9 @@ impl<'a> Builder<'a> {
             "mod_item" => self.import_module(node, parent_identity, ids).map(Some),
             "let_declaration" => Ok(Some(self.import_let(node, parent_identity, ids))),
             "return_expression" => Ok(Some(self.import_return(node, parent_identity, ids))),
-            "expression_statement" => Ok(Some(self.import_expression_statement(
-                node,
-                parent_identity,
-                ids,
-            ))),
+            "expression_statement" => self
+                .import_expression_statement(node, parent_identity, ids)
+                .map(Some),
             "call_expression" => Ok(Some(self.import_call(node, parent_identity, ids))),
             "if_expression" if node.child_by_field_name("alternative").is_none() => {
                 self.import_if(node, parent_identity, ids).map(Some)
@@ -509,17 +507,32 @@ impl<'a> Builder<'a> {
     }
 
     fn import_expression_statement<'tree>(
-        &self,
+        &mut self,
         node: Node<'tree>,
         parent_identity: &str,
         ids: &mut IdAllocator,
-    ) -> Block {
+    ) -> Result<Block, RustImportError> {
         match first_named_child(node) {
             Some(child) if child.kind() == "call_expression" => {
-                self.import_call(child, parent_identity, ids)
+                Ok(self.import_call(child, parent_identity, ids))
             }
-            Some(child) => self.import_expression(child, parent_identity, ids),
-            None => self.import_opaque(node, parent_identity, ids),
+            Some(child)
+                if child.kind() == "if_expression"
+                    && child.child_by_field_name("alternative").is_none() =>
+            {
+                self.import_if(child, parent_identity, ids)
+            }
+            Some(child) if child.kind() == "return_expression" => {
+                Ok(self.import_return(child, parent_identity, ids))
+            }
+            Some(child) if child.kind() == "macro_invocation" => {
+                Ok(self.import_opaque(child, parent_identity, ids))
+            }
+            Some(child) if is_basic_expression(child.kind()) => {
+                Ok(self.import_expression(child, parent_identity, ids))
+            }
+            Some(child) => Ok(self.import_opaque(child, parent_identity, ids)),
+            None => Ok(self.import_opaque(node, parent_identity, ids)),
         }
     }
 
