@@ -1,7 +1,7 @@
 use algoram_core::{Block, Extensions, Graph};
 use algoram_interop::RouteRegistry;
 use algoram_runtime::{
-    ImplementationRegistry, Planner, PlannerError, ProcessAction, ProcessRuntime,
+    ExecutionPlan, ImplementationRegistry, Planner, PlannerError, ProcessAction, ProcessRuntime,
 };
 
 fn block(id: &str, implementation_ref: &str) -> Block {
@@ -87,7 +87,7 @@ fn logical_choice_freezes_selected_concrete_ref_and_replays_without_registry() {
         serde_json::to_string_pretty(&plan).unwrap()
     };
 
-    let restored = serde_json::from_str(&serialized).unwrap();
+    let restored: ExecutionPlan = serde_json::from_str(&serialized).unwrap();
 
     assert_eq!(restored.steps[0].implementation_ref, "impl:second");
     let trace = ProcessRuntime::execute(&restored);
