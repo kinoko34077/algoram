@@ -295,6 +295,23 @@ function CanvasBody({
     (changes: NodeChange<FlowBlockNode>[]) => {
       onNodesChange(changes);
 
+      const selected = changes.find(
+        (change) => change.type === "select" && change.selected,
+      );
+      if (selected) {
+        onSelectBlock(selected.id);
+      } else if (
+        selectedBlockId &&
+        changes.some(
+          (change) =>
+            change.type === "select" &&
+            !change.selected &&
+            change.id === selectedBlockId,
+        )
+      ) {
+        onSelectBlock(null);
+      }
+
       const positioned = changes.filter(
         (
           change,
@@ -318,7 +335,12 @@ function CanvasBody({
         return next;
       });
     },
-    [onNodesChange, onPresentationChange],
+    [
+      onNodesChange,
+      onPresentationChange,
+      onSelectBlock,
+      selectedBlockId,
+    ],
   );
 
   const isValidConnection = useCallback(
@@ -350,13 +372,6 @@ function CanvasBody({
       setInteractionStatus("Draft link added.");
     },
     [graph, onPresentationChange, presentation],
-  );
-
-  const handleSelectionChange = useCallback(
-    ({ nodes: selectedNodes }: { nodes: FlowBlockNode[] }) => {
-      onSelectBlock(selectedNodes.at(-1)?.id ?? null);
-    },
-    [onSelectBlock],
   );
 
   const resetLayout = useCallback(() => {
@@ -423,7 +438,6 @@ function CanvasBody({
           onConnect={connectDraft}
           isValidConnection={isValidConnection}
           onNodeClick={(_, node) => onSelectBlock(node.id)}
-          onSelectionChange={handleSelectionChange}
           onNodeDoubleClick={(_, node) => {
             const reference = node.data.block.internal_graph_ref;
             if (reference) {
