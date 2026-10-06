@@ -139,11 +139,7 @@ fn empty_choice_is_rejected() {
     let mut implementations = registered_actions();
 
     let error = implementations
-        .register_choice(
-            "choice:empty",
-            std::iter::empty::<&str>(),
-            "impl:first",
-        )
+        .register_choice("choice:empty", std::iter::empty::<&str>(), "impl:first")
         .unwrap_err();
     assert!(matches!(
         error,
