@@ -1551,6 +1551,19 @@ fn validate_segment_trace(
                 ),
             });
         }
+        if entry.implementation_ref != step.implementation_ref
+            || entry.origin_block_ids != step.origin_block_ids
+            || entry.source_anchors != step.source_anchors
+            || entry.route_connector_ids != step.route_connector_ids
+        {
+            return Err(DistributedExecutionError::MalformedAgentResponse {
+                runtime_ref: runtime_ref.to_owned(),
+                detail: format!(
+                    "trace attribution for step '{}' does not match submitted execution step",
+                    step.id
+                ),
+            });
+        }
     }
 
     Ok(())
