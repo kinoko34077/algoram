@@ -22,12 +22,7 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn port(
-    id: &str,
-    direction: PortDirection,
-    channel: PortChannel,
-    contract: Option<&str>,
-) -> Port {
+fn port(id: &str, direction: PortDirection, channel: PortChannel, contract: Option<&str>) -> Port {
     Port {
         id: id.to_owned(),
         direction,
@@ -155,7 +150,9 @@ fn reference_graph() -> Graph {
     ));
 
     let mut graph = Graph::new(GRAPH_ID);
-    graph.source_artifacts.extend([uppercase_artifact, prefix_artifact]);
+    graph
+        .source_artifacts
+        .extend([uppercase_artifact, prefix_artifact]);
     graph.blocks.extend([external, uppercase, prefix]);
     graph.connections.extend([
         data_connection(
@@ -231,8 +228,7 @@ fn implementations() -> ImplementationRegistry {
     implementations
         .register(
             "fixture:prefix",
-            ProcessAction::new("python3", [prefix.display().to_string()])
-                .with_argv_ports(["text"]),
+            ProcessAction::new("python3", [prefix.display().to_string()]).with_argv_ports(["text"]),
         )
         .unwrap();
     implementations
