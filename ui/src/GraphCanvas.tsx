@@ -419,9 +419,15 @@ function CanvasBody({
           nodesConnectable
           nodesDraggable
           nodesFocusable
-          edgesFocusable
+          edgesFocusable={false}
           connectOnClick
           disableKeyboardA11y={false}
+          ariaLabelConfig={{
+            "node.a11yDescription.default":
+              "Press Enter or Space to select a node. Use the arrow keys to move a selected node. Press Escape to clear selection.",
+            "edge.a11yDescription.default":
+              "Connection between Blocks. Connections are not directly editable in this presentation workspace.",
+          }}
           deleteKeyCode={null}
           fitView
           colorMode="dark"
