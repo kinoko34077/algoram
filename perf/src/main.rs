@@ -317,23 +317,13 @@ fn measure_single_process_runtime() {
 
 fn measure_runtime_origin_scaling() {
     for origin_count in [1usize, 100, 10_000] {
-        measure_runtime_structure_case(
-            "runtime_fixed_boundary_origin_scaling",
-            origin_count,
-            1,
-            3,
-        );
+        measure_runtime_structure_case("runtime_fixed_boundary_origin_scaling", origin_count, 1, 3);
     }
 }
 
 fn measure_runtime_boundary_scaling() {
     for step_count in [1usize, 2, 4] {
-        measure_runtime_structure_case(
-            "runtime_boundary_scaling",
-            100,
-            step_count,
-            3,
-        );
+        measure_runtime_structure_case("runtime_boundary_scaling", 100, step_count, 3);
     }
 }
 
