@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { AlgoramBlock } from "./algoram";
 import {
   getBlockAnnotation,
@@ -85,30 +85,49 @@ export function App() {
       ? ""
       : getBlockAnnotation(annotations, selectedBlock.id);
 
-  function updatePresentation(
-    graphId: string,
-    update: (current: GraphPresentationState) => GraphPresentationState,
-  ) {
-    setPresentationByGraph((current) => {
-      const previous = current[graphId] ?? EMPTY_GRAPH_PRESENTATION;
-      const next = update(previous);
-      if (next === previous) {
-        return current;
-      }
+  const updatePresentation = useCallback(
+    (
+      graphId: string,
+      update: (current: GraphPresentationState) => GraphPresentationState,
+    ) => {
+      setPresentationByGraph((current) => {
+        const previous = current[graphId] ?? EMPTY_GRAPH_PRESENTATION;
+        const next = update(previous);
+        if (next === previous) {
+          return current;
+        }
 
-      return {
-        ...current,
-        [graphId]: next,
-      };
-    });
-  }
+        return {
+          ...current,
+          [graphId]: next,
+        };
+      });
+    },
+    [],
+  );
 
-  function selectBlock(blockId: string | null) {
-    setSelectionByGraph((current) => ({
-      ...current,
-      [currentGraphId]: blockId,
-    }));
-  }
+  const selectBlock = useCallback(
+    (blockId: string | null) => {
+      setSelectionByGraph((current) => {
+        const previous = current[currentGraphId] ?? null;
+        if (previous === blockId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [currentGraphId]: blockId,
+        };
+      });
+    },
+    [currentGraphId],
+  );
+
+  const updateCurrentPresentation = useCallback(
+    (update: (current: GraphPresentationState) => GraphPresentationState) =>
+      updatePresentation(currentGraphId, update),
+    [currentGraphId, updatePresentation],
+  );
 
   function openGraphWithLabel(graphId: string, label: string) {
     if (!demoBundle.graphs[graphId]) {
@@ -247,9 +266,7 @@ export function App() {
             graph={currentGraph}
             selectedBlockId={selectedBlockId}
             presentation={currentPresentation}
-            onPresentationChange={(update) =>
-              updatePresentation(currentGraphId, update)
-            }
+            onPresentationChange={updateCurrentPresentation}
             onSelectBlock={selectBlock}
             onOpenGraph={openGraph}
           />
