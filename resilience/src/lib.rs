@@ -93,6 +93,53 @@ pub struct RuntimeRecoveryCandidate {
     pub is_current: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FallbackGraphRef {
+    pub primary_graph_id: String,
+    pub fallback_graph_id: String,
+}
+
+impl FallbackGraphRef {
+    pub fn new(primary_graph_id: impl Into<String>, fallback_graph_id: impl Into<String>) -> Self {
+        Self {
+            primary_graph_id: primary_graph_id.into(),
+            fallback_graph_id: fallback_graph_id.into(),
+        }
+    }
+
+    pub fn validate(&self, primary: &Graph, fallback: &Graph) -> Result<(), ResilienceError> {
+        if self.primary_graph_id.trim().is_empty() {
+            return Err(ResilienceError::EmptyFallbackGraphId { role: "primary" });
+        }
+        if self.fallback_graph_id.trim().is_empty() {
+            return Err(ResilienceError::EmptyFallbackGraphId { role: "fallback" });
+        }
+        if self.primary_graph_id == self.fallback_graph_id {
+            return Err(ResilienceError::SameFallbackGraphId(
+                self.primary_graph_id.clone(),
+            ));
+        }
+        if primary.id != self.primary_graph_id {
+            return Err(ResilienceError::FallbackGraphIdMismatch {
+                role: "primary",
+                expected: self.primary_graph_id.clone(),
+                actual: primary.id.clone(),
+            });
+        }
+        if fallback.id != self.fallback_graph_id {
+            return Err(ResilienceError::FallbackGraphIdMismatch {
+                role: "fallback",
+                expected: self.fallback_graph_id.clone(),
+                actual: fallback.id.clone(),
+            });
+        }
+
+        primary.validate().map_err(ResilienceError::Graph)?;
+        fallback.validate().map_err(ResilienceError::Graph)?;
+        Ok(())
+    }
+}
+
 pub struct ResilienceAnalyzer;
 
 impl ResilienceAnalyzer {
@@ -554,6 +601,15 @@ pub enum ResilienceError {
     MissingImplementationChoice {
         logical_implementation_ref: String,
     },
+    EmptyFallbackGraphId {
+        role: &'static str,
+    },
+    SameFallbackGraphId(String),
+    FallbackGraphIdMismatch {
+        role: &'static str,
+        expected: String,
+        actual: String,
+    },
     PlanGraphMismatch {
         graph_id: String,
         plan_graph_id: String,
@@ -597,6 +653,21 @@ impl fmt::Display for ResilienceError {
             } => write!(
                 f,
                 "no trusted local implementation choice exists for logical ref '{logical_implementation_ref}'"
+            ),
+            Self::EmptyFallbackGraphId { role } => {
+                write!(f, "{role} fallback Graph id must not be empty")
+            }
+            Self::SameFallbackGraphId(graph_id) => write!(
+                f,
+                "fallback Graph reference must identify a distinct Graph, got '{graph_id}' for both"
+            ),
+            Self::FallbackGraphIdMismatch {
+                role,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "{role} fallback Graph id mismatch: expected '{expected}', got '{actual}'"
             ),
             Self::PlanGraphMismatch {
                 graph_id,
@@ -1387,4 +1458,75 @@ mod tests {
         ));
         assert!(!marker.exists());
     }
+
+    #[test]
+    fn fallback_graph_reference_validates_two_independent_graphs_without_execution() {
+        let marker = std::env::temp_dir().join(format!(
+            "algoram-fallback-graph-must-not-execute-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&marker);
+
+        let mut primary = Graph::new("graph:primary");
+        primary.blocks.push(Block {
+            id: "block:primary".to_owned(),
+            label: "primary".to_owned(),
+            ports: Vec::new(),
+            internal_graph_ref: None,
+            implementation_ref: Some("impl:dangerous-primary".to_owned()),
+            definition_ref: None,
+            source_anchor: None,
+            extensions: Extensions::new(),
+            diagnostics: Vec::new(),
+        });
+
+        let mut fallback = Graph::new("graph:fallback");
+        fallback.blocks.push(Block {
+            id: "block:fallback".to_owned(),
+            label: "fallback".to_owned(),
+            ports: Vec::new(),
+            internal_graph_ref: None,
+            implementation_ref: Some("impl:dangerous-fallback".to_owned()),
+            definition_ref: None,
+            source_anchor: None,
+            extensions: Extensions::new(),
+            diagnostics: Vec::new(),
+        });
+
+        let reference = FallbackGraphRef::new("graph:primary", "graph:fallback");
+        reference.validate(&primary, &fallback).unwrap();
+
+        let serialized = serde_json::to_string(&reference).unwrap();
+        let restored: FallbackGraphRef = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(restored, reference);
+        assert!(!marker.exists());
+    }
+
+    #[test]
+    fn fallback_graph_reference_rejects_identity_errors() {
+        let primary = Graph::new("graph:primary");
+        let fallback = Graph::new("graph:fallback");
+
+        assert!(matches!(
+            FallbackGraphRef::new("", "graph:fallback").validate(&primary, &fallback),
+            Err(ResilienceError::EmptyFallbackGraphId { role: "primary" })
+        ));
+        assert!(matches!(
+            FallbackGraphRef::new("graph:primary", "").validate(&primary, &fallback),
+            Err(ResilienceError::EmptyFallbackGraphId { role: "fallback" })
+        ));
+        assert!(matches!(
+            FallbackGraphRef::new("graph:primary", "graph:primary").validate(&primary, &primary),
+            Err(ResilienceError::SameFallbackGraphId(id)) if id == "graph:primary"
+        ));
+        assert!(matches!(
+            FallbackGraphRef::new("graph:other", "graph:fallback").validate(&primary, &fallback),
+            Err(ResilienceError::FallbackGraphIdMismatch {
+                role: "primary",
+                expected,
+                actual,
+            }) if expected == "graph:other" && actual == "graph:primary"
+        ));
+    }
+
 }
