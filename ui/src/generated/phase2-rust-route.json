@@ -1,0 +1,78 @@
+{
+  "schema_version": "algoram.graph/0.1",
+  "id": "graph:interop:python_ctypes_c_int->rust_extern-c_function_algoram_checked_triple_int32",
+  "label": "Interop route: python:ctypes:c_int → rust:extern-c:function:algoram_checked_triple:int32",
+  "blocks": [
+    {
+      "id": "interop:connector:python-ctypes-c-abi-int32",
+      "label": "python-ctypes-c-abi-int32",
+      "ports": [
+        {
+          "id": "in",
+          "direction": "in",
+          "channel": "data",
+          "contract": "python:ctypes:c_int"
+        },
+        {
+          "id": "out",
+          "direction": "out",
+          "channel": "data",
+          "contract": "c:abi:int32"
+        }
+      ],
+      "implementation_ref": "fixture:python-c-ctypes",
+      "extensions": {
+        "interop": {
+          "connector_id": "python-ctypes-c-abi-int32",
+          "source_contract": "python:ctypes:c_int",
+          "target_contract": "c:abi:int32",
+          "implementation_ref": "fixture:python-c-ctypes",
+          "transfer": "copy",
+          "scheduling": "sync"
+        }
+      }
+    },
+    {
+      "id": "interop:connector:c-abi-call-rust-algoram-checked-triple",
+      "label": "c-abi-call-rust-algoram-checked-triple",
+      "ports": [
+        {
+          "id": "in",
+          "direction": "in",
+          "channel": "data",
+          "contract": "c:abi:int32"
+        },
+        {
+          "id": "out",
+          "direction": "out",
+          "channel": "data",
+          "contract": "rust:extern-c:function:algoram_checked_triple:int32"
+        }
+      ],
+      "implementation_ref": "fixture:rust:extern-c:algoram_checked_triple",
+      "extensions": {
+        "interop": {
+          "connector_id": "c-abi-call-rust-algoram-checked-triple",
+          "source_contract": "c:abi:int32",
+          "target_contract": "rust:extern-c:function:algoram_checked_triple:int32",
+          "implementation_ref": "fixture:rust:extern-c:algoram_checked_triple",
+          "transfer": "copy",
+          "scheduling": "sync"
+        }
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "route:interop:connector:python-ctypes-c-abi-int32->interop:connector:c-abi-call-rust-algoram-checked-triple",
+      "source": {
+        "block_id": "interop:connector:python-ctypes-c-abi-int32",
+        "port_id": "out"
+      },
+      "target": {
+        "block_id": "interop:connector:c-abi-call-rust-algoram-checked-triple",
+        "port_id": "in"
+      }
+    }
+  ]
+}
