@@ -296,7 +296,12 @@ function CanvasBody({
       onNodesChange(changes);
 
       const selected = changes.find(
-        (change) => change.type === "select" && change.selected,
+        (
+          change,
+        ): change is Extract<
+          NodeChange<FlowBlockNode>,
+          { type: "select" }
+        > => change.type === "select" && change.selected,
       );
       if (selected) {
         onSelectBlock(selected.id);
