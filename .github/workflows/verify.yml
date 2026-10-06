@@ -48,6 +48,8 @@ jobs:
         run: npm run build
       - name: Navigation checks
         run: npm run test:navigation
+      - name: Navigation scale baseline
+        run: npm run perf:navigation
       - name: ELK layout performance baseline
         run: npm run perf:baseline
 
