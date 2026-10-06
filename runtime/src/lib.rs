@@ -1232,7 +1232,6 @@ impl RuntimeAgent {
         }
     }
 }
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DistributedTraceEntry {
     pub runtime_ref: String,
