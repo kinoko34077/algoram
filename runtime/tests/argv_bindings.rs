@@ -3,7 +3,7 @@ use algoram_core::{
 };
 use algoram_interop::{Connector, ContractId, RouteRegistry, TransferMode};
 use algoram_runtime::{
-    ArgvBindingSource, ImplementationRegistry, Planner, PlannerError, ProcessAction,
+    ArgvBindingSource, ExecutionPlan, ImplementationRegistry, Planner, PlannerError, ProcessAction,
 };
 
 fn port(id: &str, direction: PortDirection, channel: PortChannel, contract: Option<&str>) -> Port {
@@ -196,7 +196,7 @@ fn planner_serializes_external_and_step_stdout_bindings_in_explicit_argv_order()
     );
 
     let json = serde_json::to_string_pretty(&plan).unwrap();
-    let restored = serde_json::from_str(&json).unwrap();
+    let restored: ExecutionPlan = serde_json::from_str(&json).unwrap();
     assert_eq!(restored, plan);
 }
 
@@ -278,7 +278,8 @@ fn planner_error_for_target(
     implementations
         .register(
             "impl:target",
-            ProcessAction::new("target", ["--fixed"]).with_argv_ports(argv_ports),
+            ProcessAction::new("target", ["--fixed"])
+                .with_argv_ports(argv_ports.iter().copied()),
         )
         .unwrap();
 
