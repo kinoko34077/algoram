@@ -121,10 +121,7 @@ fn placed_execution_unit_crosses_independent_agent_process_boundary() {
             assert_eq!(trace.reference_graph_id, "graph:agent-boundary");
             assert_eq!(trace.entries.len(), 1);
             assert_eq!(trace.entries[0].status, TraceStatus::Succeeded);
-            assert_eq!(
-                trace.entries[0].implementation_ref,
-                "impl:agent-boundary"
-            );
+            assert_eq!(trace.entries[0].implementation_ref, "impl:agent-boundary");
             assert_eq!(
                 trace.entries[0].origin_block_ids,
                 vec!["block:agent-boundary"]
