@@ -334,7 +334,7 @@ fn measure_runtime_structure_case(
 ) {
     let plan = runtime_structure_plan(origin_count, step_count);
 
-    let mut execute = || {
+    let execute = || {
         let trace = ProcessRuntime::execute(&plan);
         assert!(trace.succeeded());
         assert_eq!(trace.entries.len(), step_count);
