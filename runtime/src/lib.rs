@@ -54,6 +54,35 @@ pub struct ImplementationChoice {
 }
 
 #[derive(Debug, Clone, Default)]
+pub struct ImplementationProfileStore {
+    observations_ns: BTreeMap<(String, String), u64>,
+}
+
+impl ImplementationProfileStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn record(
+        &mut self,
+        environment_key: impl Into<String>,
+        implementation_ref: impl Into<String>,
+        observed_ns: u64,
+    ) {
+        self.observations_ns.insert(
+            (environment_key.into(), implementation_ref.into()),
+            observed_ns,
+        );
+    }
+
+    pub fn observed_ns(&self, environment_key: &str, implementation_ref: &str) -> Option<u64> {
+        self.observations_ns
+            .get(&(environment_key.to_owned(), implementation_ref.to_owned()))
+            .copied()
+    }
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct ImplementationRegistry {
     actions: BTreeMap<String, ProcessAction>,
     choices: BTreeMap<String, ImplementationChoice>,
@@ -146,6 +175,41 @@ impl ImplementationRegistry {
         let (concrete_ref, action) = self.actions.get_key_value(&choice.default_ref)?;
         Some((concrete_ref.as_str(), action))
     }
+
+    pub fn resolve_with_profiles(
+        &self,
+        implementation_ref: &str,
+        profiles: &ImplementationProfileStore,
+        environment_key: &str,
+    ) -> Option<(&str, &ProcessAction)> {
+        if let Some((concrete_ref, action)) = self.actions.get_key_value(implementation_ref) {
+            return Some((concrete_ref.as_str(), action));
+        }
+
+        let choice = self.choices.get(implementation_ref)?;
+        let selected_ref = choice
+            .candidates
+            .iter()
+            .enumerate()
+            .filter_map(|(index, candidate_ref)| {
+                profiles
+                    .observed_ns(environment_key, candidate_ref)
+                    .map(|observed_ns| {
+                        (
+                            observed_ns,
+                            candidate_ref != &choice.default_ref,
+                            index,
+                            candidate_ref,
+                        )
+                    })
+            })
+            .min_by_key(|(observed_ns, non_default, index, _)| (*observed_ns, *non_default, *index))
+            .map(|(_, _, _, candidate_ref)| candidate_ref.as_str())
+            .unwrap_or(choice.default_ref.as_str());
+
+        let (concrete_ref, action) = self.actions.get_key_value(selected_ref)?;
+        Some((concrete_ref.as_str(), action))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -189,6 +253,30 @@ impl Planner {
         implementations: &ImplementationRegistry,
         routes: &RouteRegistry,
     ) -> Result<ExecutionPlan, PlannerError> {
+        Self::lower_internal(graph, implementations, routes, None)
+    }
+
+    pub fn lower_with_profiles(
+        graph: &Graph,
+        implementations: &ImplementationRegistry,
+        routes: &RouteRegistry,
+        profiles: &ImplementationProfileStore,
+        environment_key: &str,
+    ) -> Result<ExecutionPlan, PlannerError> {
+        Self::lower_internal(
+            graph,
+            implementations,
+            routes,
+            Some((profiles, environment_key)),
+        )
+    }
+
+    fn lower_internal(
+        graph: &Graph,
+        implementations: &ImplementationRegistry,
+        routes: &RouteRegistry,
+        profile_context: Option<(&ImplementationProfileStore, &str)>,
+    ) -> Result<ExecutionPlan, PlannerError> {
         graph.validate().map_err(PlannerError::Graph)?;
 
         let order = stable_flow_order(graph)?;
@@ -200,9 +288,16 @@ impl Planner {
                 continue;
             };
 
-            let (selected_implementation_ref, action) = implementations
-                .resolve(implementation_ref)
-                .ok_or_else(|| PlannerError::MissingImplementation {
+            let resolved = match profile_context {
+                Some((profiles, environment_key)) => implementations.resolve_with_profiles(
+                    implementation_ref,
+                    profiles,
+                    environment_key,
+                ),
+                None => implementations.resolve(implementation_ref),
+            };
+            let (selected_implementation_ref, action) =
+                resolved.ok_or_else(|| PlannerError::MissingImplementation {
                     block_id: block.id.clone(),
                     implementation_ref: implementation_ref.to_owned(),
                 })?;
