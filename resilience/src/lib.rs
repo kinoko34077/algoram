@@ -180,7 +180,7 @@ impl ResilienceAnalyzer {
                         continue;
                     };
                     let Some(target_contract) =
-                        target_port.contract.as_ref().and_then(serde_json_string)
+                        target_port.contract.as_ref().and_then(|value| value.as_str())
                     else {
                         continue;
                     };
