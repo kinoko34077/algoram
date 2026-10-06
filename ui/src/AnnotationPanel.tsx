@@ -22,7 +22,7 @@ export function AnnotationPanel({
         </div>
         <button
           type="button"
-          className="tertiary-action"
+          className="danger-action"
           onClick={onRemove}
           disabled={value.length === 0}
         >
