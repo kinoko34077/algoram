@@ -278,8 +278,7 @@ fn planner_error_for_target(
     implementations
         .register(
             "impl:target",
-            ProcessAction::new("target", ["--fixed"])
-                .with_argv_ports(argv_ports.iter().copied()),
+            ProcessAction::new("target", ["--fixed"]).with_argv_ports(argv_ports.iter().copied()),
         )
         .unwrap();
 
