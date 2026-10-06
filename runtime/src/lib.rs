@@ -968,7 +968,7 @@ impl ExecutionTrace {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeInput {
     pub source_block_id: String,
     pub source_port_id: String,
@@ -987,6 +987,29 @@ impl RuntimeInput {
             value: value.into(),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeAgentRequest {
+    pub plan: ExecutionPlan,
+    #[serde(default)]
+    pub inputs: Vec<RuntimeInput>,
+}
+
+impl RuntimeAgentRequest {
+    pub fn new(plan: ExecutionPlan, inputs: impl IntoIterator<Item = RuntimeInput>) -> Self {
+        Self {
+            plan,
+            inputs: inputs.into_iter().collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum RuntimeAgentResponse {
+    Executed { trace: ExecutionTrace },
+    Rejected { error: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -1185,6 +1208,28 @@ impl GuardedProcessRuntime {
     ) -> Result<ExecutionTrace, ExecutionSecurityError> {
         Self::preflight(plan, trusted_implementations, policy)?;
         Ok(ProcessRuntime::execute_with_inputs(plan, inputs))
+    }
+}
+
+pub struct RuntimeAgent;
+
+impl RuntimeAgent {
+    pub fn handle(
+        request: RuntimeAgentRequest,
+        trusted_implementations: &ImplementationRegistry,
+        policy: &ExecutionPolicy,
+    ) -> RuntimeAgentResponse {
+        match GuardedProcessRuntime::execute_with_inputs(
+            &request.plan,
+            &request.inputs,
+            trusted_implementations,
+            policy,
+        ) {
+            Ok(trace) => RuntimeAgentResponse::Executed { trace },
+            Err(error) => RuntimeAgentResponse::Rejected {
+                error: error.to_string(),
+            },
+        }
     }
 }
 
