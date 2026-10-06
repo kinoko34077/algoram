@@ -47,11 +47,7 @@ fn input_block() -> Block {
     Block {
         id: "block:text-input".to_owned(),
         label: "Text input".to_owned(),
-        ports: vec![port(
-            "value",
-            PortDirection::Out,
-            Some("text:utf8"),
-        )],
+        ports: vec![port("value", PortDirection::Out, Some("text:utf8"))],
         internal_graph_ref: None,
         implementation_ref: None,
         definition_ref: None,
@@ -70,11 +66,7 @@ fn execution_graph(imported: &PythonImport) -> Graph {
     cli.label = "CLI uppercase process".to_owned();
     cli.internal_graph_ref = None;
     cli.implementation_ref = Some(PROCESS_IMPL.to_owned());
-    cli.ports = vec![port(
-        "argv",
-        PortDirection::In,
-        Some("process:argv:utf8"),
-    )];
+    cli.ports = vec![port("argv", PortDirection::In, Some("process:argv:utf8"))];
 
     graph.blocks.extend([input_block(), cli.clone()]);
     graph.connections.push(Connection {
@@ -117,10 +109,7 @@ fn implementations(value: &str) -> ImplementationRegistry {
     implementations
         .register(
             PROCESS_IMPL,
-            ProcessAction::new(
-                "python3",
-                [script.display().to_string(), value.to_owned()],
-            ),
+            ProcessAction::new("python3", [script.display().to_string(), value.to_owned()]),
         )
         .unwrap();
     implementations
@@ -139,10 +128,7 @@ fn process_route_is_non_abi_and_inspectable() {
     assert!(!connector.target.as_str().contains("abi"));
 
     let resolution = routes
-        .resolve(&RouteRequest::automatic(
-            "text:utf8",
-            "process:argv:utf8",
-        ))
+        .resolve(&RouteRequest::automatic("text:utf8", "process:argv:utf8"))
         .unwrap();
     let route = resolution.route().expect("CLI process route resolves");
 
