@@ -1,7 +1,9 @@
+use algoram_catalog::{CapabilityCatalog, CatalogAsset, CatalogError};
 use algoram_core::{Graph, GraphError, PortChannel};
 use algoram_interop::{Resolution, RouteError, RouteRegistry, RouteRequest};
 use algoram_runtime::{
-    DistributedExecutionTrace, ExecutionPlan, ExecutionTrace, TraceEntry, TraceStatus,
+    DistributedExecutionTrace, ExecutionPlan, ExecutionStep, ExecutionTrace,
+    ImplementationRegistry, RuntimeEndpoint, RuntimeLocationClass, TraceEntry, TraceStatus,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -62,6 +64,33 @@ pub struct AlternativeRouteCandidate {
     pub source_contract: String,
     pub target_contract: String,
     pub connector_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrustedImplementationCandidate {
+    pub implementation_ref: String,
+    pub is_default: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CatalogImplementationCandidate {
+    pub listing_id: String,
+    pub supplier: String,
+    pub implementation_ref: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImplementationRecoveryCandidates {
+    pub logical_implementation_ref: String,
+    pub trusted_local: Vec<TrustedImplementationCandidate>,
+    pub catalog_only: Vec<CatalogImplementationCandidate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuntimeRecoveryCandidate {
+    pub runtime_ref: String,
+    pub class: RuntimeLocationClass,
+    pub is_current: bool,
 }
 
 pub struct ResilienceAnalyzer;
@@ -220,6 +249,77 @@ impl ResilienceAnalyzer {
         }
 
         Ok(candidates.into_values().collect())
+    }
+
+    pub fn implementation_recovery_candidates(
+        logical_implementation_ref: &str,
+        implementations: &ImplementationRegistry,
+        catalog: &CapabilityCatalog,
+    ) -> Result<ImplementationRecoveryCandidates, ResilienceError> {
+        let choice = implementations
+            .choice(logical_implementation_ref)
+            .ok_or_else(|| ResilienceError::MissingImplementationChoice {
+                logical_implementation_ref: logical_implementation_ref.to_owned(),
+            })?;
+
+        let trusted_set = choice
+            .candidates
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+
+        let trusted_local = choice
+            .candidates
+            .iter()
+            .map(|implementation_ref| TrustedImplementationCandidate {
+                implementation_ref: implementation_ref.clone(),
+                is_default: implementation_ref == &choice.default_ref,
+            })
+            .collect::<Vec<_>>();
+
+        let catalog_only = catalog
+            .search_logical_implementations(logical_implementation_ref)
+            .map_err(ResilienceError::Catalog)?
+            .into_iter()
+            .filter_map(|listing| match &listing.asset {
+                CatalogAsset::Implementation {
+                    implementation_ref,
+                    ..
+                } if !trusted_set.contains(implementation_ref.as_str()) => {
+                    Some(CatalogImplementationCandidate {
+                        listing_id: listing.listing_id.clone(),
+                        supplier: listing.supplier.clone(),
+                        implementation_ref: implementation_ref.clone(),
+                    })
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        Ok(ImplementationRecoveryCandidates {
+            logical_implementation_ref: logical_implementation_ref.to_owned(),
+            trusted_local,
+            catalog_only,
+        })
+    }
+
+    pub fn runtime_recovery_candidates(
+        step: &ExecutionStep,
+        current_runtime_ref: &str,
+        endpoints: &[RuntimeEndpoint],
+    ) -> Vec<RuntimeRecoveryCandidate> {
+        let mut candidates = endpoints
+            .iter()
+            .filter(|endpoint| endpoint.supports(&step.implementation_ref))
+            .map(|endpoint| RuntimeRecoveryCandidate {
+                runtime_ref: endpoint.runtime_ref.clone(),
+                class: endpoint.class,
+                is_current: endpoint.runtime_ref == current_runtime_ref,
+            })
+            .collect::<Vec<_>>();
+
+        candidates.sort_by(|left, right| left.runtime_ref.cmp(&right.runtime_ref));
+        candidates
     }
 
     fn build_report(
@@ -451,6 +551,10 @@ fn selected_route_health(plan: &ExecutionPlan, routes: &RouteRegistry) -> Vec<Se
 #[derive(Debug)]
 pub enum ResilienceError {
     Graph(GraphError),
+    Catalog(CatalogError),
+    MissingImplementationChoice {
+        logical_implementation_ref: String,
+    },
     PlanGraphMismatch {
         graph_id: String,
         plan_graph_id: String,
@@ -488,6 +592,13 @@ impl fmt::Display for ResilienceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Graph(error) => write!(f, "invalid reference graph: {error}"),
+            Self::Catalog(error) => write!(f, "invalid capability catalog: {error}"),
+            Self::MissingImplementationChoice {
+                logical_implementation_ref,
+            } => write!(
+                f,
+                "no trusted local implementation choice exists for logical ref '{logical_implementation_ref}'"
+            ),
             Self::PlanGraphMismatch {
                 graph_id,
                 plan_graph_id,
@@ -542,6 +653,7 @@ impl Error for ResilienceError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Graph(error) => Some(error),
+            Self::Catalog(error) => Some(error),
             Self::Route(error) => Some(error),
             _ => None,
         }
