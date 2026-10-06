@@ -146,7 +146,10 @@ fn imported_open_package_can_fork_with_lineage_without_mutating_upstream() {
         })
     );
     assert_eq!(
-        restored_derivative.definition.internal_graph.source_artifacts[0]
+        restored_derivative
+            .definition
+            .internal_graph
+            .source_artifacts[0]
             .license
             .as_deref(),
         Some("MIT")
