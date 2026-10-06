@@ -35,7 +35,12 @@ export function App() {
     [currentGraph, selectedBlockId],
   );
 
-  function openGraph(graphId: string, viaBlock: AlgoramBlock) {
+  const selectedRouteGraphId =
+    selectedBlockId === null
+      ? undefined
+      : demoBundle.routeInspections?.[selectedBlockId];
+
+  function openGraphWithLabel(graphId: string, label: string) {
     if (!demoBundle.graphs[graphId]) {
       return;
     }
@@ -44,10 +49,14 @@ export function App() {
       ...current,
       {
         graphId,
-        label: viaBlock.label,
+        label,
       },
     ]);
     setSelectedBlockId(null);
+  }
+
+  function openGraph(graphId: string, viaBlock: AlgoramBlock) {
+    openGraphWithLabel(graphId, viaBlock.label);
   }
 
   function jumpTo(index: number) {
@@ -115,6 +124,19 @@ export function App() {
                       }
                     >
                       Open internal graph
+                    </button>
+                  ) : null}
+                  {selectedRouteGraphId ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openGraphWithLabel(
+                          selectedRouteGraphId,
+                          "Actual selected route",
+                        )
+                      }
+                    >
+                      Inspect actual route
                     </button>
                   ) : null}
                   <button

@@ -74,7 +74,7 @@ function sourceDocumentFor(
     }
   }
 
-  return Object.values(bundle.sources)[0] ?? null;
+  return null;
 }
 
 function byteSnippet(source: string, anchor: SourceAnchor): string {
