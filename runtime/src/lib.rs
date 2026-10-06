@@ -989,7 +989,6 @@ impl RuntimeInput {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeAgentRequest {
     pub plan: ExecutionPlan,
@@ -1211,7 +1210,6 @@ impl GuardedProcessRuntime {
         Ok(ProcessRuntime::execute_with_inputs(plan, inputs))
     }
 }
-
 
 pub struct RuntimeAgent;
 
