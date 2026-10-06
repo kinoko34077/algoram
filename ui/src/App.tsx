@@ -130,16 +130,16 @@ export function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell comfy-shell">
       <header className="app-header">
         <div>
-          <p className="eyebrow">ALGOram / Reference Graph</p>
+          <p className="eyebrow">ALGOram / Node Workspace</p>
           <h1>{currentGraph.label ?? currentGraph.id}</h1>
         </div>
         <div className="header-status">
           <strong>{currentGraph.blocks.length}</strong>
           <span>visible Blocks</span>
-          <small>Only the current hierarchy level is materialized.</small>
+          <small>Comfy-style presentation layer · canonical Graph unchanged.</small>
         </div>
       </header>
 

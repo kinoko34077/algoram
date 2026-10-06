@@ -1,16 +1,22 @@
 import {
+  addEdge,
   Background,
+  BackgroundVariant,
   Controls,
   Handle,
   MiniMap,
   Position,
   ReactFlow,
   ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
   useReactFlow,
+  type Connection,
+  type Edge,
   type NodeProps,
   type NodeTypes,
 } from "@xyflow/react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AlgoramBlock, AlgoramGraph } from "./algoram";
 import {
   toFlowEdges,
@@ -43,6 +49,23 @@ function contractLabel(contract: unknown): string {
   }
 }
 
+function PortLabel({
+  direction,
+  channel,
+  id,
+}: {
+  direction: "in" | "out";
+  channel: "flow" | "data";
+  id: string;
+}) {
+  return (
+    <span className={`node-port-label ${direction}`}>
+      <span className={`port-dot ${channel}`} />
+      <span>{id}</span>
+    </span>
+  );
+}
+
 function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
   const { block } = data;
   const ports = block.ports ?? [];
@@ -63,21 +86,55 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
         />
       ))}
 
-      <div className="node-title">{block.label}</div>
-      <div className="node-meta">
-        {block.internal_graph_ref ? <span>openable</span> : <span>leaf</span>}
-        {block.source_anchor ? <span>source</span> : null}
+      <div className="node-titlebar">
+        <span className="node-grip" aria-hidden="true">
+          ⠿
+        </span>
+        <div className="node-title">{block.label}</div>
+        {block.internal_graph_ref ? (
+          <span className="node-badge">graph</span>
+        ) : (
+          <span className="node-badge muted">block</span>
+        )}
+      </div>
+
+      <div className="node-subtitle">
+        {block.implementation_ref ?? block.definition_ref ?? block.id}
       </div>
 
       {ports.length > 0 ? (
-        <div className="port-summary">
-          {ports.map((port) => (
-            <span key={port.id}>
-              {port.direction === "in" ? "←" : "→"} {port.id}
-            </span>
-          ))}
+        <div className="node-port-grid">
+          <div className="node-port-column inputs">
+            {inputs.map((port) => (
+              <PortLabel
+                key={port.id}
+                direction="in"
+                channel={port.channel}
+                id={port.id}
+              />
+            ))}
+          </div>
+          <div className="node-port-column outputs">
+            {outputs.map((port) => (
+              <PortLabel
+                key={port.id}
+                direction="out"
+                channel={port.channel}
+                id={port.id}
+              />
+            ))}
+          </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="node-empty-ports">no exposed ports</div>
+      )}
+
+      <div className="node-meta">
+        {block.source_anchor ? <span>source</span> : null}
+        {block.diagnostics?.length ? (
+          <span>{block.diagnostics.length} diag</span>
+        ) : null}
+      </div>
 
       {outputs.map((port, index) => (
         <Handle
@@ -104,15 +161,37 @@ function CanvasBody({
   onSelectBlock,
   onOpenGraph,
 }: GraphCanvasProps) {
-  const [baseNodes, setBaseNodes] = useState<FlowBlockNode[]>([]);
+  const [baseNodes, setBaseNodes, onNodesChange] =
+    useNodesState<FlowBlockNode>([]);
+  const [edges, setEdges] = useEdgesState<Edge>([]);
   const [layoutError, setLayoutError] = useState<string | null>(null);
+  const draftSequence = useRef(0);
   const { fitView } = useReactFlow<FlowBlockNode>();
 
-  const edges = useMemo(() => toFlowEdges(graph), [graph]);
+  const restoreCanonicalEdges = useCallback(() => {
+    setEdges(toFlowEdges(graph));
+    draftSequence.current = 0;
+  }, [graph, setEdges]);
+
+  const autoLayout = useCallback(async () => {
+    setLayoutError(null);
+    try {
+      const nextNodes = await toFlowNodes(graph);
+      setBaseNodes(nextNodes);
+      requestAnimationFrame(() => {
+        void fitView({ padding: 0.2, duration: 180 });
+      });
+    } catch (error: unknown) {
+      setLayoutError(
+        error instanceof Error ? error.message : "Graph layout failed",
+      );
+    }
+  }, [fitView, graph, setBaseNodes]);
 
   useEffect(() => {
     let cancelled = false;
     setLayoutError(null);
+    restoreCanonicalEdges();
 
     void toFlowNodes(graph)
       .then((nextNodes) => {
@@ -121,7 +200,7 @@ function CanvasBody({
         }
         setBaseNodes(nextNodes);
         requestAnimationFrame(() => {
-          void fitView({ padding: 0.24, duration: 180 });
+          void fitView({ padding: 0.2, duration: 180 });
         });
       })
       .catch((error: unknown) => {
@@ -135,10 +214,13 @@ function CanvasBody({
     return () => {
       cancelled = true;
     };
-  }, [fitView, graph]);
+  }, [fitView, graph, restoreCanonicalEdges, setBaseNodes]);
 
   useEffect(() => {
-    if (!selectedBlockId || !baseNodes.some((node) => node.id === selectedBlockId)) {
+    if (
+      !selectedBlockId ||
+      !baseNodes.some((node) => node.id === selectedBlockId)
+    ) {
       return;
     }
 
@@ -160,13 +242,70 @@ function CanvasBody({
     [baseNodes, selectedBlockId],
   );
 
+  const draftCount = useMemo(
+    () => edges.filter((edge) => edge.id.startsWith("draft:")).length,
+    [edges],
+  );
+
+  const connectDraft = useCallback(
+    (connection: Connection) => {
+      if (!connection.source || !connection.target) {
+        return;
+      }
+
+      const draftId = `draft:${graph.id}:${draftSequence.current}`;
+      draftSequence.current += 1;
+
+      setEdges((current) =>
+        addEdge(
+          {
+            ...connection,
+            id: draftId,
+            animated: true,
+            className: "draft-edge",
+            label: "draft",
+          },
+          current,
+        ),
+      );
+    },
+    [graph.id, setEdges],
+  );
+
   return (
-    <div className="graph-canvas">
+    <div className="graph-canvas comfy-canvas">
       {layoutError ? <div className="canvas-error">{layoutError}</div> : null}
+
+      <div className="canvas-toolbar" aria-label="Node workspace controls">
+        <div className="workspace-mode">
+          <strong>Node workspace</strong>
+          <span>presentation-only editing</span>
+        </div>
+        <div className="canvas-toolbar-actions">
+          <button type="button" onClick={() => void autoLayout()}>
+            Auto layout
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={restoreCanonicalEdges}
+            disabled={draftCount === 0}
+          >
+            Clear draft links
+          </button>
+        </div>
+        <small>
+          {draftCount} draft {draftCount === 1 ? "link" : "links"} · drag nodes
+          freely · Graph JSON unchanged
+        </small>
+      </div>
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
+        onConnect={connectDraft}
         onNodeClick={(_, node) => onSelectBlock(node.id)}
         onNodeDoubleClick={(_, node) => {
           const reference = node.data.block.internal_graph_ref;
@@ -175,11 +314,25 @@ function CanvasBody({
           }
         }}
         onPaneClick={() => onSelectBlock(null)}
-        nodesConnectable={false}
+        nodesConnectable
+        nodesDraggable
+        deleteKeyCode={null}
         fitView
+        colorMode="dark"
+        connectionLineStyle={{ stroke: "#a978ff", strokeWidth: 2 }}
       >
-        <Background gap={24} size={1} />
-        <MiniMap pannable zoomable />
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={22}
+          size={1.2}
+          color="#343b46"
+        />
+        <MiniMap
+          pannable
+          zoomable
+          nodeColor={(node) => (node.selected ? "#a978ff" : "#46505e")}
+          maskColor="rgb(10 12 16 / 72%)"
+        />
         <Controls />
       </ReactFlow>
     </div>
