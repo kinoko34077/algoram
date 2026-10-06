@@ -380,7 +380,9 @@ mod tests {
     use super::*;
     use algoram_core::{Block, Connection, Extensions, Graph, PortRef};
     use algoram_interop::RouteRegistry;
-    use algoram_runtime::{ExecutionPlan, ImplementationRegistry, Planner, ProcessAction, ProcessRuntime};
+    use algoram_runtime::{
+        ExecutionPlan, ImplementationRegistry, Planner, ProcessAction, ProcessRuntime,
+    };
     use serde_json::json;
 
     fn current_output_port() -> Port {
@@ -725,7 +727,10 @@ mod tests {
             vec!["supplier-a", "supplier-b"]
         );
         assert_eq!(
-            results.iter().map(|listing| concrete_ref(listing)).collect::<Vec<_>>(),
+            results
+                .iter()
+                .map(|listing| concrete_ref(listing))
+                .collect::<Vec<_>>(),
             vec!["impl:supplier-a", "impl:supplier-b"]
         );
         assert_eq!(catalog, before);
@@ -800,7 +805,10 @@ mod tests {
             plan_a.steps[0].implementation_ref,
             plan_b.steps[0].implementation_ref
         );
-        assert_eq!(graph.blocks[1].implementation_ref.as_deref(), Some("logical:text-provider"));
+        assert_eq!(
+            graph.blocks[1].implementation_ref.as_deref(),
+            Some("logical:text-provider")
+        );
         assert_eq!(graph.connections, graph_before.connections);
     }
 
