@@ -820,7 +820,8 @@ impl ExecutionPolicy {
     }
 
     pub fn allows(&self, implementation_ref: &str) -> bool {
-        self.allowed_implementation_refs.contains(implementation_ref)
+        self.allowed_implementation_refs
+            .contains(implementation_ref)
     }
 }
 
@@ -1545,8 +1546,8 @@ mod tests {
         let mut trusted = ImplementationRegistry::new();
         trusted.register("impl:guarded", action).unwrap();
 
-        let denied = GuardedProcessRuntime::execute(&plan, &trusted, &ExecutionPolicy::new())
-            .unwrap_err();
+        let denied =
+            GuardedProcessRuntime::execute(&plan, &trusted, &ExecutionPolicy::new()).unwrap_err();
         assert!(matches!(
             denied,
             ExecutionSecurityError::DeniedImplementation { .. }
@@ -1630,10 +1631,8 @@ mod tests {
         let tampered_action = marker_action(&marker, "tampered");
         let plan = single_step_plan("impl:guarded", tampered_action);
 
-        let trusted_action = ProcessAction::new(
-            "python3",
-            ["-c".to_owned(), "print('TRUSTED')".to_owned()],
-        );
+        let trusted_action =
+            ProcessAction::new("python3", ["-c".to_owned(), "print('TRUSTED')".to_owned()]);
         let mut trusted = ImplementationRegistry::new();
         trusted.register("impl:guarded", trusted_action).unwrap();
 
@@ -1647,8 +1646,8 @@ mod tests {
         ));
         assert!(!marker.exists());
 
-        let missing = GuardedProcessRuntime::inspect(&plan, &ImplementationRegistry::new())
-            .unwrap_err();
+        let missing =
+            GuardedProcessRuntime::inspect(&plan, &ImplementationRegistry::new()).unwrap_err();
         assert!(matches!(
             missing,
             ExecutionSecurityError::MissingTrustedImplementation { .. }
@@ -1666,9 +1665,7 @@ mod tests {
         let plan = single_step_plan("impl:guarded", trusted_action.clone());
 
         let mut trusted = ImplementationRegistry::new();
-        trusted
-            .register("impl:guarded", trusted_action)
-            .unwrap();
+        trusted.register("impl:guarded", trusted_action).unwrap();
 
         let error = GuardedProcessRuntime::inspect(&plan, &trusted).unwrap_err();
         assert!(matches!(
