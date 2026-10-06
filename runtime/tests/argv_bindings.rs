@@ -6,12 +6,7 @@ use algoram_runtime::{
     ArgvBindingSource, ImplementationRegistry, Planner, PlannerError, ProcessAction,
 };
 
-fn port(
-    id: &str,
-    direction: PortDirection,
-    channel: PortChannel,
-    contract: Option<&str>,
-) -> Port {
+fn port(id: &str, direction: PortDirection, channel: PortChannel, contract: Option<&str>) -> Port {
     Port {
         id: id.to_owned(),
         direction,
@@ -162,8 +157,7 @@ fn binding_implementations() -> ImplementationRegistry {
     implementations
         .register(
             "impl:target",
-            ProcessAction::new("target", ["--fixed"])
-                .with_argv_ports(["second", "first"]),
+            ProcessAction::new("target", ["--fixed"]).with_argv_ports(["second", "first"]),
         )
         .unwrap();
     implementations
@@ -305,12 +299,7 @@ fn planner_rejects_missing_declared_argv_port() {
 
 #[test]
 fn planner_rejects_non_input_data_argv_port() {
-    let target_ports = vec![port(
-        "value",
-        PortDirection::In,
-        PortChannel::Flow,
-        None,
-    )];
+    let target_ports = vec![port("value", PortDirection::In, PortChannel::Flow, None)];
     let error = planner_error_for_target(target_ports, Vec::new(), &["value"]);
     assert!(matches!(
         error,
