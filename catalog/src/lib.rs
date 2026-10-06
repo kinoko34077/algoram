@@ -380,8 +380,8 @@ mod tests {
     use super::*;
     use algoram_composite::{BoundaryBinding, CompositeDefinition};
     use algoram_core::{Block, Connection, Extensions, Graph, PortRef};
-    use algoram_package::BlockPackage;
     use algoram_interop::RouteRegistry;
+    use algoram_package::BlockPackage;
     use algoram_runtime::{
         ExecutionPlan, ImplementationRegistry, Planner, ProcessAction, ProcessRuntime,
     };
@@ -931,7 +931,10 @@ mod tests {
         assert_eq!(listing.supplier, "supplier-package");
         assert_eq!(listing.source, "https://example.invalid/package-source");
         assert_eq!(listing.version, "1.2.3");
-        assert_eq!(listing.marketplace.inspectability, Inspectability::Inspectable);
+        assert_eq!(
+            listing.marketplace.inspectability,
+            Inspectability::Inspectable
+        );
 
         let discovered_ref = match &listing.asset {
             CatalogAsset::BlockPackage { package } => package,
