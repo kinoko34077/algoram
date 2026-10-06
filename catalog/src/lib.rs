@@ -378,8 +378,10 @@ impl From<serde_json::Error> for CatalogError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use algoram_composite::{BoundaryBinding, CompositeDefinition};
     use algoram_core::{Block, Connection, Extensions, Graph, PortRef};
     use algoram_interop::RouteRegistry;
+    use algoram_package::BlockPackage;
     use algoram_runtime::{
         ExecutionPlan, ImplementationRegistry, Planner, ProcessAction, ProcessRuntime,
     };
@@ -830,6 +832,132 @@ mod tests {
         assert!(trace.succeeded());
         assert_eq!(trace.entries[0].implementation_ref, "impl:supplier-b");
         assert_eq!(trace.entries[0].stdout, "SUPPLIER_B");
+    }
+
+    fn inspectable_package() -> BlockPackage {
+        let mut internal_graph = Graph::new("graph:catalog-package");
+        internal_graph.blocks.push(Block {
+            id: "block:package-source".to_owned(),
+            label: "package source".to_owned(),
+            ports: vec![Port {
+                id: "value".to_owned(),
+                direction: PortDirection::Out,
+                channel: PortChannel::Data,
+                contract: Some(json!("text:utf8")),
+                extensions: Extensions::new(),
+            }],
+            internal_graph_ref: None,
+            implementation_ref: Some("impl:package-inspection-only".to_owned()),
+            definition_ref: None,
+            source_anchor: None,
+            extensions: Extensions::new(),
+            diagnostics: Vec::new(),
+        });
+
+        let definition = CompositeDefinition::new(
+            "definition:catalog-package",
+            "Catalog package",
+            internal_graph,
+            vec![Port {
+                id: "input".to_owned(),
+                direction: PortDirection::In,
+                channel: PortChannel::Data,
+                contract: Some(json!("text:utf8")),
+                extensions: Extensions::new(),
+            }],
+            vec![BoundaryBinding::new(
+                "input",
+                "block:package-source",
+                "value",
+            )],
+        );
+
+        BlockPackage::new("package:catalog-text", "1.2.3", definition)
+    }
+
+    fn inspectable_package_listing(package: &BlockPackage) -> CapabilityListing {
+        CapabilityListing {
+            listing_id: "listing:catalog-package".to_owned(),
+            title: "Inspectable text package".to_owned(),
+            supplier: "supplier-package".to_owned(),
+            source: "https://example.invalid/package-source".to_owned(),
+            version: package.package_version.clone(),
+            last_updated: "2026-10-06".to_owned(),
+            asset: CatalogAsset::BlockPackage {
+                package: PackageRef {
+                    package_id: package.package_id.clone(),
+                    package_version: package.package_version.clone(),
+                },
+            },
+            supported_ports: vec![SupportedPort::new(
+                PortDirection::In,
+                PortChannel::Data,
+                json!("text:utf8"),
+            )],
+            marketplace: MarketplaceMetadata {
+                commercial_availability: CommercialAvailability::Free,
+                source_availability: SourceAvailability::OpenSource,
+                price: None,
+                rating: Some(RatingSummary {
+                    score_millis: 4500,
+                    max_score_millis: 5000,
+                    review_count: 4,
+                }),
+                reputation: Some("package supplier".to_owned()),
+                inspectability: Inspectability::Inspectable,
+                support_statement: Some("community support".to_owned()),
+                warranty_statement: Some("no warranty".to_owned()),
+            },
+        }
+    }
+
+    #[test]
+    fn package_listing_is_discoverable_and_inspectable_without_execution_or_permission() {
+        let marker_path = std::env::temp_dir().join(format!(
+            "algoram-catalog-package-inspection-must-not-execute-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&marker_path);
+
+        let package = inspectable_package();
+        package.validate().unwrap();
+        let package_before = package.clone();
+        let catalog = CapabilityCatalog::new([inspectable_package_listing(&package)]);
+        let catalog_before = catalog.clone();
+
+        let results = catalog.search_counterparts(&current_output_port()).unwrap();
+        assert_eq!(results.len(), 1);
+        let listing = results[0];
+        assert_eq!(listing.supplier, "supplier-package");
+        assert_eq!(listing.source, "https://example.invalid/package-source");
+        assert_eq!(listing.version, "1.2.3");
+        assert_eq!(
+            listing.marketplace.inspectability,
+            Inspectability::Inspectable
+        );
+
+        let discovered_ref = match &listing.asset {
+            CatalogAsset::BlockPackage { package } => package,
+            CatalogAsset::Implementation { .. } => panic!("expected BlockPackage listing"),
+        };
+        assert_eq!(discovered_ref.package_id, package.package_id);
+        assert_eq!(discovered_ref.package_version, package.package_version);
+
+        package.validate().unwrap();
+        let dependencies = package.dependency_summary();
+        assert_eq!(
+            dependencies.implementation_refs,
+            vec!["impl:package-inspection-only"]
+        );
+        assert!(dependencies.definition_refs.is_empty());
+
+        let package_json = package.to_json_pretty().unwrap();
+        let inspected_again = BlockPackage::from_json(&package_json).unwrap();
+        assert_eq!(inspected_again, package);
+
+        assert_eq!(catalog, catalog_before);
+        assert_eq!(package, package_before);
+        assert!(!marker_path.exists());
     }
 
     #[test]
