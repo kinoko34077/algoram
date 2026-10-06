@@ -9,3 +9,6 @@ algoram-core = { path = "../core" }
 algoram-interop = { path = "../interop" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[dev-dependencies]
+algoram-rust-importer = { path = "../importers/rust" }
