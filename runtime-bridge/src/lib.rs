@@ -220,6 +220,12 @@ impl RuntimeBridgeService {
             if trusted.implementation_ref.trim().is_empty() {
                 return Err(BridgeError::EmptyImplementationRef);
             }
+            if trusted.action.program.trim().is_empty() {
+                return Err(BridgeError::InvalidImplementation(format!(
+                    "implementation '{}' must declare a non-empty program",
+                    trusted.implementation_ref
+                )));
+            }
             implementations
                 .register(trusted.implementation_ref, trusted.action)
                 .map_err(|error| BridgeError::InvalidImplementation(error.to_string()))?;
@@ -400,10 +406,22 @@ impl RuntimeBridgeServer {
 
 fn valid_allowed_origin(origin: &str) -> bool {
     let trimmed = origin.trim();
-    trimmed != "*"
-        && !trimmed.is_empty()
-        && !trimmed.contains(['\r', '\n'])
-        && (trimmed.starts_with("http://") || trimmed.starts_with("https://"))
+    if trimmed != origin
+        || trimmed.is_empty()
+        || trimmed.contains(['\r', '\n', '*'])
+    {
+        return false;
+    }
+
+    let authority = trimmed
+        .strip_prefix("http://")
+        .or_else(|| trimmed.strip_prefix("https://"));
+    let Some(authority) = authority else {
+        return false;
+    };
+
+    !authority.is_empty()
+        && !authority.contains(['/', '?', '#', '@', ' ', '\t'])
 }
 
 fn handle_connection(
@@ -412,6 +430,10 @@ fn handle_connection(
     bearer_token: &str,
     allowed_origin: &str,
 ) -> Result<(), BridgeError> {
+    let timeout = Some(std::time::Duration::from_secs(5));
+    stream.set_read_timeout(timeout)?;
+    stream.set_write_timeout(timeout)?;
+
     let request = match read_http_request(&mut stream) {
         Ok(request) => request,
         Err(error) => {
@@ -562,7 +584,15 @@ fn read_http_request(stream: &mut TcpStream) -> Result<HttpRequest, BridgeError>
         let (name, value) = line
             .split_once(':')
             .ok_or_else(|| BridgeError::Http("malformed header".to_owned()))?;
-        headers.insert(name.trim().to_ascii_lowercase(), value.trim().to_owned());
+        let name = name.trim().to_ascii_lowercase();
+        if headers
+            .insert(name.clone(), value.trim().to_owned())
+            .is_some()
+        {
+            return Err(BridgeError::Http(format!(
+                "duplicate HTTP header '{name}'"
+            )));
+        }
     }
 
     let content_length = headers
