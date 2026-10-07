@@ -9,6 +9,7 @@ import type {
   SourceAnchor,
   SourceArtifact,
 } from "./algoram";
+import { jaJP } from "./locales/ja-JP";
 
 const pythonSource = `#!/usr/bin/env python3
 
@@ -210,15 +211,21 @@ function connection(
 
 const rootGraphId = "graph:phase1:e2e-root";
 const internalGraphId = "graph:composite:python-c";
-const routeGraph = phase1RouteGraphData as AlgoramGraph;
+const routeGraph = {
+  ...(phase1RouteGraphData as AlgoramGraph),
+  label: `${jaJP.demo.interopRoute}: python:ctypes:c_int → c:function:algoram_checked_double:int32`,
+} as AlgoramGraph;
 const routeGraphId = routeGraph.id;
 const rustInternalGraphId = "graph:phase2:python-rust-cabi";
-const rustRouteGraph = phase2RustRouteGraphData as AlgoramGraph;
+const rustRouteGraph = {
+  ...(phase2RustRouteGraphData as AlgoramGraph),
+  label: `${jaJP.demo.interopRoute}: python:ctypes:c_int → rust:extern-c:function:algoram_checked_triple:int32`,
+} as AlgoramGraph;
 const rustRouteGraphId = rustRouteGraph.id;
 
 const compositeBlock: AlgoramBlock = {
   id: "block:phase1-composite",
-  label: "Python/C checked double",
+  label: jaJP.demo.graphPythonC,
   ports: [
     port("value", "in", "data", "python:ctypes:c_int"),
     port("result", "out", "data", "c:abi:int32"),
@@ -236,7 +243,7 @@ const compositeBlock: AlgoramBlock = {
 
 const rustCompositeBlock: AlgoramBlock = {
   id: "block:phase2-python-rust",
-  label: "Python/Rust checked triple",
+  label: jaJP.demo.graphPythonRust,
   ports: [
     port("value", "in", "data", "python:ctypes:c_int"),
     port("result", "out", "data", "c:abi:int32"),
@@ -254,21 +261,21 @@ const rustCompositeBlock: AlgoramBlock = {
 const rootGraph: AlgoramGraph = {
   schema_version: "algoram.graph/0.1",
   id: rootGraphId,
-  label: "Algoram heterogeneous capability proofs",
+  label: jaJP.demo.rootGraph,
   blocks: [compositeBlock, rustCompositeBlock],
   connections: [],
 };
 
 const boundaryInput: AlgoramBlock = {
   id: "block:boundary-input",
-  label: "Python input boundary",
+  label: jaJP.demo.pythonInputBoundary,
   ports: [port("value", "out", "data", "python:ctypes:c_int")],
   source_anchor: anchorWhole(pythonArtifact, pythonSource),
 };
 
 const buildC: AlgoramBlock = {
   id: "block:build-c",
-  label: "Build C shared library",
+  label: jaJP.demo.buildCSharedLibrary,
   ports: [port("flow_out", "out", "flow")],
   implementation_ref: "fixture:composite-build-c",
   source_anchor: anchorWhole(cArtifact, cSource),
@@ -276,7 +283,7 @@ const buildC: AlgoramBlock = {
 
 const invokeC: AlgoramBlock = {
   id: "block:invoke-c",
-  label: "Call C function through ctypes/C ABI",
+  label: jaJP.demo.callCThroughCtypes,
   ports: [
     port("flow_in", "in", "flow"),
     port(
@@ -298,7 +305,7 @@ const invokeC: AlgoramBlock = {
 
 const boundaryOutput: AlgoramBlock = {
   id: "block:boundary-output",
-  label: "Python result boundary",
+  label: jaJP.demo.pythonResultBoundary,
   ports: [port("result", "in", "data", "c:abi:int32")],
   source_anchor: anchorWhole(pythonArtifact, pythonSource),
 };
@@ -306,7 +313,7 @@ const boundaryOutput: AlgoramBlock = {
 const internalGraph: AlgoramGraph = {
   schema_version: "algoram.graph/0.1",
   id: internalGraphId,
-  label: "Python/C checked double — internal graph",
+  label: jaJP.demo.pythonCInternalGraph,
   blocks: [boundaryInput, buildC, invokeC, boundaryOutput],
   connections: [
     connection(
@@ -337,14 +344,14 @@ const internalGraph: AlgoramGraph = {
 
 const rustBoundaryInput: AlgoramBlock = {
   id: "block:phase2-python-input",
-  label: "Python ctypes input boundary",
+  label: jaJP.demo.pythonCtypesInputBoundary,
   ports: [port("value", "out", "data", "python:ctypes:c_int")],
   source_anchor: anchorWhole(rustPythonArtifact, rustPythonSource),
 };
 
 const rustBuild: AlgoramBlock = {
   id: "block:phase2-build-rust",
-  label: "Build Rust cdylib",
+  label: jaJP.demo.buildRustCdylib,
   ports: [port("flow_out", "out", "flow")],
   implementation_ref: "fixture:build-rust-cdylib",
   source_anchor: anchorWhole(rustArtifact, rustSource),
@@ -352,7 +359,7 @@ const rustBuild: AlgoramBlock = {
 
 const rustInvoke: AlgoramBlock = {
   id: "rust:artifact:python-rust-cabi:file/function:algoram_checked_triple",
-  label: "Invoke Rust extern C function",
+  label: jaJP.demo.invokeRustExternC,
   ports: [
     port("flow_in", "in", "flow"),
     port(
@@ -384,7 +391,7 @@ const rustInvoke: AlgoramBlock = {
 
 const rustBoundaryOutput: AlgoramBlock = {
   id: "block:phase2-python-output",
-  label: "Python ctypes result boundary",
+  label: jaJP.demo.pythonCtypesResultBoundary,
   ports: [port("result", "in", "data", "c:abi:int32")],
   source_anchor: anchorWhole(rustPythonArtifact, rustPythonSource),
 };
@@ -392,7 +399,7 @@ const rustBoundaryOutput: AlgoramBlock = {
 const rustInternalGraph: AlgoramGraph = {
   schema_version: "algoram.graph/0.1",
   id: rustInternalGraphId,
-  label: "Python/Rust checked triple — internal graph",
+  label: jaJP.demo.pythonRustInternalGraph,
   blocks: [rustBoundaryInput, rustBuild, rustInvoke, rustBoundaryOutput],
   connections: [
     connection(
