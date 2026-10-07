@@ -7,7 +7,7 @@ const canvas = await readFile(
 );
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
 
-assert.match(canvas, /change\.dragging !== true/);
+assert.match(canvas, /change\\.dragging === undefined/);
 assert.match(
   canvas,
   /onNodeDragStop=\{\(_, node\) => \{[\s\S]*?commitNodePosition\(node\);[\s\S]*?node-drag-stop[\s\S]*?\}\}/,
