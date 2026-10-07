@@ -28,6 +28,7 @@ import {
   removeConnection,
   validateConnectionCandidate,
 } from "./connectionAuthoring";
+import { requestCanonicalGraphDownload } from "./browserDownload";
 import { demoBundle } from "./fixture";
 import { DraftLinkPanel } from "./DraftLinkPanel";
 import { GraphAuthoringPanel } from "./GraphAuthoringPanel";
@@ -65,6 +66,11 @@ interface GraphFocusRequest {
   revision: number;
 }
 
+interface ExportStatus {
+  kind: "requested" | "error";
+  message: string;
+}
+
 function graphLabel(graphId: string): string {
   return demoBundle.graphs[graphId]?.label ?? graphId;
 }
@@ -94,6 +100,7 @@ export function App() {
     useState<PresentationByGraph>({});
   const [navigationStatus, setNavigationStatus] = useState<string | null>(null);
   const [authoringStatus, setAuthoringStatus] = useState<string | null>(null);
+  const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
   const [annotations, setAnnotations] = useState<BlockAnnotations>({});
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [focusRequest, setFocusRequest] = useState<GraphFocusRequest | null>(
@@ -148,6 +155,10 @@ export function App() {
     () => validateGraph(currentGraph),
     [currentGraph],
   );
+
+  useEffect(() => {
+    setExportStatus(null);
+  }, [currentGraphId, currentHistory?.present.revision]);
 
   const selectedBlock = useMemo(
     () =>
@@ -569,6 +580,24 @@ export function App() {
     [currentGraphId, currentHistory, replaceCurrentHistory],
   );
 
+  function exportCurrentGraph() {
+    try {
+      const payload = requestCanonicalGraphDownload(currentGraph);
+      setExportStatus({
+        kind: "requested",
+        message: `Download requested: ${payload.filename}`,
+      });
+    } catch (error: unknown) {
+      setExportStatus({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? `Export blocked: ${error.message}`
+            : "Export blocked: Graph export failed.",
+      });
+    }
+  }
+
   function addDraftFromInspector(link: DraftLink): string | null {
     const error = validateDraftLink(currentGraph, currentPresentation, link);
     if (error) {
@@ -619,6 +648,29 @@ export function App() {
                 Redo
               </button>
             </div>
+          ) : null}
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={exportCurrentGraph}
+            aria-describedby={exportStatus ? "graph-export-status" : undefined}
+            title="Export current Graph as .algoram.json"
+          >
+            Export
+          </button>
+          {exportStatus ? (
+            <span
+              id="graph-export-status"
+              className={
+                exportStatus.kind === "error"
+                  ? "header-editor-status error-text"
+                  : "header-editor-status"
+              }
+              role={exportStatus.kind === "error" ? "alert" : "status"}
+              title={exportStatus.message}
+            >
+              {exportStatus.message}
+            </span>
           ) : null}
           <button
             type="button"

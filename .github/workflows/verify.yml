@@ -68,6 +68,8 @@ jobs:
         run: npm run test:block-authoring
       - name: Connection authoring checks
         run: npm run test:connection-authoring
+      - name: Canonical Graph export checks
+        run: npm run test:export
       - name: ELK layout performance baseline
         run: npm run perf:baseline
 
