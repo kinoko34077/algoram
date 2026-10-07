@@ -33,20 +33,19 @@ fn service() -> RuntimeBridgeService {
     implementations
         .register(
             "impl:http-bridge-test",
-            ProcessAction::new(env::current_exe().unwrap().display().to_string(), ["--list"]),
+            ProcessAction::new(
+                env::current_exe().unwrap().display().to_string(),
+                ["--list"],
+            ),
         )
         .unwrap();
     RuntimeBridgeService::new(implementations, RouteRegistry::new())
 }
 
 fn spawn_server(request_count: usize) -> (SocketAddr, thread::JoinHandle<()>) {
-    let server = RuntimeBridgeServer::bind(
-        service(),
-        "127.0.0.1:0".parse().unwrap(),
-        TOKEN,
-        ORIGIN,
-    )
-    .unwrap();
+    let server =
+        RuntimeBridgeServer::bind(service(), "127.0.0.1:0".parse().unwrap(), TOKEN, ORIGIN)
+            .unwrap();
     let addr = server.local_addr().unwrap();
     let handle = thread::spawn(move || {
         for _ in 0..request_count {
@@ -103,13 +102,7 @@ fn loopback_http_boundary_enforces_origin_auth_and_guarded_run() {
     })
     .unwrap();
 
-    let wrong_origin = post(
-        addr,
-        "/v1/plan",
-        "https://evil.example",
-        TOKEN,
-        &plan_body,
-    );
+    let wrong_origin = post(addr, "/v1/plan", "https://evil.example", TOKEN, &plan_body);
     assert!(wrong_origin.starts_with("HTTP/1.1 403"));
     assert!(!wrong_origin.contains("Access-Control-Allow-Origin: *"));
     assert!(!wrong_origin.contains("Access-Control-Allow-Origin: https://evil.example"));
@@ -139,7 +132,10 @@ fn loopback_http_boundary_enforces_origin_auth_and_guarded_run() {
     assert!(response_body(&denied).contains("execution_denied"));
 
     let mut tampered_plan = preview.plan.clone();
-    tampered_plan.steps[0].action.args.push("tampered".to_owned());
+    tampered_plan.steps[0]
+        .action
+        .args
+        .push("tampered".to_owned());
     let tampered_body = serde_json::to_string(&RunRequest {
         graph: graph.clone(),
         expected_plan: tampered_plan,

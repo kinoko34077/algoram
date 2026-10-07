@@ -406,10 +406,7 @@ impl RuntimeBridgeServer {
 
 fn valid_allowed_origin(origin: &str) -> bool {
     let trimmed = origin.trim();
-    if trimmed != origin
-        || trimmed.is_empty()
-        || trimmed.contains(['\r', '\n', '*'])
-    {
+    if trimmed != origin || trimmed.is_empty() || trimmed.contains(['\r', '\n', '*']) {
         return false;
     }
 
@@ -420,8 +417,7 @@ fn valid_allowed_origin(origin: &str) -> bool {
         return false;
     };
 
-    !authority.is_empty()
-        && !authority.contains(['/', '?', '#', '@', ' ', '\t'])
+    !authority.is_empty() && !authority.contains(['/', '?', '#', '@', ' ', '\t'])
 }
 
 fn handle_connection(
@@ -589,9 +585,7 @@ fn read_http_request(stream: &mut TcpStream) -> Result<HttpRequest, BridgeError>
             .insert(name.clone(), value.trim().to_owned())
             .is_some()
         {
-            return Err(BridgeError::Http(format!(
-                "duplicate HTTP header '{name}'"
-            )));
+            return Err(BridgeError::Http(format!("duplicate HTTP header '{name}'")));
         }
     }
 

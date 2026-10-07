@@ -18,7 +18,10 @@ fn service() -> RuntimeBridgeService {
     implementations
         .register(
             IMPLEMENTATION_REF,
-            ProcessAction::new(env::current_exe().unwrap().display().to_string(), ["--list"]),
+            ProcessAction::new(
+                env::current_exe().unwrap().display().to_string(),
+                ["--list"],
+            ),
         )
         .unwrap();
     RuntimeBridgeService::new(implementations, RouteRegistry::new())
@@ -49,9 +52,8 @@ fn request(
     extra_headers: &[(&str, &str)],
 ) -> String {
     let body = body.unwrap_or("");
-    let mut request = format!(
-        "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nOrigin: {origin}\r\n"
-    );
+    let mut request =
+        format!("{method} {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nOrigin: {origin}\r\n");
     if let Some(auth) = auth {
         request.push_str(&format!("Authorization: {auth}\r\n"));
     }
@@ -68,13 +70,8 @@ fn request(
 }
 
 fn exchange(service: RuntimeBridgeService, request: String) -> String {
-    let server = RuntimeBridgeServer::bind(
-        service,
-        "127.0.0.1:0".parse().unwrap(),
-        TOKEN,
-        ORIGIN,
-    )
-    .unwrap();
+    let server =
+        RuntimeBridgeServer::bind(service, "127.0.0.1:0".parse().unwrap(), TOKEN, ORIGIN).unwrap();
     let addr = server.local_addr().unwrap();
     let server_thread = thread::spawn(move || server.serve_one());
 
@@ -275,12 +272,8 @@ fn real_http_plan_default_deny_allow_and_plan_mismatch() {
 
 #[test]
 fn server_refuses_non_loopback_or_non_origin_configuration() {
-    let non_loopback = RuntimeBridgeServer::bind(
-        service(),
-        "0.0.0.0:0".parse().unwrap(),
-        TOKEN,
-        ORIGIN,
-    );
+    let non_loopback =
+        RuntimeBridgeServer::bind(service(), "0.0.0.0:0".parse().unwrap(), TOKEN, ORIGIN);
     assert!(non_loopback.is_err());
 
     for invalid_origin in [
@@ -296,6 +289,9 @@ fn server_refuses_non_loopback_or_non_origin_configuration() {
             TOKEN,
             invalid_origin,
         );
-        assert!(result.is_err(), "origin should be rejected: {invalid_origin}");
+        assert!(
+            result.is_err(),
+            "origin should be rejected: {invalid_origin}"
+        );
     }
 }
