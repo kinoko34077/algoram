@@ -75,9 +75,36 @@ export interface RuntimeBridgeSettings {
   bearerToken: string;
 }
 
+export interface RuntimeBridgeClient {
+  plan(graph: AlgoramGraph, signal?: AbortSignal): Promise<PlanResponse>;
+  run(
+    graph: AlgoramGraph,
+    expectedPlan: ExecutionPlan,
+    allowedImplementationRefs: string[],
+    signal?: AbortSignal,
+  ): Promise<RunResponse>;
+}
+
+export type RuntimeBridgeFetch = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>;
+
 interface ApiError {
   code?: string;
   message?: string;
+}
+
+export class RuntimeBridgeError extends Error {
+  readonly status: number;
+  readonly code: string;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.name = "RuntimeBridgeError";
+    this.status = status;
+    this.code = code;
+  }
 }
 
 function isLoopbackHost(hostname: string): boolean {
@@ -107,51 +134,32 @@ export function normalizeLoopbackBridgeUrl(value: string): string {
   if (url.username || url.password || url.search || url.hash) {
     throw new Error("Bridge URL cannot contain credentials, query, or fragment.");
   }
+  if (url.pathname !== "/" && url.pathname !== "") {
+    throw new Error("Bridge URL must be an origin without a path.");
+  }
 
-  url.pathname = url.pathname.replace(/\/+$/, "");
-  return url.toString().replace(/\/$/, "");
+  return url.origin;
 }
 
-async function requestJson<T>(
-  settings: RuntimeBridgeSettings,
-  path: string,
-  body: unknown,
-): Promise<T> {
-  const baseUrl = normalizeLoopbackBridgeUrl(settings.baseUrl);
-  if (settings.bearerToken.trim().length === 0) {
-    throw new Error("Enter the runtime bridge bearer token.");
-  }
-
-  let response: Response;
-  try {
-    response = await fetch(`${baseUrl}${path}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${settings.bearerToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-  } catch (error: unknown) {
-    throw new Error(
-      error instanceof Error
-        ? `Runtime bridge unavailable: ${error.message}`
-        : "Runtime bridge unavailable.",
-    );
-  }
-
+async function decodeResponse<T>(response: Response): Promise<T> {
   let payload: unknown = null;
   try {
     payload = await response.json();
   } catch {
     if (!response.ok) {
-      throw new Error(`Runtime bridge returned HTTP ${response.status}.`);
+      throw new RuntimeBridgeError(
+        response.status,
+        "bridge_error",
+        `Runtime bridge returned HTTP ${response.status}.`,
+      );
     }
   }
 
   if (!response.ok) {
     const apiError = payload as ApiError | null;
-    throw new Error(
+    throw new RuntimeBridgeError(
+      response.status,
+      apiError?.code ?? "bridge_error",
       apiError?.message ??
         `Runtime bridge request failed with HTTP ${response.status}.`,
     );
@@ -160,11 +168,70 @@ async function requestJson<T>(
   return payload as T;
 }
 
+export function createRuntimeBridgeClient(
+  settings: RuntimeBridgeSettings,
+  fetchImpl: RuntimeBridgeFetch = fetch,
+): RuntimeBridgeClient {
+  const baseUrl = normalizeLoopbackBridgeUrl(settings.baseUrl);
+  if (settings.bearerToken.trim().length === 0) {
+    throw new Error("Enter the runtime bridge bearer token.");
+  }
+
+  async function requestJson<T>(
+    path: string,
+    body: unknown,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    let response: Response;
+    try {
+      response = await fetchImpl(`${baseUrl}${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${settings.bearerToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw error;
+      }
+      throw new Error(
+        error instanceof Error
+          ? `Runtime bridge unavailable: ${error.message}`
+          : "Runtime bridge unavailable.",
+      );
+    }
+
+    return decodeResponse<T>(response);
+  }
+
+  return {
+    plan(graph, signal) {
+      return requestJson<PlanResponse>("/v1/plan", { graph }, signal);
+    },
+
+    run(graph, expectedPlan, allowedImplementationRefs, signal) {
+      return requestJson<RunResponse>(
+        "/v1/run",
+        {
+          graph,
+          expected_plan: expectedPlan,
+          allowed_implementation_refs: allowedImplementationRefs,
+        },
+        signal,
+      );
+    },
+  };
+}
+
 export function planGraph(
   settings: RuntimeBridgeSettings,
   graph: AlgoramGraph,
+  signal?: AbortSignal,
 ): Promise<PlanResponse> {
-  return requestJson<PlanResponse>(settings, "/v1/plan", { graph });
+  return createRuntimeBridgeClient(settings).plan(graph, signal);
 }
 
 export function runGraph(
@@ -172,12 +239,14 @@ export function runGraph(
   graph: AlgoramGraph,
   expectedPlan: ExecutionPlan,
   allowedImplementationRefs: string[],
+  signal?: AbortSignal,
 ): Promise<RunResponse> {
-  return requestJson<RunResponse>(settings, "/v1/run", {
+  return createRuntimeBridgeClient(settings).run(
     graph,
-    expected_plan: expectedPlan,
-    allowed_implementation_refs: allowedImplementationRefs,
-  });
+    expectedPlan,
+    allowedImplementationRefs,
+    signal,
+  );
 }
 
 export function requiredImplementationRefs(
