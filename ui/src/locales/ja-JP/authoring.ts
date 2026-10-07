@@ -78,6 +78,8 @@ export const authoringJa = {
   canvas: {
     nodeWorkspace: "ノードワークスペース",
     library: "ライブラリ",
+    more: "その他",
+    moreActions: "その他のキャンバス操作",
     resetLayoutAction: "レイアウトをリセット",
     clearDraftsAction: "下書きをクリア",
     draftLabel: "下書き",
