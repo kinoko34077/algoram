@@ -233,6 +233,7 @@ function CanvasBody({
   const [interactionStatus, setInteractionStatus] = useState<string | null>(
     null,
   );
+  const pointerDragActive = useRef(false);
   const [loadedGraphId, setLoadedGraphId] = useState<string | null>(null);
   const { fitView, getNode } = useReactFlow<FlowBlockNode>();
 
