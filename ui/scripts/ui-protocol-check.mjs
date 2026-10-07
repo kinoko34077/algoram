@@ -5,9 +5,10 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-const [app, canvas, draft, search, annotation, authoring, styles] = await Promise.all([
+const [app, canvas, palette, draft, search, annotation, authoring, styles] = await Promise.all([
   source("../src/App.tsx"),
   source("../src/GraphCanvas.tsx"),
+  source("../src/BlockPalette.tsx"),
   source("../src/DraftLinkPanel.tsx"),
   source("../src/SearchPanel.tsx"),
   source("../src/AnnotationPanel.tsx"),
@@ -23,6 +24,8 @@ assert.match(styles, /\.search-result-list/);
 assert.equal(styles.includes("repeat(auto-fit"), false);
 assert.match(styles, /--color-accent:/);
 assert.match(styles, /--control-height:/);
+assert.match(styles, /--palette-width:\s*216px/);
+assert.match(styles, /\.canvas-work-area\.palette-open/);
 
 assert.match(app, /type PresentationByGraph/);
 assert.match(app, /presentationByGraph/);
@@ -53,6 +56,15 @@ assert.match(canvas, /isValidConnection=\{isValidConnection\}/);
 assert.match(canvas, /aria-live="polite"/);
 assert.match(canvas, /Reset layout/);
 assert.match(canvas, /Clear drafts/);
+assert.match(canvas, /aria-controls="block-palette"/);
+assert.match(canvas, /screenToFlowPosition/);
+assert.match(canvas, /editable && paletteOpen/);
+
+assert.match(palette, /aria-label="Reusable Block palette"/);
+assert.match(palette, /type="search"/);
+assert.match(palette, /aria-pressed=\{selectedRow\}/);
+assert.match(palette, /event\.key === "Escape"/);
+assert.match(palette, />\s*Add Block\s*</);
 
 assert.match(draft, /<form/);
 assert.match(draft, /<label>/);
@@ -71,10 +83,14 @@ assert.match(authoring, /event\.key === "Escape"/);
 assert.match(authoring, /aria-invalid=\{displayedIssues\.length > 0\}/);
 assert.match(authoring, /role="alert"/);
 assert.match(authoring, /Read only/);
-assert.match(app, /textEditorOwnsUndo/);
+assert.match(app, /textEditorOwnsKeys/);
 assert.match(app, /event\.metaKey \|\| event\.ctrlKey/);
 assert.match(app, /undoCurrentGraph/);
 assert.match(app, /redoCurrentGraph/);
+assert.match(app, /event\.key === "Delete"/);
+assert.match(app, /event\.key === "Backspace"/);
+assert.match(app, /className="danger-action"/);
+assert.match(app, />\s*Remove Block\s*</);
 
 assert.match(authoring, /aria-label="Graph properties"/);
 assert.match(authoring, /Editable/);
@@ -88,7 +104,7 @@ assert.match(authoring, /graph-label-help graph-validation/);
 assert.match(app, /aria-label="Graph history"/);
 assert.match(app, />\s*Undo\s*</);
 assert.match(app, />\s*Redo\s*</);
-assert.match(app, /textEditorOwnsUndo/);
+assert.match(app, /textEditorOwnsKeys/);
 
 console.log(
   JSON.stringify({
@@ -104,5 +120,7 @@ console.log(
     native_text_undo_boundary: "pass",
     canonical_authoring_status: "pass",
     history_recovery_surface: "pass",
+    reusable_block_palette: "pass",
+    keyboard_block_remove: "pass",
   }),
 );

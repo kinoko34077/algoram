@@ -1,3 +1,4 @@
+import type { XYPosition } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AlgoramBlock } from "./algoram";
 import {
@@ -16,6 +17,12 @@ import {
   undoGraph,
   type GraphHistory,
 } from "./authoring";
+import {
+  collectReusableBlockTemplates,
+  instantiateReusableBlock,
+  removeBlock,
+  type ReusableBlockTemplate,
+} from "./blockAuthoring";
 import { demoBundle } from "./fixture";
 import { DraftLinkPanel } from "./DraftLinkPanel";
 import { GraphAuthoringPanel } from "./GraphAuthoringPanel";
@@ -29,6 +36,7 @@ import {
 import {
   addDraftLink,
   EMPTY_GRAPH_PRESENTATION,
+  setNodePosition,
   validateDraftLink,
   type DraftLink,
   type GraphPresentationState,
@@ -55,6 +63,15 @@ function graphLabel(graphId: string): string {
   return demoBundle.graphs[graphId]?.label ?? graphId;
 }
 
+function textEditorOwnsKeys(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
+
 export function App() {
   const [path, setPath] = useState<Breadcrumb[]>([
     {
@@ -68,6 +85,7 @@ export function App() {
   const [presentationByGraph, setPresentationByGraph] =
     useState<PresentationByGraph>({});
   const [navigationStatus, setNavigationStatus] = useState<string | null>(null);
+  const [authoringStatus, setAuthoringStatus] = useState<string | null>(null);
   const [annotations, setAnnotations] = useState<BlockAnnotations>({});
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [focusRequest, setFocusRequest] = useState<GraphFocusRequest | null>(
@@ -75,6 +93,11 @@ export function App() {
   );
   const [authoringByGraph, setAuthoringByGraph] = useState(() =>
     createAuthoringHistories(demoBundle),
+  );
+
+  const blockTemplates = useMemo(
+    () => collectReusableBlockTemplates(demoBundle),
+    [],
   );
 
   const editorBundle = useMemo(() => {
@@ -159,51 +182,87 @@ export function App() {
   const undoCurrentGraph = useCallback(() => {
     if (currentHistory) {
       replaceCurrentHistory(undoGraph(currentHistory));
+      setAuthoringStatus("Undid canonical Graph change.");
     }
   }, [currentHistory, replaceCurrentHistory]);
 
   const redoCurrentGraph = useCallback(() => {
     if (currentHistory) {
       replaceCurrentHistory(redoGraph(currentHistory));
+      setAuthoringStatus("Redid canonical Graph change.");
     }
   }, [currentHistory, replaceCurrentHistory]);
 
-  useEffect(() => {
-    function textEditorOwnsUndo(target: EventTarget | null): boolean {
-      return (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement ||
-        (target instanceof HTMLElement && target.isContentEditable)
-      );
+  const removeSelectedBlock = useCallback(() => {
+    if (!currentHistory || !selectedBlock) {
+      return;
     }
 
-    function handleHistoryShortcut(event: KeyboardEvent) {
-      if (
-        !currentHistory ||
-        textEditorOwnsUndo(event.target) ||
-        !(event.metaKey || event.ctrlKey)
-      ) {
+    const result = removeBlock(currentHistory.present.graph, selectedBlock.id);
+    if (!result.ok) {
+      setAuthoringStatus(result.reason);
+      return;
+    }
+
+    const issues = validateGraph(result.graph);
+    if (issues.length > 0) {
+      setAuthoringStatus(issues[0]?.message ?? "Graph validation failed.");
+      return;
+    }
+
+    replaceCurrentHistory(applyGraph(currentHistory, result.graph));
+    setSelectionByGraph((current) => ({
+      ...current,
+      [currentGraphId]: null,
+    }));
+    setAuthoringStatus(`Removed ${result.removed.label}. Undo is available.`);
+  }, [currentGraphId, currentHistory, replaceCurrentHistory, selectedBlock]);
+
+  useEffect(() => {
+    function handleEditorShortcut(event: KeyboardEvent) {
+      if (textEditorOwnsKeys(event.target)) {
         return;
       }
 
-      const key = event.key.toLowerCase();
-      if (key === "z") {
-        event.preventDefault();
-        if (event.shiftKey) {
-          redoCurrentGraph();
-        } else {
-          undoCurrentGraph();
+      if (event.metaKey || event.ctrlKey) {
+        if (!currentHistory) {
+          return;
         }
-      } else if (key === "y" && !event.shiftKey) {
+
+        const key = event.key.toLowerCase();
+        if (key === "z") {
+          event.preventDefault();
+          if (event.shiftKey) {
+            redoCurrentGraph();
+          } else {
+            undoCurrentGraph();
+          }
+        } else if (key === "y" && !event.shiftKey) {
+          event.preventDefault();
+          redoCurrentGraph();
+        }
+        return;
+      }
+
+      if (
+        currentHistory &&
+        selectedBlock &&
+        (event.key === "Delete" || event.key === "Backspace")
+      ) {
         event.preventDefault();
-        redoCurrentGraph();
+        removeSelectedBlock();
       }
     }
 
-    window.addEventListener("keydown", handleHistoryShortcut);
-    return () => window.removeEventListener("keydown", handleHistoryShortcut);
-  }, [currentHistory, redoCurrentGraph, undoCurrentGraph]);
+    window.addEventListener("keydown", handleEditorShortcut);
+    return () => window.removeEventListener("keydown", handleEditorShortcut);
+  }, [
+    currentHistory,
+    redoCurrentGraph,
+    removeSelectedBlock,
+    selectedBlock,
+    undoCurrentGraph,
+  ]);
 
   const updatePresentation = useCallback(
     (
@@ -250,6 +309,40 @@ export function App() {
     [currentGraphId, updatePresentation],
   );
 
+  const addReusableBlock = useCallback(
+    (template: ReusableBlockTemplate, position: XYPosition) => {
+      if (!currentHistory) {
+        return;
+      }
+
+      const result = instantiateReusableBlock(
+        currentHistory.present.graph,
+        template,
+      );
+      const issues = validateGraph(result.graph);
+      if (issues.length > 0) {
+        setAuthoringStatus(issues[0]?.message ?? "Graph validation failed.");
+        return;
+      }
+
+      replaceCurrentHistory(applyGraph(currentHistory, result.graph));
+      updatePresentation(currentGraphId, (current) =>
+        setNodePosition(current, result.block.id, position),
+      );
+      setSelectionByGraph((current) => ({
+        ...current,
+        [currentGraphId]: result.block.id,
+      }));
+      setAuthoringStatus(`Added ${result.block.label}. Undo is available.`);
+    },
+    [
+      currentGraphId,
+      currentHistory,
+      replaceCurrentHistory,
+      updatePresentation,
+    ],
+  );
+
   function openGraphWithLabel(graphId: string, label: string) {
     if (!editorBundle.graphs[graphId]) {
       return;
@@ -263,6 +356,7 @@ export function App() {
       },
     ]);
     setNavigationStatus(null);
+    setAuthoringStatus(null);
   }
 
   function openGraph(graphId: string, viaBlock: AlgoramBlock) {
@@ -272,6 +366,7 @@ export function App() {
   function jumpTo(index: number) {
     setPath((current) => current.slice(0, index + 1));
     setNavigationStatus(null);
+    setAuthoringStatus(null);
   }
 
   function updateSelectedAnnotation(value: string) {
@@ -323,6 +418,7 @@ export function App() {
       revision: (current?.revision ?? 0) + 1,
     }));
     setNavigationStatus(null);
+    setAuthoringStatus(null);
   }
 
   function commitCurrentGraphLabel(label: string): GraphValidationIssue[] {
@@ -431,6 +527,9 @@ export function App() {
         <section className="graph-region" aria-label="Graph editor">
           <GraphCanvas
             graph={currentGraph}
+            editable={currentHistory !== null}
+            blockTemplates={blockTemplates}
+            authoringStatus={authoringStatus}
             selectedBlockId={selectedBlockId}
             focusRequest={
               focusRequest?.graphId === currentGraphId
@@ -442,6 +541,7 @@ export function App() {
             }
             presentation={currentPresentation}
             onPresentationChange={updateCurrentPresentation}
+            onAddBlock={addReusableBlock}
             onSelectBlock={selectBlock}
             onOpenGraph={openGraph}
           />
@@ -508,7 +608,22 @@ export function App() {
                         Route
                       </button>
                     ) : null}
+                    {currentHistory ? (
+                      <button
+                        type="button"
+                        className="danger-action"
+                        onClick={removeSelectedBlock}
+                      >
+                        Remove Block
+                      </button>
+                    ) : null}
                   </div>
+
+                  {authoringStatus ? (
+                    <p className="inline-status" role="status">
+                      {authoringStatus}
+                    </p>
+                  ) : null}
 
                   <DraftLinkPanel
                     graph={currentGraph}
@@ -525,10 +640,17 @@ export function App() {
                   />
                 </>
               ) : (
-                <p className="hint">
-                  Select a Block to inspect properties, source, or create a
-                  presentation-only draft link.
-                </p>
+                <>
+                  <p className="hint">
+                    Select a Block to inspect properties, source, or create a
+                    presentation-only draft link.
+                  </p>
+                  {authoringStatus ? (
+                    <p className="inline-status" role="status">
+                      {authoringStatus}
+                    </p>
+                  ) : null}
+                </>
               )}
             </section>
 
