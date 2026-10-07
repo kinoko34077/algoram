@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import type {
-  AlternativeRouteCandidate,
   RecoveryOptionsResponse,
   RecoverySelections,
   RuntimeRecoveryOption,
 } from "./runtimeBridge";
+import { hasExecutableRecoverySelection } from "./runtimeBridge";
 import {
-  emptyRecoverySelections,
-  hasExecutableRecoverySelection,
-} from "./runtimeBridge";
+  buildRecoverySelections,
+  recoveryRouteCandidateKey,
+  runtimeSelectionBlocksApply,
+} from "./recoverySelection";
 
 export type RecoveryDiscoveryPhase =
   | "idle"
@@ -22,10 +23,6 @@ interface RecoveryPanelProps {
   error: string | null;
   disabled: boolean;
   onApply: (selections: RecoverySelections) => void;
-}
-
-function candidateKey(connectionId: string, connectorIds: string[]): string {
-  return `${connectionId}::${connectorIds.join(">")}`;
 }
 
 function runtimeOptionLabel(option: RuntimeRecoveryOption): string {
@@ -64,17 +61,6 @@ export function RecoveryPanel({
     setRuntimeSelections({});
   }, [options]);
 
-  const routeByKey = useMemo(() => {
-    const candidates = new Map<string, AlternativeRouteCandidate>();
-    for (const candidate of options?.route_candidates ?? []) {
-      candidates.set(
-        candidateKey(candidate.connection_id, candidate.connector_ids),
-        candidate,
-      );
-    }
-    return candidates;
-  }, [options]);
-
   const providerRows = useMemo(
     () =>
       options?.implementation_candidates.flatMap((step) =>
@@ -100,58 +86,19 @@ export function RecoveryPanel({
     [options],
   );
 
-  const selections = useMemo<RecoverySelections>(() => {
-    if (!options) {
-      return emptyRecoverySelections();
-    }
-
-    const route_overrides = Object.entries(routeSelections)
-      .flatMap(([, key]) => {
-        const candidate = routeByKey.get(key);
-        return candidate
-          ? [
-              {
-                connection_id: candidate.connection_id,
-                connector_ids: candidate.connector_ids,
-              },
-            ]
-          : [];
-      })
-      .sort((left, right) =>
-        left.connection_id.localeCompare(right.connection_id),
-      );
-
-    const implementation_overrides = Object.entries(providerSelections)
-      .filter(([, implementationRef]) => implementationRef.length > 0)
-      .map(([logicalRef, implementationRef]) => ({
-        logical_ref: logicalRef,
-        implementation_ref: implementationRef,
-      }))
-      .sort((left, right) => left.logical_ref.localeCompare(right.logical_ref));
-
-    return {
-      route_overrides,
-      implementation_overrides,
-    };
-  }, [options, providerSelections, routeByKey, routeSelections]);
-
-  const selectedRuntimeRows = useMemo(
+  const selections = useMemo<RecoverySelections>(
     () =>
-      Object.entries(runtimeSelections)
-        .map(([stepId, runtimeRef]) =>
-          runtimeRows.find(
-            (row) =>
-              row.stepId === stepId &&
-              row.option.candidate.runtime_ref === runtimeRef,
-          ),
-        )
-        .filter((row) => row !== undefined),
-    [runtimeRows, runtimeSelections],
+      buildRecoverySelections(
+        options,
+        routeSelections,
+        providerSelections,
+      ),
+    [options, providerSelections, routeSelections],
   );
 
-  const runtimeBlocksApply = selectedRuntimeRows.some(
-    (row) =>
-      !row.option.placement_validated || !row.option.executable_by_bridge,
+  const runtimeBlocksApply = runtimeSelectionBlocksApply(
+    options,
+    runtimeSelections,
   );
   const canApply =
     !disabled &&
