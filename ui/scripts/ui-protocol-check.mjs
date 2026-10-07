@@ -5,7 +5,7 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-const [app, canvas, palette, draft, search, annotation, authoring, execution, recovery, bridge, traceDetail, traceUnmapped, traceProjection, fileMenu, headerOverflow, persistenceStore, persistenceModel, styles, traceStyles] = await Promise.all([
+const [app, canvas, palette, draft, search, annotation, authoring, execution, recovery, bridge, traceDetail, traceUnmapped, traceProjection, fileMenu, headerOverflow, persistenceStore, persistenceModel, styles, traceStyles, localeMeta] = await Promise.all([
   source("../src/App.tsx"),
   source("../src/GraphCanvas.tsx"),
   source("../src/BlockPalette.tsx"),
@@ -25,6 +25,7 @@ const [app, canvas, palette, draft, search, annotation, authoring, execution, re
   source("../src/documentPersistence.ts"),
   source("../src/styles.css"),
   source("../src/trace.css"),
+  source("../src/locales/ja-JP/meta.ts"),
 ]);
 
 assert.match(styles, /--inspector-width:\s*328px/);
@@ -130,8 +131,8 @@ assert.match(app, /jaJP\.common\.actions\.undo/);
 assert.match(app, /jaJP\.common\.actions\.redo/);
 assert.match(app, /textEditorOwnsKeys/);
 
-assert.match(fileMenu, /Ctrl\/Cmd\+O/);
-assert.match(fileMenu, /Ctrl\/Cmd\+S/);
+assert.match(fileMenu, /jaJP\.fileMenu\.shortcutHint/);
+assert.match(localeMeta, /shortcutHint:\s*"Ctrl\/Cmd\+O · Ctrl\/Cmd\+S"/);
 assert.match(fileMenu, /type="file"/);
 assert.match(fileMenu, /accept="\.algoram\.json,application\/json"/);
 assert.match(fileMenu, /event\.key === "Escape"/);
