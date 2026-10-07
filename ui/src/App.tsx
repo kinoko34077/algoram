@@ -1607,6 +1607,27 @@ export function App() {
               )}
             </section>
 
+            <details className="inspector-disclosure">
+              <summary>{jaJP.authoring.graphProperties.properties}</summary>
+            <GraphAuthoringPanel
+              graph={currentGraph}
+              editable={currentHistory !== null}
+              dirty={currentGraphDirty}
+              validationIssues={currentValidationIssues}
+              onCommitLabel={commitCurrentGraphLabel}
+            />
+            </details>
+
+            <details className="inspector-disclosure">
+              <summary>{jaJP.authoring.sourcePanel.source}</summary>
+            <SourcePanel
+              bundle={editorBundle}
+              graph={currentGraph}
+              selectedBlock={selectedBlock}
+              onSelectBlock={selectBlock}
+            />
+            </details>
+
             <div id="runtime-execution-panel">
               <ExecutionPanel
                 graph={currentGraph}
@@ -1645,20 +1666,6 @@ export function App() {
               ) : null}
             </div>
 
-            <GraphAuthoringPanel
-              graph={currentGraph}
-              editable={currentHistory !== null}
-              dirty={currentGraphDirty}
-              validationIssues={currentValidationIssues}
-              onCommitLabel={commitCurrentGraphLabel}
-            />
-
-            <SourcePanel
-              bundle={editorBundle}
-              graph={currentGraph}
-              selectedBlock={selectedBlock}
-              onSelectBlock={selectBlock}
-            />
           </aside>
         ) : null}
       </main>
