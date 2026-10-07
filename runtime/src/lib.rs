@@ -166,6 +166,34 @@ impl ImplementationRegistry {
         self.choices.get(logical_ref)
     }
 
+    pub fn with_choice_default(
+        &self,
+        logical_ref: &str,
+        selected_ref: &str,
+    ) -> Result<Self, PlannerError> {
+        let mut selected = self.clone();
+        let choice = selected
+            .choices
+            .get_mut(logical_ref)
+            .ok_or_else(|| PlannerError::MissingImplementationChoice {
+                logical_ref: logical_ref.to_owned(),
+            })?;
+
+        if !choice
+            .candidates
+            .iter()
+            .any(|candidate| candidate == selected_ref)
+        {
+            return Err(PlannerError::DefaultImplementationNotCandidate {
+                logical_ref: logical_ref.to_owned(),
+                default_ref: selected_ref.to_owned(),
+            });
+        }
+
+        choice.default_ref = selected_ref.to_owned();
+        Ok(selected)
+    }
+
     pub fn resolve(&self, implementation_ref: &str) -> Option<(&str, &ProcessAction)> {
         if let Some((concrete_ref, action)) = self.actions.get_key_value(implementation_ref) {
             return Some((concrete_ref.as_str(), action));
@@ -843,6 +871,9 @@ pub enum PlannerError {
     EmptyImplementationChoice {
         logical_ref: String,
     },
+    MissingImplementationChoice {
+        logical_ref: String,
+    },
     DuplicateImplementationCandidate {
         logical_ref: String,
         candidate_ref: String,
@@ -916,6 +947,9 @@ impl fmt::Display for PlannerError {
             }
             Self::EmptyImplementationChoice { logical_ref } => {
                 write!(f, "implementation choice '{logical_ref}' has no candidates")
+            }
+            Self::MissingImplementationChoice { logical_ref } => {
+                write!(f, "implementation choice '{logical_ref}' is not registered")
             }
             Self::DuplicateImplementationCandidate {
                 logical_ref,
