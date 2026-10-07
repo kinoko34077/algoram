@@ -18,7 +18,7 @@ export const appJa = {
   removeConnection: "接続を削除",
   connectionReadOnly: "この接続は派生グラフ上では読み取り専用です。",
   selectBlockHint:
-    "プロパティやソースを確認する、または表示専用の下書きリンクを作成するには、ブロックを選択してください。",
+    "ブロックや接続を選ぶと詳細が表示されます。",
   plan: "実行計画",
   planning: "計画中…",
   replan: "再計画",
