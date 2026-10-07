@@ -83,7 +83,7 @@ assert.match(authoring, /Modified/);
 assert.match(authoring, /Clean/);
 assert.match(authoring, /event\.key === "Escape"/);
 assert.match(authoring, /<label>/);
-assert.match(authoring, /aria-describedby="graph-label-help"/);
+assert.match(authoring, /aria-describedby=\{/);\nassert.match(authoring, /graph-label-help graph-validation/);
 assert.match(app, /aria-label="Graph history"/);
 assert.match(app, />\s*Undo\s*</);
 assert.match(app, />\s*Redo\s*</);
