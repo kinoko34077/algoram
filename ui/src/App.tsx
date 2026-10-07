@@ -143,6 +143,15 @@ export function App() {
   >(() => new Set());
   const executionRequestRevision = useRef(0);
   const executionPlanAbort = useRef<AbortController | null>(null);
+  const recoveryRequestRevision = useRef(0);
+  const recoveryAbort = useRef<AbortController | null>(null);
+  const [recoveryDiscoveryPhase, setRecoveryDiscoveryPhase] =
+    useState<RecoveryDiscoveryPhase>("idle");
+  const [recoveryOptionsResult, setRecoveryOptionsResult] =
+    useState<RecoveryOptionsResponse | null>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [activeRecoverySelections, setActiveRecoverySelections] =
+    useState<RecoverySelections | null>(null);
   const [annotations, setAnnotations] = useState<BlockAnnotations>({});
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [focusRequest, setFocusRequest] = useState<GraphFocusRequest | null>(
