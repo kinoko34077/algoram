@@ -260,8 +260,7 @@ export function App() {
         );
 
         setActiveRootGraphId(localDocument.graph.id);
-        setFileStatus(null);
-      setAuthoringByGraph((current) => ({
+        setAuthoringByGraph((current) => ({
           ...current,
           [localDocument.graph.id]: createGraphHistory(localDocument.graph),
         }));
@@ -371,6 +370,7 @@ export function App() {
         return;
       }
 
+      setFileStatus(null);
       setAuthoringByGraph((current) => ({
         ...current,
         [currentGraphId]: nextHistory,
