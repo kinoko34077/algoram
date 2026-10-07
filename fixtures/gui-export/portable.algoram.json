@@ -1,0 +1,88 @@
+{
+  "schema_version": "algoram.graph/0.1",
+  "id": "graph:gui-export/portable",
+  "label": "GUI Export Portable",
+  "blocks": [
+    {
+      "id": "block:source",
+      "label": "Source",
+      "ports": [
+        {
+          "id": "out",
+          "direction": "out",
+          "channel": "data",
+          "contract": {
+            "kind": "portable"
+          }
+        }
+      ],
+      "source_anchor": {
+        "artifact_id": "artifact:portable",
+        "start_byte": 0,
+        "end_byte": 6
+      },
+      "extensions": {
+        "future.block": {
+          "opaque": true
+        }
+      }
+    },
+    {
+      "id": "block:target",
+      "label": "Target",
+      "ports": [
+        {
+          "id": "in",
+          "direction": "in",
+          "channel": "data",
+          "contract": {
+            "kind": "portable"
+          }
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "connection:source-target",
+      "source": {
+        "block_id": "block:source",
+        "port_id": "out"
+      },
+      "target": {
+        "block_id": "block:target",
+        "port_id": "in"
+      },
+      "extensions": {
+        "future.connection": {
+          "v": 1
+        }
+      }
+    }
+  ],
+  "source_artifacts": [
+    {
+      "id": "artifact:portable",
+      "origin": "portable/example.txt",
+      "language": "text",
+      "revision": "r1",
+      "content_hash": "sha256:portable",
+      "repository_origin": "example/repo",
+      "license": "CC0-1.0"
+    }
+  ],
+  "extensions": {
+    "future.vendor": {
+      "opaque": [
+        1,
+        2,
+        3
+      ],
+      "flag": true
+    }
+  },
+  "presentation": {
+    "canonical.note": "preserve-me"
+  },
+  "diagnostics": []
+}
