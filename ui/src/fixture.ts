@@ -422,6 +422,7 @@ const rustInternalGraph: AlgoramGraph = {
 
 export const demoBundle: ReferenceBundle = {
   rootGraphId,
+  editableGraphIds: [rootGraphId],
   graphs: {
     [rootGraph.id]: rootGraph,
     [internalGraph.id]: internalGraph,
