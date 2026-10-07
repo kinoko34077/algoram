@@ -458,14 +458,14 @@ fn route_http_request(
         .get("origin")
         .ok_or_else(|| BridgeError::Http("missing Origin header".to_owned()))?;
     if origin != allowed_origin {
-        return Ok(HttpResponse::json(
+        return HttpResponse::json(
             403,
             &ApiError {
                 code: "origin_denied".to_owned(),
                 message: "request Origin is not allowed".to_owned(),
             },
             None,
-        )?);
+        );
     }
 
     if request.method == "OPTIONS" {
@@ -486,14 +486,14 @@ fn route_http_request(
 
     let expected_authorization = format!("Bearer {bearer_token}");
     if request.headers.get("authorization") != Some(&expected_authorization) {
-        return Ok(HttpResponse::json(
+        return HttpResponse::json(
             401,
             &ApiError {
                 code: "unauthorized".to_owned(),
                 message: "valid runtime bridge bearer token required".to_owned(),
             },
             Some(allowed_origin.to_owned()),
-        )?);
+        );
     }
 
     match (request.method.as_str(), request.path.as_str()) {
