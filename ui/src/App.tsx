@@ -11,7 +11,9 @@ import { AnnotationPanel } from "./AnnotationPanel";
 import {
   applyGraph,
   createAuthoringHistories,
+  createGraphHistory,
   graphIsDirty,
+  markGraphSaved,
   redoGraph,
   setGraphLabel,
   undoGraph,
@@ -29,7 +31,20 @@ import {
   validateConnectionCandidate,
 } from "./connectionAuthoring";
 import { requestCanonicalGraphDownload } from "./browserDownload";
+import {
+  loadLastLocalDocument,
+  saveLocalDocument,
+} from "./browserPersistence";
+import {
+  createPersistedEditorSession,
+  restoreEditorSession,
+} from "./documentPersistence";
 import { demoBundle } from "./fixture";
+import {
+  FileMenu,
+  type FileOperationStatus,
+} from "./FileMenu";
+import { readCanonicalGraphFile } from "./graphImport";
 import { DraftLinkPanel } from "./DraftLinkPanel";
 import {
   ExecutionPanel,
@@ -91,11 +106,6 @@ interface GraphFocusRequest {
   revision: number;
 }
 
-interface ExportStatus {
-  kind: "requested" | "error";
-  message: string;
-}
-
 function graphLabel(graphId: string): string {
   return demoBundle.graphs[graphId]?.label ?? graphId;
 }
@@ -110,6 +120,10 @@ function textEditorOwnsKeys(target: EventTarget | null): boolean {
 }
 
 export function App() {
+  const [activeRootGraphId, setActiveRootGraphId] = useState(
+    demoBundle.rootGraphId,
+  );
+  const [persistenceReady, setPersistenceReady] = useState(false);
   const [path, setPath] = useState<Breadcrumb[]>([
     {
       graphId: demoBundle.rootGraphId,
@@ -125,7 +139,7 @@ export function App() {
     useState<PresentationByGraph>({});
   const [navigationStatus, setNavigationStatus] = useState<string | null>(null);
   const [authoringStatus, setAuthoringStatus] = useState<string | null>(null);
-  const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
+  const [fileStatus, setFileStatus] = useState<FileOperationStatus | null>(null);
   const [bridgeSettings, setBridgeSettings] = useState<RuntimeBridgeSettings>({
     baseUrl: "http://127.0.0.1:39091",
     bearerToken: "",
@@ -175,20 +189,25 @@ export function App() {
 
     return {
       ...demoBundle,
+      rootGraphId: activeRootGraphId,
       graphs: {
         ...demoBundle.graphs,
         ...workingGraphs,
       },
     };
-  }, [authoringByGraph]);
+  }, [activeRootGraphId, authoringByGraph]);
 
   const navigationIndex = useMemo(
     () => buildNavigationIndex(editorBundle),
     [editorBundle],
   );
 
-  const currentGraphId = path.at(-1)?.graphId ?? demoBundle.rootGraphId;
+  const currentGraphId = path.at(-1)?.graphId ?? activeRootGraphId;
   const currentHistory = authoringByGraph[currentGraphId] ?? null;
+  const activeRootHistory = authoringByGraph[activeRootGraphId] ?? null;
+  const activeDocumentDirty = activeRootHistory
+    ? graphIsDirty(activeRootHistory)
+    : false;
   const currentGraph = editorBundle.graphs[currentGraphId];
 
   if (!currentGraph) {
