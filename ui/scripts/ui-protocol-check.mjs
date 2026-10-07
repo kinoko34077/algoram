@@ -66,6 +66,16 @@ assert.match(search, /role="status"/);
 
 assert.match(annotation, /className="danger-action"/);
 
+assert.match(authoringPanel, /<label>/);
+assert.match(authoringPanel, /event\.key === "Escape"/);
+assert.match(authoringPanel, /aria-invalid=\{displayedIssues\.length > 0\}/);
+assert.match(authoringPanel, /role="alert"/);
+assert.match(authoringPanel, /Read only/);
+assert.match(app, /textEditorOwnsUndo/);
+assert.match(app, /event\.metaKey \|\| event\.ctrlKey/);
+assert.match(app, /undoCurrentGraph/);
+assert.match(app, /redoCurrentGraph/);
+
 assert.match(authoring, /aria-label="Graph properties"/);
 assert.match(authoring, /Editable/);
 assert.match(authoring, /Read only/);
@@ -89,6 +99,8 @@ console.log(
     drag_alternative_surface: "pass",
     keyboard_recovery_hooks: "pass",
     destructive_action_separation: "pass",
+    canonical_authoring_form: "pass",
+    native_text_undo_boundary: "pass",
     canonical_authoring_status: "pass",
     history_recovery_surface: "pass",
   }),
