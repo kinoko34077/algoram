@@ -1194,6 +1194,12 @@ export function App() {
                 onRetryPlan={planCurrentGraph}
                 onDismiss={dismissExecutionPreview}
               />
+              {activeRecoverySelections ? (
+                <p className="inline-status recovery-applied-status" role="status">
+                  Current preview uses explicit manual recovery selections.
+                  Run will replan with the same selections before execution.
+                </p>
+              ) : null}
               <RecoveryPanel
                 options={recoveryOptionsResult}
                 phase={recoveryDiscoveryPhase}
