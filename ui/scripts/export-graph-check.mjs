@@ -12,6 +12,7 @@ const fixtureUrl = new URL(
   import.meta.url,
 );
 const fixtureText = await readFile(fixtureUrl, "utf8");
+const normalizedFixtureText = fixtureText.replace(/\r\n/g, "\n");
 const graph = JSON.parse(fixtureText);
 
 const localEditorState = {
@@ -35,8 +36,8 @@ const localEditorState = {
 const payload = prepareCanonicalGraphExport(graph, () => []);
 const serialized = serializeCanonicalGraph(graph);
 
-assert.equal(payload.json, fixtureText);
-assert.equal(serialized, fixtureText);
+assert.equal(payload.json, normalizedFixtureText);
+assert.equal(serialized, normalizedFixtureText);
 assert.equal(
   payload.filename,
   "algoram-graph-gui-export-portable.algoram.json",
