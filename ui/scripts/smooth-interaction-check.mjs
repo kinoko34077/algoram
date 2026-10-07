@@ -7,7 +7,7 @@ const canvas = await readFile(
 );
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
 
-assert.match(canvas, /change\\.dragging === undefined/);
+assert.match(canvas, /change\.dragging === undefined/);
 assert.match(
   canvas,
   /onNodeDragStop=\{\(_, node\) => \{[\s\S]*?commitNodePosition\(node\);[\s\S]*?node-drag-stop[\s\S]*?\}\}/,
@@ -28,7 +28,7 @@ assert.match(app, /focusRequest\?\.graphId === currentGraphId/);
 console.log(
   JSON.stringify({
     kind: "smooth-interaction-guard",
-    pointer_drag_app_commits: "bounded",
+    pointer_drag_app_commits: "single-boundary",
     explicit_navigation_focus: "separate",
     visible_element_rendering: "enabled",
   }),
