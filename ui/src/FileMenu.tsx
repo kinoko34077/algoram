@@ -6,6 +6,7 @@ export interface FileOperationStatus {
 }
 
 interface FileMenuProps {
+  canOpen: boolean;
   canSaveLocal: boolean;
   status: FileOperationStatus | null;
   onOpenFile: (file: File) => void | Promise<void>;
@@ -14,6 +15,7 @@ interface FileMenuProps {
 }
 
 export function FileMenu({
+  canOpen,
   canSaveLocal,
   status,
   onOpenFile,
@@ -34,7 +36,7 @@ export function FileMenu({
       }
 
       const key = event.key.toLowerCase();
-      if (key === "o") {
+      if (key === "o" && canOpen) {
         event.preventDefault();
         chooseFile();
       } else if (key === "s" && canSaveLocal) {
@@ -55,14 +57,19 @@ export function FileMenu({
       window.removeEventListener("keydown", handleShortcut);
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [canSaveLocal, onSaveLocal]);
+  }, [canOpen, canSaveLocal, onSaveLocal]);
 
   return (
     <div className="file-menu-shell">
       <details className="file-menu" ref={detailsRef}>
         <summary className="tertiary-action">File</summary>
         <div className="file-menu-popover" role="group" aria-label="File operations">
-          <button type="button" className="tertiary-action" onClick={chooseFile}>
+          <button
+            type="button"
+            className="tertiary-action"
+            disabled={!canOpen}
+            onClick={chooseFile}
+          >
             Open
           </button>
           <button
