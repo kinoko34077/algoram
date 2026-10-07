@@ -62,6 +62,8 @@ jobs:
         run: npm run test:interaction
       - name: Canonical Graph authoring checks
         run: npm run test:authoring
+      - name: Graph validation browser/Core parity
+        run: npm run test:validation-parity
       - name: ELK layout performance baseline
         run: npm run perf:baseline
 
