@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { jaJP } from "./locales/ja-JP";
 import type { AlgoramGraph } from "./algoram";
 import type {
   ExecutionAccessRequirement,
@@ -108,22 +109,22 @@ export function ExecutionPanel({
   }, [onDismiss, phase]);
 
   return (
-    <section className="execution-panel" aria-label="Runtime execution">
+    <section className="execution-panel" aria-label={jaJP.execution.runtimeExecution}>
       <div className="panel-heading-row">
         <div>
-          <p className="eyebrow">Runtime</p>
-          <strong>Guarded execution</strong>
+          <p className="eyebrow">{jaJP.execution.runtime}</p>
+          <strong>{jaJP.execution.guardedExecution}</strong>
         </div>
         <span className={`execution-state ${phase}`} aria-live="polite">
-          {phase}
+          {jaJP.common.states[phase]}
         </span>
       </div>
 
       <details className="bridge-settings">
-        <summary>Bridge connection</summary>
+        <summary>{jaJP.execution.bridgeConnection}</summary>
         <div className="bridge-settings-fields">
           <label>
-            Bridge URL
+            {jaJP.execution.bridgeUrl}
             <input
               type="url"
               value={settings.baseUrl}
@@ -139,7 +140,7 @@ export function ExecutionPanel({
             />
           </label>
           <label>
-            Bearer token
+            {jaJP.execution.bearerToken}
             <input
               type="password"
               value={settings.bearerToken}
@@ -154,34 +155,32 @@ export function ExecutionPanel({
             />
           </label>
           <p className="compact-hint">
-            Session only. The browser bridge is restricted to loopback
-            localhost and the token is never written into Graph export.
+            {jaJP.execution.sessionOnlyHint}
           </p>
         </div>
       </details>
 
       {phase === "idle" ? (
         <p className="compact-hint">
-          Plan the current Graph to inspect concrete host-process access before
-          execution.
+          {jaJP.execution.idleHint}
         </p>
       ) : null}
 
       {phase === "planning" ? (
         <p className="inline-status" role="status">
-          Validating and planning on the trusted host…
+          {jaJP.execution.planning}
         </p>
       ) : null}
 
       {phase === "running" ? (
         <p className="inline-status" role="status">
-          Running through the guarded host runtime…
+          {jaJP.execution.running}
         </p>
       ) : null}
 
       {error ? (
         <div className="execution-error" role="alert">
-          <strong>Execution blocked</strong>
+          <strong>{jaJP.execution.executionBlocked}</strong>
           <p>{error}</p>
         </div>
       ) : null}
@@ -189,18 +188,17 @@ export function ExecutionPanel({
       {preview ? (
         <div className="execution-preview">
           <div className="execution-summary">
-            <span>{preview.plan.steps.length} steps</span>
+            <span>{jaJP.execution.stepsCount.replace("{count}", String(preview.plan.steps.length))}</span>
             <span>
-              {preview.access_report.requirements.length} access requirements
+              {jaJP.execution.accessRequirementsCount.replace("{count}", String(preview.access_report.requirements.length))}
             </span>
-            <span>{grantGroups.length} grants</span>
+            <span>{jaJP.execution.grantsCount.replace("{count}", String(grantGroups.length))}</span>
           </div>
 
           <div className="execution-requirements">
-            <strong>Host access</strong>
+            <strong>{jaJP.execution.hostAccess}</strong>
             <p className="compact-hint">
-              These actions run with ambient host-process authority. No
-              fine-grained sandbox is implied.
+              {jaJP.execution.hostAuthorityHint}
             </p>
             <ul>
               {grantGroups.map((group) => {
@@ -239,14 +237,14 @@ export function ExecutionPanel({
                     </code>
                     {requirement.action.current_dir ? (
                       <small>
-                        Working directory: {requirement.action.current_dir}
+                        {jaJP.execution.workingDirectory.replace("{path}", requirement.action.current_dir)}
                       </small>
                     ) : null}
                     <small>
-                      Blocks: {group.blockIds.join(", ") || "none"}
+                      {jaJP.execution.blocks.replace("{ids}", group.blockIds.join(", ") || jaJP.execution.none)}
                     </small>
                     <small>
-                      Steps: {group.stepIds.join(", ")}
+                      {jaJP.execution.steps.replace("{ids}", group.stepIds.join(", "))}
                     </small>
                   </li>
                 );
@@ -262,8 +260,8 @@ export function ExecutionPanel({
             {result.trace.entries.every(
               (entry) => entry.status === "succeeded",
             )
-              ? "Run completed"
-              : "Run finished with failure"}
+              ? jaJP.execution.runCompleted
+              : jaJP.execution.runFinishedWithFailure}
           </strong>
           <ul>
             {result.trace.entries.map((entry) => (
@@ -285,7 +283,7 @@ export function ExecutionPanel({
               className="secondary-action"
               onClick={onRetryPlan}
             >
-              Retry plan
+              {jaJP.execution.retryPlan}
             </button>
           ) : null}
           <button
@@ -294,13 +292,13 @@ export function ExecutionPanel({
             onClick={onDismiss}
             disabled={phase === "running"}
           >
-            {phase === "planning" ? "Cancel planning" : "Close preview"}
+            {phase === "planning" ? jaJP.execution.cancelPlanning : jaJP.execution.closePreview}
           </button>
         </div>
       ) : null}
 
       <p className="compact-hint execution-graph-id">
-        Current Graph: {graph.id}
+        {jaJP.execution.currentGraph.replace("{graphId}", graph.id)}
       </p>
     </section>
   );
