@@ -150,6 +150,7 @@ export function App() {
     baseUrl: "http://127.0.0.1:39091",
     bearerToken: "",
   });
+  const [executionOpen, setExecutionOpen] = useState(false);
   const [executionPhase, setExecutionPhase] =
     useState<ExecutionPhase>("idle");
   const [executionPreview, setExecutionPreview] =
@@ -1275,7 +1276,7 @@ export function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={executionOpen ? "app-shell execution-open" : "app-shell"}>
       <header className="app-header">
         <div className="title-block">
           <p className="eyebrow">{jaJP.app.brand}</p>
@@ -1325,35 +1326,13 @@ export function App() {
           </button>
           <button
             type="button"
-            className="secondary-action"
-            onClick={planCurrentGraph}
-            disabled={executionPhase === "planning" || executionPhase === "running"}
+            className="secondary-action execution-entry-action"
             aria-controls="runtime-execution-panel"
+            aria-expanded={executionOpen}
+            onClick={() => setExecutionOpen((open) => !open)}
           >
-            {executionPhase === "planning"
-              ? jaJP.app.planning
-              : executionPhase === "failed"
-                ? jaJP.app.retryPlan
-                : executionPreview
-                  ? jaJP.app.replan
-                  : jaJP.app.plan}
+            {jaJP.app.executionEntry}
           </button>
-          {executionPhase === "ready" && executionPreview ? (
-            <button
-              type="button"
-              className="primary-action"
-              onClick={runCurrentGraph}
-              disabled={!allExecutionGrantsApproved}
-              aria-controls="runtime-execution-panel"
-              title={
-                allExecutionGrantsApproved
-                  ? jaJP.app.runThroughGuardedHostRuntime
-                  : jaJP.app.grantBeforeRun
-              }
-            >
-              {jaJP.app.run}
-            </button>
-          ) : null}
           <FileMenu
             canOpen={
               executionPhase !== "planning" && executionPhase !== "running"
@@ -1671,6 +1650,7 @@ export function App() {
           </aside>
         ) : null}
       </main>
+      {/* U3_EXECUTION_CONTROLS_INSERTION */}
     </div>
   );
 }
