@@ -54,6 +54,12 @@ assert.match(app, /presentationByGraph/);
 assert.match(app, /type SelectionByGraph/);
 assert.match(app, /inspectorOpen/);
 assert.match(app, /aria-expanded=\{inspectorOpen\}/);
+const selectedAt = app.indexOf('<section className="block-inspector">');
+const runtimeAt = app.indexOf('<div id="runtime-execution-panel">');
+assert.ok(selectedAt >= 0 && selectedAt < runtimeAt);
+assert.match(app, /className="inspector-disclosure"/);
+assert.match(app, /setInspectorOpen\(true\)/);
+
 assert.match(app, /const selectBlock = useCallback/);
 assert.match(app, /if \(previous === blockId\)/);
 assert.match(app, /onPresentationChange=\{updateCurrentPresentation\}/);
