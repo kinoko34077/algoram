@@ -172,7 +172,7 @@ export function App() {
   const [activeRecoverySelections, setActiveRecoverySelections] =
     useState<RecoverySelections | null>(null);
   const [annotations, setAnnotations] = useState<BlockAnnotations>({});
-  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [focusRequest, setFocusRequest] = useState<GraphFocusRequest | null>(
     null,
   );
@@ -538,6 +538,7 @@ export function App() {
   const selectBlock = useCallback(
     (blockId: string | null) => {
       if (blockId !== null) {
+        setInspectorOpen(true);
         setConnectionSelectionByGraph((current) => ({
           ...current,
           [currentGraphId]: null,
@@ -562,6 +563,7 @@ export function App() {
   const selectConnection = useCallback(
     (connectionId: string | null) => {
       if (connectionId !== null) {
+        setInspectorOpen(true);
         setSelectionByGraph((current) => ({
           ...current,
           [currentGraphId]: null,
