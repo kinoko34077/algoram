@@ -57,10 +57,17 @@ import {
 } from "./presentation";
 import { markEditorPerformance } from "./perfMarks";
 import {
+  emptyRecoverySelections,
+  hasExecutableRecoverySelection,
   planGraph,
+  recoveryOptions as requestRecoveryOptions,
+  recoveryPlanGraph,
+  recoveryRunGraph,
   requiredImplementationRefs,
   runGraph,
   type PlanResponse,
+  type RecoveryOptionsResponse,
+  type RecoverySelections,
   type RunResponse,
   type RuntimeBridgeSettings,
 } from "./runtimeBridge";
