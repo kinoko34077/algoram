@@ -27,12 +27,10 @@ import {
   type FlowBlockNode,
 } from "./graphAdapter";
 import {
-  addDraftLink,
   clearDraftLinks,
   makeDraftLink,
   resetNodePositions,
   setNodePosition,
-  validateDraftLink,
   type DraftLink,
   type GraphPresentationState,
 } from "./presentation";
@@ -48,6 +46,7 @@ interface GraphCanvasProps {
   blockTemplates: ReusableBlockTemplate[];
   authoringStatus: string | null;
   selectedBlockId: string | null;
+  selectedConnectionId: string | null;
   focusRequest: GraphFocusRequest | null;
   presentation: GraphPresentationState;
   onPresentationChange: (
@@ -57,7 +56,10 @@ interface GraphCanvasProps {
     template: ReusableBlockTemplate,
     position: XYPosition,
   ) => void;
+  validateCanonicalConnection: (link: DraftLink) => string | null;
+  onAddConnection: (link: DraftLink) => string | null;
   onSelectBlock: (blockId: string | null) => void;
+  onSelectConnection: (connectionId: string | null) => void;
   onOpenGraph: (graphId: string, viaBlock: AlgoramBlock) => void;
 }
 
@@ -194,7 +196,7 @@ const ariaLabelConfig = {
   "node.a11yDescription.default": nodeA11yDescription,
   "node.a11yDescription.keyboardDisabled": nodeA11yDescription,
   "edge.a11yDescription.default":
-    "Connection between Blocks. Connections are not directly editable in this workspace.",
+    "Canonical Connection between Blocks. Select it to inspect or remove it when the Graph is editable.",
 };
 
 function connectionToDraft(connection: Connection | Edge): DraftLink | null {
@@ -225,6 +227,8 @@ function draftToEdge(link: DraftLink): Edge {
     animated: true,
     className: "draft-edge",
     label: "draft",
+    focusable: false,
+    selectable: false,
   };
 }
 
@@ -254,11 +258,15 @@ function CanvasBody({
   blockTemplates,
   authoringStatus,
   selectedBlockId,
+  selectedConnectionId,
   focusRequest,
   presentation,
   onPresentationChange,
   onAddBlock,
+  validateCanonicalConnection,
+  onAddConnection,
   onSelectBlock,
+  onSelectConnection,
   onOpenGraph,
 }: GraphCanvasProps) {
   const [baseNodes, setBaseNodes, onNodesChange] =
@@ -281,10 +289,13 @@ function CanvasBody({
 
   const edges = useMemo(
     () => [
-      ...toFlowEdges(graph),
+      ...toFlowEdges(graph).map((edge) => ({
+        ...edge,
+        selected: edge.id === selectedConnectionId,
+      })),
       ...presentation.draftLinks.map(draftToEdge),
     ],
-    [graph, presentation.draftLinks],
+    [graph, presentation.draftLinks, selectedConnectionId],
   );
 
   const loadLayout = useCallback(
@@ -452,33 +463,31 @@ function CanvasBody({
 
   const isValidConnection = useCallback(
     (connection: Connection | Edge) => {
+      if (!editable) {
+        return false;
+      }
       const link = connectionToDraft(connection);
-      return (
-        link !== null &&
-        validateDraftLink(graph, presentation, link) === null
-      );
+      return link !== null && validateCanonicalConnection(link) === null;
     },
-    [graph, presentation],
+    [editable, validateCanonicalConnection],
   );
 
-  const connectDraft = useCallback(
+  const connectCanonical = useCallback(
     (connection: Connection) => {
+      if (!editable) {
+        return;
+      }
+
       const link = connectionToDraft(connection);
       if (!link) {
         setInteractionStatus("Choose an output and input port.");
         return;
       }
 
-      const error = validateDraftLink(graph, presentation, link);
-      if (error) {
-        setInteractionStatus(error);
-        return;
-      }
-
-      onPresentationChange((current) => addDraftLink(graph, current, link));
-      setInteractionStatus("Draft link added.");
+      const error = onAddConnection(link);
+      setInteractionStatus(error ?? "Canonical Connection created.");
     },
-    [graph, onPresentationChange, presentation],
+    [editable, onAddConnection],
   );
 
   const resetLayout = useCallback(() => {
@@ -561,8 +570,8 @@ function CanvasBody({
 
         <p className="canvas-help">
           {editable
-            ? "Library Add changes the canonical Graph. Drag/layout/drafts remain presentation-only."
-            : "Arrow keys move a selected node. Draft links remain presentation-only."}
+            ? "Library Add and handle connections change the canonical Graph. Drag/layout remain presentation-only."
+            : "Canonical connection handles are disabled. Draft planning remains in the Inspector."}
         </p>
 
         <div className="canvas-status" aria-live="polite">
@@ -609,23 +618,35 @@ function CanvasBody({
               commitNodePosition(node);
               markEditorPerformance("node-drag-stop");
             }}
-            onConnect={connectDraft}
+            onConnect={connectCanonical}
             isValidConnection={isValidConnection}
-            onNodeClick={(_, node) => onSelectBlock(node.id)}
+            onNodeClick={(_, node) => {
+              onSelectConnection(null);
+              onSelectBlock(node.id);
+            }}
+            onEdgeClick={(_, edge) => {
+              if (!edge.id.startsWith("draft:")) {
+                onSelectBlock(null);
+                onSelectConnection(edge.id);
+              }
+            }}
             onNodeDoubleClick={(_, node) => {
               const reference = node.data.block.internal_graph_ref;
               if (reference) {
                 onOpenGraph(reference, node.data.block);
               }
             }}
-            onPaneClick={() => onSelectBlock(null)}
-            nodesConnectable
+            onPaneClick={() => {
+              onSelectBlock(null);
+              onSelectConnection(null);
+            }}
+            nodesConnectable={editable}
             nodesDraggable
             nodesFocusable
-            edgesFocusable={false}
+            edgesFocusable
             onlyRenderVisibleElements
             autoPanOnNodeFocus={false}
-            connectOnClick
+            connectOnClick={editable}
             disableKeyboardA11y={false}
             ariaLabelConfig={ariaLabelConfig}
             deleteKeyCode={null}
