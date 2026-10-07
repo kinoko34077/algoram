@@ -60,6 +60,8 @@ jobs:
         run: npm run test:platform
       - name: Smooth interaction guard
         run: npm run test:interaction
+      - name: Canonical Graph authoring checks
+        run: npm run test:authoring
       - name: ELK layout performance baseline
         run: npm run perf:baseline
 
