@@ -19,10 +19,17 @@ export interface BlockTraceObservation {
   stdout: string[];
 }
 
+export interface UnmappedTraceOrigin {
+  stepId: string;
+  originBlockIds: string[];
+  entry: TraceEntry;
+}
+
 export interface TraceProjection {
   referenceGraphId: string;
   byBlockId: Record<string, BlockTraceObservation>;
   unmappedEntries: TraceEntry[];
+  unmappedOrigins: UnmappedTraceOrigin[];
   mappedEntryCount: number;
 }
 
@@ -101,12 +108,24 @@ export function projectExecutionTrace(
   const visibleBlockIds = new Set(graph.blocks.map((block) => block.id));
   const entriesByBlock = new Map<string, TraceEntry[]>();
   const unmappedEntries: TraceEntry[] = [];
+  const unmappedOrigins: UnmappedTraceOrigin[] = [];
   let mappedEntryCount = 0;
 
   for (const entry of trace.entries) {
     const mappedBlockIds = uniqueSorted(
       entry.origin_block_ids.filter((blockId) => visibleBlockIds.has(blockId)),
     );
+    const unknownBlockIds = uniqueSorted(
+      entry.origin_block_ids.filter((blockId) => !visibleBlockIds.has(blockId)),
+    );
+
+    if (unknownBlockIds.length > 0) {
+      unmappedOrigins.push({
+        stepId: entry.step_id,
+        originBlockIds: unknownBlockIds,
+        entry,
+      });
+    }
 
     if (mappedBlockIds.length === 0) {
       unmappedEntries.push(entry);
@@ -136,6 +155,7 @@ export function projectExecutionTrace(
       referenceGraphId: trace.reference_graph_id,
       byBlockId,
       unmappedEntries,
+      unmappedOrigins,
       mappedEntryCount,
     },
   };
