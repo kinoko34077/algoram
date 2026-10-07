@@ -113,6 +113,18 @@ jobs:
               assert graph_editor_label == "グラフエディター", (
                 f"{width}x{height}: graph editor aria-label {graph_editor_label!r}"
               )
+              assert "Find Block" not in body_text, (
+                f"{width}x{height}: untranslated BlockPalette label remains"
+              )
+              assert " in · " not in body_text and " out" not in body_text, (
+                f"{width}x{height}: untranslated BlockPalette I/O summary remains"
+              )
+              assert "ブロックを検索" in body_text, (
+                f"{width}x{height}: Japanese BlockPalette search label missing"
+              )
+              assert "入力 1 · 出力 1" in body_text, (
+                f"{width}x{height}: Japanese BlockPalette I/O summary missing"
+              )
 
               if width <= 600:
                 overflow_summary = driver.find_element(
@@ -162,6 +174,7 @@ jobs:
                 "file_label": file_label,
                 "search_aria": search_label,
                 "graph_editor_aria": graph_editor_label,
+                "block_palette_copy": "localized",
                 "inspector_surface": "localized",
                 "horizontal_overflow": "none",
                 "console_severe": 0,
