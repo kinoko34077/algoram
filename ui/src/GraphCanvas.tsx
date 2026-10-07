@@ -33,9 +33,15 @@ import {
   type GraphPresentationState,
 } from "./presentation";
 
+interface GraphFocusRequest {
+  blockId: string;
+  revision: number;
+}
+
 interface GraphCanvasProps {
   graph: AlgoramGraph;
   selectedBlockId: string | null;
+  focusRequest: GraphFocusRequest | null;
   presentation: GraphPresentationState;
   onPresentationChange: (
     update: (current: GraphPresentationState) => GraphPresentationState,
@@ -214,6 +220,7 @@ function draftToEdge(link: DraftLink): Edge {
 function CanvasBody({
   graph,
   selectedBlockId,
+  focusRequest,
   presentation,
   onPresentationChange,
   onSelectBlock,
@@ -267,20 +274,20 @@ function CanvasBody({
 
   useEffect(() => {
     if (
-      !selectedBlockId ||
-      !baseNodes.some((node) => node.id === selectedBlockId)
+      !focusRequest ||
+      !baseNodes.some((node) => node.id === focusRequest.blockId)
     ) {
       return;
     }
 
     requestAnimationFrame(() => {
       void fitView({
-        nodes: [{ id: selectedBlockId }],
+        nodes: [{ id: focusRequest.blockId }],
         padding: 0.55,
         duration: 180,
       });
     });
-  }, [baseNodes, fitView, selectedBlockId]);
+  }, [baseNodes, fitView, focusRequest]);
 
   const nodes = useMemo(
     () =>
@@ -317,22 +324,25 @@ function CanvasBody({
         onSelectBlock(null);
       }
 
-      const positioned = changes.filter(
+      const settledPositions = changes.filter(
         (
           change,
         ): change is Extract<
           NodeChange<FlowBlockNode>,
           { type: "position" }
-        > => change.type === "position" && change.position !== undefined,
+        > =>
+          change.type === "position" &&
+          change.position !== undefined &&
+          change.dragging !== true,
       );
 
-      if (positioned.length === 0) {
+      if (settledPositions.length === 0) {
         return;
       }
 
       onPresentationChange((current) => {
         let next = current;
-        for (const change of positioned) {
+        for (const change of settledPositions) {
           if (change.position) {
             next = setNodePosition(next, change.id, change.position);
           }
@@ -346,6 +356,15 @@ function CanvasBody({
       onSelectBlock,
       selectedBlockId,
     ],
+  );
+
+  const commitNodePosition = useCallback(
+    (node: FlowBlockNode) => {
+      onPresentationChange((current) =>
+        setNodePosition(current, node.id, node.position),
+      );
+    },
+    [onPresentationChange],
   );
 
   const isValidConnection = useCallback(
@@ -440,6 +459,7 @@ function CanvasBody({
           edges={edges}
           nodeTypes={nodeTypes}
           onNodesChange={handleNodesChange}
+          onNodeDragStop={(_, node) => commitNodePosition(node)}
           onConnect={connectDraft}
           isValidConnection={isValidConnection}
           onNodeClick={(_, node) => onSelectBlock(node.id)}
@@ -454,6 +474,8 @@ function CanvasBody({
           nodesDraggable
           nodesFocusable
           edgesFocusable={false}
+          onlyRenderVisibleElements
+          autoPanOnNodeFocus={false}
           connectOnClick
           disableKeyboardA11y={false}
           ariaLabelConfig={ariaLabelConfig}
