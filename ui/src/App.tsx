@@ -239,7 +239,85 @@ export function App() {
     traceProjectionResult?.ok === false ? traceProjectionResult.reason : null;
 
   useEffect(() => {
-    setExportStatus(null);
+    let cancelled = false;
+
+    void loadLastLocalDocument()
+      .then((localDocument) => {
+        if (cancelled || !localDocument) {
+          return;
+        }
+
+        const availableGraphs = {
+          ...demoBundle.graphs,
+          [localDocument.graph.id]: localDocument.graph,
+        };
+        const restored = restoreEditorSession(
+          localDocument.graph,
+          availableGraphs,
+          localDocument.session,
+        );
+
+        setActiveRootGraphId(localDocument.graph.id);
+        setAuthoringByGraph((current) => ({
+          ...current,
+          [localDocument.graph.id]: createGraphHistory(localDocument.graph),
+        }));
+        setPath(
+          restored.graphPath.map((graphId) => ({
+            graphId,
+            label:
+              availableGraphs[graphId]?.label ??
+              availableGraphs[graphId]?.id ??
+              graphId,
+          })),
+        );
+        setPresentationByGraph(restored.presentations);
+        setSelectionByGraph(restored.selectedBlockIds);
+        setConnectionSelectionByGraph(restored.selectedConnectionIds);
+        setInspectorOpen(restored.inspectorOpen);
+        setFileStatus({
+          kind: "success",
+          message: "Restored local Graph.",
+        });
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setFileStatus({
+            kind: "error",
+            message:
+              error instanceof Error
+                ? `Local restore unavailable: ${error.message}`
+                : "Local restore unavailable.",
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setPersistenceReady(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeDocumentDirty) {
+      return;
+    }
+
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [activeDocumentDirty]);
+
+  useEffect(() => {
+    setFileStatus(null);
     executionPlanAbort.current?.abort();
     executionPlanAbort.current = null;
     executionRequestRevision.current += 1;
@@ -295,7 +373,7 @@ export function App() {
         [currentGraphId]: nextHistory,
       }));
 
-      if (currentGraphId === demoBundle.rootGraphId) {
+      if (currentGraphId === activeRootGraphId) {
         const nextLabel =
           nextHistory.present.graph.label ?? nextHistory.present.graph.id;
         setPath((current) =>
@@ -305,7 +383,7 @@ export function App() {
         );
       }
     },
-    [currentGraphId, currentHistory],
+    [activeRootGraphId, currentGraphId, currentHistory],
   );
 
   const undoCurrentGraph = useCallback(() => {
@@ -1008,12 +1086,12 @@ export function App() {
   function exportCurrentGraph() {
     try {
       const payload = requestCanonicalGraphDownload(currentGraph);
-      setExportStatus({
-        kind: "requested",
+      setFileStatus({
+        kind: "info",
         message: `Download requested: ${payload.filename}`,
       });
     } catch (error: unknown) {
-      setExportStatus({
+      setFileStatus({
         kind: "error",
         message:
           error instanceof Error
