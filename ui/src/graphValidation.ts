@@ -91,7 +91,12 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
 
     const anchor = block.source_anchor;
     if (anchor) {
-      if (anchor.end_byte < anchor.start_byte) {
+      if (
+        !Number.isSafeInteger(anchor.start_byte) ||
+        !Number.isSafeInteger(anchor.end_byte) ||
+        anchor.start_byte < 0 ||
+        anchor.end_byte < anchor.start_byte
+      ) {
         issues.push({
           code: "invalid-source-anchor-range",
           graphId: graph.id,
