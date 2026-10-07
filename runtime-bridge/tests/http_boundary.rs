@@ -1,8 +1,8 @@
 use algoram_core::{Block, Extensions, Graph};
 use algoram_interop::RouteRegistry;
 use algoram_runtime::{
-    ExecutionTrace, ImplementationRegistry, ProcessAction, RuntimeEndpoint,
-    RuntimeLocationClass, TraceEntry, TraceStatus,
+    ExecutionTrace, ImplementationRegistry, ProcessAction, RuntimeEndpoint, RuntimeLocationClass,
+    TraceEntry, TraceStatus,
 };
 use algoram_runtime_bridge::{
     ImplementationOverride, PlanRequest, PlanResponse, RecoveryOptionsRequest,
@@ -52,8 +52,7 @@ fn spawn_server_with(
     request_count: usize,
 ) -> (SocketAddr, thread::JoinHandle<()>) {
     let server =
-        RuntimeBridgeServer::bind(service, "127.0.0.1:0".parse().unwrap(), TOKEN, ORIGIN)
-            .unwrap();
+        RuntimeBridgeServer::bind(service, "127.0.0.1:0".parse().unwrap(), TOKEN, ORIGIN).unwrap();
     let addr = server.local_addr().unwrap();
     let handle = thread::spawn(move || {
         for _ in 0..request_count {
@@ -254,8 +253,7 @@ fn recovery_http_boundary_requires_auth_and_reuses_explicit_selection_for_run() 
     .unwrap();
     let planned = post(addr, "/v1/plan", ORIGIN, TOKEN, &plan_body);
     assert!(planned.starts_with("HTTP/1.1 200"));
-    let default_preview: PlanResponse =
-        serde_json::from_str(response_body(&planned)).unwrap();
+    let default_preview: PlanResponse = serde_json::from_str(response_body(&planned)).unwrap();
     assert_eq!(
         default_preview.plan.steps[0].implementation_ref,
         "impl:http-provider-a"
@@ -276,13 +274,7 @@ fn recovery_http_boundary_requires_auth_and_reuses_explicit_selection_for_run() 
     );
     assert!(unauthorized.starts_with("HTTP/1.1 401"));
 
-    let options_response = post(
-        addr,
-        "/v1/recovery/options",
-        ORIGIN,
-        TOKEN,
-        &options_body,
-    );
+    let options_response = post(addr, "/v1/recovery/options", ORIGIN, TOKEN, &options_body);
     assert!(options_response.starts_with("HTTP/1.1 200"));
     let options: RecoveryOptionsResponse =
         serde_json::from_str(response_body(&options_response)).unwrap();
@@ -321,8 +313,7 @@ fn recovery_http_boundary_requires_auth_and_reuses_explicit_selection_for_run() 
         &recovery_plan_body,
     );
     assert!(recovered.starts_with("HTTP/1.1 200"));
-    let recovery_preview: PlanResponse =
-        serde_json::from_str(response_body(&recovered)).unwrap();
+    let recovery_preview: PlanResponse = serde_json::from_str(response_body(&recovered)).unwrap();
     assert_eq!(
         recovery_preview.plan.steps[0].implementation_ref,
         "impl:http-provider-b"
@@ -335,13 +326,7 @@ fn recovery_http_boundary_requires_auth_and_reuses_explicit_selection_for_run() 
         selections,
     })
     .unwrap();
-    let executed = post(
-        addr,
-        "/v1/recovery/run",
-        ORIGIN,
-        TOKEN,
-        &run_body,
-    );
+    let executed = post(addr, "/v1/recovery/run", ORIGIN, TOKEN, &run_body);
     assert!(executed.starts_with("HTTP/1.1 200"));
     let run: RunResponse = serde_json::from_str(response_body(&executed)).unwrap();
     assert!(run.trace.succeeded());
