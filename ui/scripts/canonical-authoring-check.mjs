@@ -10,6 +10,10 @@ import {
   undoGraph,
 } from "../src/authoring.ts";
 import { validateGraph } from "../src/graphValidation.ts";
+import {
+  EMPTY_GRAPH_PRESENTATION,
+  setNodePosition,
+} from "../src/presentation.ts";
 
 function port(id, direction, channel) {
   return { id, direction, channel };
@@ -69,6 +73,19 @@ assert.equal(history.past.length, 1);
 assert.equal(history.future.length, 0);
 assert.equal(graphIsDirty(history), true);
 assert.deepEqual(nativeGraph, originalNative, "input bundle Graph must remain unchanged");
+
+const historyFingerprintBeforePresentation = history.present.fingerprint;
+const presentationOnly = setNodePosition(
+  EMPTY_GRAPH_PRESENTATION,
+  "source",
+  { x: 120, y: 80 },
+);
+assert.deepEqual(presentationOnly.positions.source, { x: 120, y: 80 });
+assert.equal(
+  history.present.fingerprint,
+  historyFingerprintBeforePresentation,
+  "presentation-only movement must not enter canonical Graph history",
+);
 
 const unchanged = applyGraph(history, setGraphLabel(history.present.graph, "Renamed"));
 assert.strictEqual(unchanged, history, "semantic no-op must not create history");
