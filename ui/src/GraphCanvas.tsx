@@ -618,8 +618,8 @@ function CanvasBody({
           {traceProjection ? (
             <span>
               Observed {Object.keys(traceProjection.byBlockId).length} Blocks
-              {traceProjection.unmappedEntries.length > 0
-                ? ` · ${traceProjection.unmappedEntries.length} unmapped`
+              {traceProjection.unmappedOrigins.length > 0
+                ? ` · ${traceProjection.unmappedOrigins.length} unmapped origin${traceProjection.unmappedOrigins.length === 1 ? "" : "s"}`
                 : ""}
             </span>
           ) : null}
