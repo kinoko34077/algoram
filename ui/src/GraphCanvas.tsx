@@ -18,6 +18,7 @@ import {
   type XYPosition,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { jaJP } from "./locales/ja-JP";
 import type { AlgoramBlock, AlgoramGraph } from "./algoram";
 import { BlockPalette } from "./BlockPalette";
 import type { ReusableBlockTemplate } from "./blockAuthoring";
@@ -146,9 +147,9 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
         </span>
         <div className="node-title">{block.label}</div>
         {block.internal_graph_ref ? (
-          <span className="node-badge">graph</span>
+          <span className="node-badge">{jaJP.common.terms.graph}</span>
         ) : (
-          <span className="node-badge muted">block</span>
+          <span className="node-badge muted">{jaJP.common.terms.block}</span>
         )}
       </div>
 
@@ -180,7 +181,7 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
           </div>
         </div>
       ) : (
-        <div className="node-empty-ports">no exposed ports</div>
+        <div className="node-empty-ports">{jaJP.authoring.canvas.noExposedPorts}</div>
       )}
 
       <div className="node-meta">
@@ -195,7 +196,7 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
             {observedStatusLabel(observation.status)}
           </span>
         ) : null}
-        {block.source_anchor ? <span>source</span> : null}
+        {block.source_anchor ? <span>{jaJP.authoring.canvas.sourceBadge}</span> : null}
         {block.diagnostics?.length ? (
           <span>{block.diagnostics.length} diag</span>
         ) : null}
@@ -222,13 +223,13 @@ const nodeTypes: NodeTypes = {
 };
 
 const nodeA11yDescription =
-  "Press Enter or Space to select a node. Use the arrow keys to move a selected node. Press Escape to clear selection.";
+  jaJP.authoring.canvas.keyboardNodeHint;
 
 const ariaLabelConfig = {
   "node.a11yDescription.default": nodeA11yDescription,
   "node.a11yDescription.keyboardDisabled": nodeA11yDescription,
   "edge.a11yDescription.default":
-    "Canonical Connection between Blocks. Select it to inspect or remove it when the Graph is editable.",
+    jaJP.authoring.canvas.connectionAccessibilityHint,
 };
 
 function connectionToDraft(connection: Connection | Edge): DraftLink | null {
@@ -371,7 +372,7 @@ function CanvasBody({
         }
       } catch (error: unknown) {
         setLayoutError(
-          error instanceof Error ? error.message : "Graph layout failed",
+          error instanceof Error ? error.message : jaJP.authoring.canvas.graphLayoutFailed,
         );
       }
     },
@@ -523,12 +524,12 @@ function CanvasBody({
 
       const link = connectionToDraft(connection);
       if (!link) {
-        setInteractionStatus("Choose an output and input port.");
+        setInteractionStatus(jaJP.authoring.canvas.choosePorts);
         return;
       }
 
       const error = onAddConnection(link);
-      setInteractionStatus(error ?? "Canonical Connection created.");
+      setInteractionStatus(error ?? jaJP.authoring.canvas.canonicalConnectionCreated);
     },
     [editable, onAddConnection],
   );
@@ -538,12 +539,12 @@ function CanvasBody({
       clearPresentationViewport(resetNodePositions(current)),
     );
     void loadLayout(false, true, false);
-    setInteractionStatus("Layout reset to the automatic arrangement.");
+    setInteractionStatus(jaJP.authoring.canvas.layoutReset);
   }, [loadLayout, onPresentationChange]);
 
   const clearDrafts = useCallback(() => {
     onPresentationChange(clearDraftLinks);
-    setInteractionStatus("Draft links cleared.");
+    setInteractionStatus(jaJP.authoring.canvas.draftsCleared);
   }, [onPresentationChange]);
 
   useEffect(() => {
@@ -577,13 +578,13 @@ function CanvasBody({
 
   return (
     <div className="graph-canvas">
-      <div className="canvas-toolbar" aria-label="Node workspace controls">
+      <div className="canvas-toolbar" aria-label={jaJP.authoring.canvas.nodeWorkspaceControls}>
         <div className="workspace-mode">
-          <strong>Node workspace</strong>
+          <strong>{jaJP.authoring.canvas.nodeWorkspace}</strong>
           <span>
             {editable
-              ? "canonical authoring + presentation"
-              : "read-only Graph + presentation"}
+              ? jaJP.authoring.canvas.editableMode
+              : jaJP.authoring.canvas.readOnlyMode}
           </span>
         </div>
 
@@ -664,7 +665,7 @@ function CanvasBody({
 
         <div className="canvas-surface" ref={surfaceRef}>
           <ReactFlow
-            aria-label="Algoram graph canvas"
+            aria-label={jaJP.authoring.canvas.graphCanvas}
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
@@ -690,7 +691,7 @@ function CanvasBody({
               onSelectBlock(node.id);
             }}
             onEdgeClick={(_, edge) => {
-              if (!edge.id.startsWith("draft:")) {
+              if (!edge.id.startsWith("{jaJP.authoring.canvas.draftPrefix}")) {
                 onSelectBlock(null);
                 onSelectConnection(edge.id);
               }
