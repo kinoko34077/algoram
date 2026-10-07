@@ -133,9 +133,19 @@ assert.match(execution, /ambient host-process authority/);
 assert.match(execution, /disabled=\{phase === "running"\}/);
 assert.match(execution, /type="checkbox"/);
 assert.match(execution, /role="alert"/);
+assert.match(execution, /groupRequirements/);
+assert.match(execution, /event\.isComposing/);
+assert.match(execution, /Retry plan/);
+assert.match(execution, /Working directory:/);
+assert.match(app, /executionPhase === "ready" && executionPreview/);
+assert.match(app, /new AbortController\(\)/);
+assert.match(app, /controller\.signal/);
+assert.match(app, /samePlan/);
 assert.match(bridge, /isLoopbackHost/);
 assert.match(bridge, /Authorization:/);
-assert.match(bridge, /fetch\(/);
+assert.match(bridge, /createRuntimeBridgeClient/);
+assert.match(bridge, /fetchImpl/);
+assert.match(bridge, /signal\?: AbortSignal/);
 assert.equal(bridge.includes("child_process"), false);
 assert.equal(bridge.includes("node:"), false);
 
@@ -157,5 +167,9 @@ console.log(
     keyboard_block_remove: "pass",
     canonical_connection_authoring: "pass",
     canonical_connection_selection: "pass",
+    guarded_execution_panel: "pass",
+    unique_explicit_grants: "pass",
+    execution_retry_replans: "pass",
+    execution_plan_cancel: "pass",
   }),
 );
