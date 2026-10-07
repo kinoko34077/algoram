@@ -732,6 +732,53 @@ export function App() {
     [],
   );
 
+  const discoverRecoveryOptions = useCallback(
+    async (plan: PlanResponse["plan"], trace: RunResponse["trace"]) => {
+      recoveryAbort.current?.abort();
+      const controller = new AbortController();
+      recoveryAbort.current = controller;
+      const requestRevision = recoveryRequestRevision.current + 1;
+      recoveryRequestRevision.current = requestRevision;
+      setRecoveryDiscoveryPhase("loading");
+      setRecoveryOptionsResult(null);
+      setRecoveryError(null);
+
+      try {
+        const options = await requestRecoveryOptions(
+          bridgeSettings,
+          currentGraph,
+          plan,
+          trace,
+          controller.signal,
+        );
+        if (recoveryRequestRevision.current !== requestRevision) {
+          return;
+        }
+        setRecoveryOptionsResult(options);
+        setRecoveryDiscoveryPhase("ready");
+      } catch (error: unknown) {
+        if (recoveryRequestRevision.current !== requestRevision) {
+          return;
+        }
+        if (error instanceof DOMException && error.name === "AbortError") {
+          setRecoveryDiscoveryPhase("idle");
+          return;
+        }
+        setRecoveryDiscoveryPhase("failed");
+        setRecoveryError(
+          error instanceof Error
+            ? error.message
+            : "Recovery candidate discovery failed.",
+        );
+      } finally {
+        if (recoveryAbort.current === controller) {
+          recoveryAbort.current = null;
+        }
+      }
+    },
+    [bridgeSettings, currentGraph],
+  );
+
   const planCurrentGraph = useCallback(async () => {
     setInspectorOpen(true);
     setExecutionResult(null);
