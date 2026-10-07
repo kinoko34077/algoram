@@ -7,6 +7,7 @@ import {
 } from "../src/connectionAuthoring.ts";
 import { applyGraph, createGraphHistory, redoGraph, undoGraph } from "../src/authoring.ts";
 import { removeBlock } from "../src/blockAuthoring.ts";
+import { jaJP } from "../src/locales/ja-JP/index.ts";
 
 const graph = {
   schema_version: "algoram.graph/0.1",
@@ -69,7 +70,13 @@ const wrongDirection = createConnection(graph, {
 });
 assert.equal(wrongDirection.ok, false);
 if (!wrongDirection.ok) {
-  assert.match(wrongDirection.reason, /out.*in/i);
+  assert.equal(
+    wrongDirection.reason,
+    jaJP.errors.authoring.directionMismatch
+      .replace("{connectionId}", "connection:placed:1")
+      .replace("{sourceDirection}", "in")
+      .replace("{targetDirection}", "out"),
+  );
   assert.strictEqual(wrongDirection.graph, graph);
 }
 
@@ -81,7 +88,13 @@ const wrongChannel = createConnection(graph, {
 });
 assert.equal(wrongChannel.ok, false);
 if (!wrongChannel.ok) {
-  assert.match(wrongChannel.reason, /channel mismatch/i);
+  assert.equal(
+    wrongChannel.reason,
+    jaJP.errors.authoring.channelMismatch
+      .replace("{connectionId}", "connection:placed:1")
+      .replace("{sourceChannel}", "flow")
+      .replace("{targetChannel}", "data"),
+  );
 }
 
 const missing = createConnection(graph, {
@@ -92,7 +105,13 @@ const missing = createConnection(graph, {
 });
 assert.equal(missing.ok, false);
 if (!missing.ok) {
-  assert.match(missing.reason, /missing Port/i);
+  assert.equal(
+    missing.reason,
+    jaJP.errors.authoring.connectionMissingSourcePort
+      .replace("{connectionId}", "connection:placed:1")
+      .replace("{blockId}", "source")
+      .replace("{portId}", "missing"),
+  );
 }
 
 const blockRemoveRejected = removeBlock(created.graph, "source");
