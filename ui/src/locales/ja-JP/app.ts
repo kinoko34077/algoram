@@ -2,6 +2,7 @@ export const appJa = {
   restoringEditor: "エディターを復元中…",
   brand: "ALGOram",
   search: "検索",
+  search: "検索",
   blocks: "ブロック",
   visibleBlocks: "表示中のブロック",
   graphHistory: "グラフ履歴",
