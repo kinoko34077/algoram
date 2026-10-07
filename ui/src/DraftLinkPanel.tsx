@@ -2,15 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import type { AlgoramBlock, AlgoramGraph } from "./algoram";
 import {
   makeDraftLink,
-  validateDraftLink,
   type DraftLink,
   type GraphPresentationState,
 } from "./presentation";
+
+type ConnectionMode = "canonical" | "draft";
 
 interface DraftLinkPanelProps {
   graph: AlgoramGraph;
   selectedBlock: AlgoramBlock;
   presentation: GraphPresentationState;
+  mode: ConnectionMode;
+  validateCandidate: (link: DraftLink) => string | null;
   onAdd: (link: DraftLink) => string | null;
 }
 
@@ -18,6 +21,8 @@ export function DraftLinkPanel({
   graph,
   selectedBlock,
   presentation,
+  mode,
+  validateCandidate,
   onAdd,
 }: DraftLinkPanelProps) {
   const outputs = useMemo(
@@ -58,10 +63,10 @@ export function DraftLinkPanel({
           block.id,
           port.id,
         );
-        return validateDraftLink(graph, presentation, link) === null;
+        return validateCandidate(link) === null;
       }),
     );
-  }, [graph, presentation, selectedBlock.id, sourcePort]);
+  }, [graph, selectedBlock.id, sourcePort, validateCandidate, presentation]);
 
   useEffect(() => {
     if (
@@ -91,14 +96,15 @@ export function DraftLinkPanel({
         targetBlockId,
         port.id,
       );
-      return validateDraftLink(graph, presentation, link) === null;
+      return validateCandidate(link) === null;
     });
   }, [
     graph,
-    presentation,
     selectedBlock.id,
     sourcePort,
     targetBlockId,
+    validateCandidate,
+    presentation,
   ]);
 
   useEffect(() => {
@@ -112,12 +118,15 @@ export function DraftLinkPanel({
     setTargetPortId(targetPorts[0]?.id ?? "");
   }, [targetPortId, targetPorts]);
 
+  const title = mode === "canonical" ? "Connection" : "Draft link";
+  const scope = mode === "canonical" ? "canonical Graph" : "presentation only";
+
   if (outputs.length === 0) {
     return (
-      <section className="draft-link-panel" aria-label="Draft link">
+      <section className="draft-link-panel" aria-label={title}>
         <div className="panel-heading-row">
-          <strong>Draft link</strong>
-          <span>presentation only</span>
+          <strong>{title}</strong>
+          <span>{scope}</span>
         </div>
         <p className="compact-hint">This Block has no output ports.</p>
       </section>
@@ -127,10 +136,10 @@ export function DraftLinkPanel({
   const canAdd = Boolean(sourcePortId && targetBlockId && targetPortId);
 
   return (
-    <section className="draft-link-panel" aria-label="Draft link">
+    <section className="draft-link-panel" aria-label={title}>
       <div className="panel-heading-row">
-        <strong>Draft link</strong>
-        <span>presentation only</span>
+        <strong>{title}</strong>
+        <span>{scope}</span>
       </div>
 
       <form
@@ -148,7 +157,12 @@ export function DraftLinkPanel({
             targetPortId,
           );
           const error = onAdd(link);
-          setStatus(error ?? "Draft link added.");
+          setStatus(
+            error ??
+              (mode === "canonical"
+                ? "Canonical Connection created."
+                : "Draft link added."),
+          );
         }}
       >
         <label>
@@ -211,13 +225,14 @@ export function DraftLinkPanel({
         </label>
 
         <button type="submit" className="secondary-action" disabled={!canAdd}>
-          Add draft
+          {mode === "canonical" ? "Create Connection" : "Add draft"}
         </button>
       </form>
 
       <p className="compact-hint">
-        Keyboard alternative to handle dragging. Canonical Graph data is not
-        changed.
+        {mode === "canonical"
+          ? "Keyboard alternative to handle dragging. Creates one canonical Graph history step."
+          : "Presentation-only planning. Canonical Graph data is not changed."}
       </p>
       {status ? (
         <p className="inline-status" role="status" aria-live="polite">

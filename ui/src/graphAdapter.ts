@@ -35,5 +35,8 @@ export function toFlowEdges(graph: AlgoramGraph): Edge[] {
     targetHandle: connection.target.port_id,
     markerEnd: { type: MarkerType.ArrowClosed },
     label: connection.id,
+    className: "canonical-edge",
+    focusable: true,
+    selectable: true,
   }));
 }

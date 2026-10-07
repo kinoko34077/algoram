@@ -66,6 +66,8 @@ jobs:
         run: npm run test:validation-parity
       - name: Block authoring checks
         run: npm run test:block-authoring
+      - name: Connection authoring checks
+        run: npm run test:connection-authoring
       - name: ELK layout performance baseline
         run: npm run perf:baseline
 

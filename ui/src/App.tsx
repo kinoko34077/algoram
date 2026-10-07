@@ -23,6 +23,11 @@ import {
   removeBlock,
   type ReusableBlockTemplate,
 } from "./blockAuthoring";
+import {
+  createConnection,
+  removeConnection,
+  validateConnectionCandidate,
+} from "./connectionAuthoring";
 import { demoBundle } from "./fixture";
 import { DraftLinkPanel } from "./DraftLinkPanel";
 import { GraphAuthoringPanel } from "./GraphAuthoringPanel";
@@ -52,6 +57,7 @@ interface Breadcrumb {
 
 type PresentationByGraph = Record<string, GraphPresentationState>;
 type SelectionByGraph = Record<string, string | null>;
+type ConnectionSelectionByGraph = Record<string, string | null>;
 
 interface GraphFocusRequest {
   graphId: string;
@@ -82,6 +88,8 @@ export function App() {
   const [selectionByGraph, setSelectionByGraph] = useState<SelectionByGraph>(
     {},
   );
+  const [connectionSelectionByGraph, setConnectionSelectionByGraph] =
+    useState<ConnectionSelectionByGraph>({});
   const [presentationByGraph, setPresentationByGraph] =
     useState<PresentationByGraph>({});
   const [navigationStatus, setNavigationStatus] = useState<string | null>(null);
@@ -131,6 +139,8 @@ export function App() {
   }
 
   const selectedBlockId = selectionByGraph[currentGraphId] ?? null;
+  const selectedConnectionId =
+    connectionSelectionByGraph[currentGraphId] ?? null;
   const currentPresentation =
     presentationByGraph[currentGraphId] ?? EMPTY_GRAPH_PRESENTATION;
   const currentGraphDirty = currentHistory ? graphIsDirty(currentHistory) : false;
@@ -143,6 +153,13 @@ export function App() {
     () =>
       currentGraph.blocks.find((block) => block.id === selectedBlockId) ?? null,
     [currentGraph, selectedBlockId],
+  );
+  const selectedConnection = useMemo(
+    () =>
+      currentGraph.connections.find(
+        (connection) => connection.id === selectedConnectionId,
+      ) ?? null,
+    [currentGraph, selectedConnectionId],
   );
 
   const selectedRouteGraphId =
@@ -218,6 +235,35 @@ export function App() {
     setAuthoringStatus(`Removed ${result.removed.label}. Undo is available.`);
   }, [currentGraphId, currentHistory, replaceCurrentHistory, selectedBlock]);
 
+  const removeSelectedConnection = useCallback(() => {
+    if (!currentHistory || !selectedConnection) {
+      return;
+    }
+
+    const result = removeConnection(
+      currentHistory.present.graph,
+      selectedConnection.id,
+    );
+    if (!result.ok) {
+      setAuthoringStatus(result.reason);
+      return;
+    }
+
+    replaceCurrentHistory(applyGraph(currentHistory, result.graph));
+    setConnectionSelectionByGraph((current) => ({
+      ...current,
+      [currentGraphId]: null,
+    }));
+    setAuthoringStatus(
+      `Removed Connection ${result.removed.id}. Undo is available.`,
+    );
+  }, [
+    currentGraphId,
+    currentHistory,
+    replaceCurrentHistory,
+    selectedConnection,
+  ]);
+
   useEffect(() => {
     function handleEditorShortcut(event: KeyboardEvent) {
       if (textEditorOwnsKeys(event.target)) {
@@ -246,11 +292,15 @@ export function App() {
 
       if (
         currentHistory &&
-        selectedBlock &&
         (event.key === "Delete" || event.key === "Backspace")
       ) {
-        event.preventDefault();
-        removeSelectedBlock();
+        if (selectedConnection) {
+          event.preventDefault();
+          removeSelectedConnection();
+        } else if (selectedBlock) {
+          event.preventDefault();
+          removeSelectedBlock();
+        }
       }
     }
 
@@ -260,7 +310,9 @@ export function App() {
     currentHistory,
     redoCurrentGraph,
     removeSelectedBlock,
+    removeSelectedConnection,
     selectedBlock,
+    selectedConnection,
     undoCurrentGraph,
   ]);
 
@@ -288,6 +340,13 @@ export function App() {
 
   const selectBlock = useCallback(
     (blockId: string | null) => {
+      if (blockId !== null) {
+        setConnectionSelectionByGraph((current) => ({
+          ...current,
+          [currentGraphId]: null,
+        }));
+      }
+
       setSelectionByGraph((current) => {
         const previous = current[currentGraphId] ?? null;
         if (previous === blockId) {
@@ -297,6 +356,30 @@ export function App() {
         return {
           ...current,
           [currentGraphId]: blockId,
+        };
+      });
+    },
+    [currentGraphId],
+  );
+
+  const selectConnection = useCallback(
+    (connectionId: string | null) => {
+      if (connectionId !== null) {
+        setSelectionByGraph((current) => ({
+          ...current,
+          [currentGraphId]: null,
+        }));
+      }
+
+      setConnectionSelectionByGraph((current) => {
+        const previous = current[currentGraphId] ?? null;
+        if (previous === connectionId) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [currentGraphId]: connectionId,
         };
       });
     },
@@ -436,6 +519,56 @@ export function App() {
     return [];
   }
 
+  const validateCanonicalLink = useCallback(
+    (link: DraftLink): string | null => {
+      if (!currentHistory) {
+        return "This Graph is read only.";
+      }
+
+      return validateConnectionCandidate(currentHistory.present.graph, {
+        sourceBlockId: link.sourceBlockId,
+        sourcePortId: link.sourcePortId,
+        targetBlockId: link.targetBlockId,
+        targetPortId: link.targetPortId,
+      });
+    },
+    [currentHistory],
+  );
+
+  const addCanonicalConnection = useCallback(
+    (link: DraftLink): string | null => {
+      if (!currentHistory) {
+        return "This Graph is read only.";
+      }
+
+      const result = createConnection(currentHistory.present.graph, {
+        sourceBlockId: link.sourceBlockId,
+        sourcePortId: link.sourcePortId,
+        targetBlockId: link.targetBlockId,
+        targetPortId: link.targetPortId,
+      });
+      if (!result.ok) {
+        setAuthoringStatus(result.reason);
+        return result.reason;
+      }
+
+      replaceCurrentHistory(applyGraph(currentHistory, result.graph));
+      setSelectionByGraph((current) => ({
+        ...current,
+        [currentGraphId]: null,
+      }));
+      setConnectionSelectionByGraph((current) => ({
+        ...current,
+        [currentGraphId]: result.connection.id,
+      }));
+      setAuthoringStatus(
+        `Created Connection ${result.connection.id}. Undo is available.`,
+      );
+      return null;
+    },
+    [currentGraphId, currentHistory, replaceCurrentHistory],
+  );
+
   function addDraftFromInspector(link: DraftLink): string | null {
     const error = validateDraftLink(currentGraph, currentPresentation, link);
     if (error) {
@@ -531,6 +664,7 @@ export function App() {
             blockTemplates={blockTemplates}
             authoringStatus={authoringStatus}
             selectedBlockId={selectedBlockId}
+            selectedConnectionId={selectedConnectionId}
             focusRequest={
               focusRequest?.graphId === currentGraphId
                 ? {
@@ -542,7 +676,10 @@ export function App() {
             presentation={currentPresentation}
             onPresentationChange={updateCurrentPresentation}
             onAddBlock={addReusableBlock}
+            validateCanonicalConnection={validateCanonicalLink}
+            onAddConnection={addCanonicalConnection}
             onSelectBlock={selectBlock}
+            onSelectConnection={selectConnection}
             onOpenGraph={openGraph}
           />
         </section>
@@ -562,7 +699,51 @@ export function App() {
             />
 
             <section className="block-inspector">
-              {selectedBlock ? (
+              {selectedConnection ? (
+                <>
+                  <div className="panel-heading-row">
+                    <div>
+                      <p className="eyebrow">Selected Connection</p>
+                      <h2>{selectedConnection.id}</h2>
+                      <p className="block-id">
+                        {selectedConnection.source.block_id}.
+                        {selectedConnection.source.port_id} →{" "}
+                        {selectedConnection.target.block_id}.
+                        {selectedConnection.target.port_id}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="tertiary-action"
+                      onClick={() => selectConnection(null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  {currentHistory ? (
+                    <div className="inspector-actions">
+                      <button
+                        type="button"
+                        className="danger-action"
+                        onClick={removeSelectedConnection}
+                      >
+                        Remove Connection
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="compact-hint">
+                      This Connection is read only in the derived Graph.
+                    </p>
+                  )}
+
+                  {authoringStatus ? (
+                    <p className="inline-status" role="status">
+                      {authoringStatus}
+                    </p>
+                  ) : null}
+                </>
+              ) : selectedBlock ? (
                 <>
                   <div className="panel-heading-row">
                     <div>
@@ -629,7 +810,22 @@ export function App() {
                     graph={currentGraph}
                     selectedBlock={selectedBlock}
                     presentation={currentPresentation}
-                    onAdd={addDraftFromInspector}
+                    mode={currentHistory ? "canonical" : "draft"}
+                    validateCandidate={
+                      currentHistory
+                        ? validateCanonicalLink
+                        : (link) =>
+                            validateDraftLink(
+                              currentGraph,
+                              currentPresentation,
+                              link,
+                            )
+                    }
+                    onAdd={
+                      currentHistory
+                        ? addCanonicalConnection
+                        : addDraftFromInspector
+                    }
                   />
 
                   <AnnotationPanel
