@@ -19,6 +19,14 @@ jobs:
           python --version
           python -m pip install --disable-pip-version-check --no-cache-dir selenium==4.36.0
 
+      - name: Inspect live Pages shell
+        run: |
+          curl --fail --silent --show-error --location --dump-header /tmp/algoram-headers.txt --output /tmp/algoram-index.html https://kinoko34077.github.io/algoram/
+          cat /tmp/algoram-headers.txt
+          cat /tmp/algoram-index.html
+          grep -F '<html lang="ja">' /tmp/algoram-index.html
+          grep -F '<title>Algoram プロトタイプ</title>' /tmp/algoram-index.html
+
       - name: Verify live Japanese Pages at desktop and narrow sizes
         env:
           ALGOTRAM_PAGES_URL: https://kinoko34077.github.io/algoram/
@@ -50,9 +58,22 @@ jobs:
             for width, height in sizes:
               driver.set_window_size(width, height)
               driver.get(url)
-              WebDriverWait(driver, 20).until(
-                lambda d: "グラフ検索" in d.find_element(By.TAG_NAME, "body").text
-              )
+              try:
+                WebDriverWait(driver, 20).until(
+                  lambda d: d.find_elements(By.CSS_SELECTOR, ".app-shell")
+                )
+              except Exception:
+                body = driver.find_element(By.TAG_NAME, "body").text
+                print(json.dumps({
+                  "kind": "live-japanese-pages-debug",
+                  "viewport": f"{width}x{height}",
+                  "current_url": driver.current_url,
+                  "ready_state": driver.execute_script("return document.readyState"),
+                  "body_text": body[:3000],
+                  "page_source": driver.page_source[:3000],
+                  "browser_log": driver.get_log("browser"),
+                }, ensure_ascii=False))
+                raise
 
               body_text = driver.find_element(By.TAG_NAME, "body").text
               lang = driver.execute_script("return document.documentElement.lang")
