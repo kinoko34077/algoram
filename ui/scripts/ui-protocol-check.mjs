@@ -76,7 +76,7 @@ assert.match(draft, /<select/);
 assert.match(draft, /Keyboard alternative to handle dragging/);
 assert.match(draft, /role="status"/);
 assert.match(draft, /mode === "canonical"/);
-assert.match(draft, />\s*Create Connection\s*</);
+assert.match(draft, /Create Connection/);
 assert.match(draft, /presentation only/);
 
 assert.match(search, /event\.key === "Escape"/);
