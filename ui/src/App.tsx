@@ -35,6 +35,10 @@ import {
   ExecutionPanel,
   type ExecutionPhase,
 } from "./ExecutionPanel";
+import {
+  RecoveryPanel,
+  type RecoveryDiscoveryPhase,
+} from "./RecoveryPanel";
 import { GraphAuthoringPanel } from "./GraphAuthoringPanel";
 import { GraphCanvas } from "./GraphCanvas";
 import { validateGraph, type GraphValidationIssue } from "./graphValidation";
