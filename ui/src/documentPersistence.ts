@@ -1,8 +1,7 @@
 import type { AlgoramGraph } from "./algoram";
-import {
-  EMPTY_GRAPH_PRESENTATION,
-  type GraphPresentationState,
-  type ViewportState,
+import type {
+  GraphPresentationState,
+  ViewportState,
 } from "./presentation";
 
 export const EDITOR_SESSION_SCHEMA_VERSION = "algoram.editor-session/0.1";
@@ -174,8 +173,9 @@ export function restoreEditorSession(
     );
 
     presentations[graphId] = {
-      ...EMPTY_GRAPH_PRESENTATION,
       positions,
+      draftLinks: [],
+
       ...(validViewport(persisted.viewport)
         ? { viewport: { ...persisted.viewport } }
         : {}),
