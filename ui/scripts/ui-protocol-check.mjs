@@ -5,12 +5,13 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-const [app, canvas, draft, search, annotation, styles] = await Promise.all([
+const [app, canvas, draft, search, annotation, authoring, styles] = await Promise.all([
   source("../src/App.tsx"),
   source("../src/GraphCanvas.tsx"),
   source("../src/DraftLinkPanel.tsx"),
   source("../src/SearchPanel.tsx"),
   source("../src/AnnotationPanel.tsx"),
+  source("../src/GraphAuthoringPanel.tsx"),
   source("../src/styles.css"),
 ]);
 
@@ -65,6 +66,19 @@ assert.match(search, /role="status"/);
 
 assert.match(annotation, /className="danger-action"/);
 
+assert.match(authoring, /aria-label="Graph properties"/);
+assert.match(authoring, /Editable/);
+assert.match(authoring, /Read only/);
+assert.match(authoring, /Modified/);
+assert.match(authoring, /Clean/);
+assert.match(authoring, /event\.key === "Escape"/);
+assert.match(authoring, /<label>/);
+assert.match(authoring, /aria-describedby="graph-label-help"/);
+assert.match(app, /aria-label="Graph history"/);
+assert.match(app, />\s*Undo\s*</);
+assert.match(app, />\s*Redo\s*</);
+assert.match(app, /textEditorOwnsUndo/);
+
 console.log(
   JSON.stringify({
     kind: "ui-protocol-check",
@@ -75,5 +89,7 @@ console.log(
     drag_alternative_surface: "pass",
     keyboard_recovery_hooks: "pass",
     destructive_action_separation: "pass",
+    canonical_authoring_status: "pass",
+    history_recovery_surface: "pass",
   }),
 );
