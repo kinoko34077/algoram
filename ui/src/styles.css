@@ -90,7 +90,9 @@ select:focus-visible,
 textarea:focus-visible,
 .react-flow__node:focus-visible,
 .react-flow__handle:focus-visible,
-.react-flow__controls-button:focus-visible {
+.react-flow__controls-button:focus-visible,
+.file-menu > summary:focus-visible,
+.header-overflow-menu > summary:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -184,6 +186,49 @@ textarea:focus-visible,
 .history-actions {
   border-left: 1px solid var(--color-border);
   padding-left: var(--space-1);
+}
+
+.header-overflow-menu {
+  position: relative;
+  display: none;
+}
+
+.header-overflow-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.header-overflow-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.header-overflow-menu[open] > summary {
+  background: var(--color-panel-hover);
+  color: var(--color-text);
+}
+
+.header-overflow-popover {
+  position: absolute;
+  z-index: 24;
+  top: calc(100% + 5px);
+  right: 0;
+  width: 150px;
+  display: grid;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-panel-raised);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 38%);
+}
+
+.header-overflow-popover button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .file-menu-shell {
@@ -1543,10 +1588,27 @@ textarea:focus-visible,
     align-items: flex-start;
   }
 
+  .title-block {
+    flex: 1 1 auto;
+  }
+
   .header-actions {
-    max-width: 68vw;
-    overflow-x: auto;
-    scrollbar-width: thin;
+    flex: 0 0 auto;
+    max-width: none;
+    overflow: visible;
+  }
+
+  .desktop-history-actions,
+  .inspector-header-action {
+    display: none;
+  }
+
+  .header-overflow-menu {
+    display: block;
+  }
+
+  .file-operation-status {
+    max-width: 80px;
   }
 
   .file-menu-popover {
@@ -1623,6 +1685,10 @@ textarea:focus-visible,
 
   .header-editor-status {
     font-size: 9px;
+  }
+
+  .file-operation-status {
+    max-width: 56px;
   }
 
   .canvas-toolbar {
