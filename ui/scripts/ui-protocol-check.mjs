@@ -5,7 +5,7 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-const [app, canvas, palette, draft, search, annotation, authoring, execution, recovery, bridge, traceDetail, traceUnmapped, traceProjection, fileMenu, persistenceStore, persistenceModel, styles, traceStyles] = await Promise.all([
+const [app, canvas, palette, draft, search, annotation, authoring, execution, recovery, bridge, traceDetail, traceUnmapped, traceProjection, fileMenu, headerOverflow, persistenceStore, persistenceModel, styles, traceStyles] = await Promise.all([
   source("../src/App.tsx"),
   source("../src/GraphCanvas.tsx"),
   source("../src/BlockPalette.tsx"),
@@ -20,6 +20,7 @@ const [app, canvas, palette, draft, search, annotation, authoring, execution, re
   source("../src/TraceUnmappedPanel.tsx"),
   source("../src/traceProjection.ts"),
   source("../src/FileMenu.tsx"),
+  source("../src/HeaderOverflowMenu.tsx"),
   source("../src/browserPersistence.ts"),
   source("../src/documentPersistence.ts"),
   source("../src/styles.css"),
@@ -153,6 +154,18 @@ assert.match(persistenceModel, /draftLinks:\s*\[\]/);
 assert.equal(persistenceModel.includes("bearerToken"), false);
 assert.equal(persistenceModel.includes("executionResult"), false);
 assert.match(styles, /\.file-menu-popover/);
+assert.match(styles, /\.header-overflow-menu/);
+assert.match(styles, /\.header-overflow-popover/);
+assert.match(styles, /\.desktop-history-actions/);
+assert.match(styles, /\.inspector-header-action/);
+assert.match(headerOverflow, /aria-label="More editor actions"/);
+assert.match(headerOverflow, /event\.key === "Escape"/);
+assert.match(headerOverflow, />\s*Undo\s*</);
+assert.match(headerOverflow, />\s*Redo\s*</);
+assert.match(headerOverflow, /Hide inspector/);
+assert.match(headerOverflow, /Show inspector/);
+assert.match(app, /HeaderOverflowMenu/);
+assert.match(app, /className="tertiary-action inspector-header-action"/);
 
 assert.match(styles, /\.primary-action/);
 assert.match(styles, /\.execution-panel/);
@@ -254,6 +267,7 @@ console.log(
     explicit_recovery_apply: "pass",
     remote_runtime_no_fallback_boundary: "pass",
     browser_file_menu: "pass",
+    narrow_header_overflow: "pass",
     indexeddb_document_session_separation: "pass",
     settled_viewport_persistence: "pass",
     transient_runtime_state_not_persisted: "pass",

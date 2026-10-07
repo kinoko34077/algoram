@@ -57,6 +57,7 @@ import {
 } from "./RecoveryPanel";
 import { GraphAuthoringPanel } from "./GraphAuthoringPanel";
 import { GraphCanvas } from "./GraphCanvas";
+import { HeaderOverflowMenu } from "./HeaderOverflowMenu";
 import { validateGraph, type GraphValidationIssue } from "./graphValidation";
 import {
   buildNavigationIndex,
@@ -1288,7 +1289,10 @@ export function App() {
             ) : null}
           </div>
           {currentHistory ? (
-            <div className="history-actions" aria-label="Graph history">
+            <div
+              className="history-actions desktop-history-actions"
+              aria-label="Graph history"
+            >
               <button
                 type="button"
                 className="tertiary-action"
@@ -1350,7 +1354,7 @@ export function App() {
           />
           <button
             type="button"
-            className="tertiary-action"
+            className="tertiary-action inspector-header-action"
             aria-controls="inspector-panel"
             aria-expanded={inspectorOpen}
             aria-pressed={inspectorOpen}
@@ -1358,6 +1362,15 @@ export function App() {
           >
             Inspector
           </button>
+          <HeaderOverflowMenu
+            historyAvailable={currentHistory !== null}
+            canUndo={(currentHistory?.past.length ?? 0) > 0}
+            canRedo={(currentHistory?.future.length ?? 0) > 0}
+            inspectorOpen={inspectorOpen}
+            onUndo={undoCurrentGraph}
+            onRedo={redoCurrentGraph}
+            onToggleInspector={() => setInspectorOpen((open) => !open)}
+          />
         </div>
       </header>
 
