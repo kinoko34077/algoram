@@ -202,7 +202,11 @@ export function RecoveryPanel({
                       providerSelections[row.logicalRef] ===
                       row.candidate.implementation_ref
                     }
-                    disabled={disabled}
+                    disabled={
+                      disabled ||
+                      row.candidate.implementation_ref ===
+                        row.selectedImplementationRef
+                    }
                     onChange={() =>
                       setProviderSelections((current) => ({
                         ...current,
@@ -247,7 +251,7 @@ export function RecoveryPanel({
                       runtimeSelections[row.stepId] ===
                       row.option.candidate.runtime_ref
                     }
-                    disabled={disabled}
+                    disabled={disabled || row.option.candidate.is_current}
                     onChange={() =>
                       setRuntimeSelections((current) => ({
                         ...current,
