@@ -1,0 +1,15 @@
+export const demoJa = {
+  graphPythonC: "Python/C 検証付き2倍",
+  graphPythonRust: "Python/Rust 検証付き3倍",
+  rootGraph: "Algoram 異種能力実証",
+  pythonInputBoundary: "Python 入力境界",
+  buildCSharedLibrary: "C 共有ライブラリをビルド",
+  callCThroughCtypes: "ctypes/C ABI 経由でC関数を呼び出す",
+  pythonResultBoundary: "Python 結果境界",
+  pythonCInternalGraph: "Python/C 検証付き2倍 — 内部グラフ",
+  pythonCtypesInputBoundary: "Python ctypes 入力境界",
+  buildRustCdylib: "Rust cdylib をビルド",
+  invokeRustExternC: "Rust extern C 関数を呼び出す",
+  pythonCtypesResultBoundary: "Python ctypes 結果境界",
+  pythonRustInternalGraph: "Python/Rust 検証付き3倍 — 内部グラフ",
+} as const;
