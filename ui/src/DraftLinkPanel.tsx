@@ -120,7 +120,7 @@ export function DraftLinkPanel({
   }, [targetPortId, targetPorts]);
 
   const title = mode === "canonical" ? jaJP.authoring.draftLink.connection : jaJP.authoring.draftLink.draftLink;
-  const scope = mode === "canonical" ? "canonical Graph" : "presentation only";
+  const scope = mode === "canonical" ? jaJP.authoring.draftLink.canonicalGraph : jaJP.authoring.draftLink.presentationOnly;
 
   if (outputs.length === 0) {
     return (
@@ -161,8 +161,8 @@ export function DraftLinkPanel({
           setStatus(
             error ??
               (mode === "canonical"
-                ? "Canonical Connection created."
-                : "Draft link added."),
+                ? jaJP.authoring.draftLink.canonicalConnectionCreated
+                : jaJP.authoring.draftLink.draftLinkAdded),
           );
         }}
       >
