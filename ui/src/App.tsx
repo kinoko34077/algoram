@@ -611,7 +611,7 @@ export function App() {
         ...current,
         [currentGraphId]: result.block.id,
       }));
-      setAuthoringStatus(`Added ${result.block.label}. Undo is available.`);
+      setAuthoringStatus(jaJP.app.status.addedBlock.replace("{label}", result.block.label));
     },
     [
       currentGraphId,
