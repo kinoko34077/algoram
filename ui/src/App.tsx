@@ -1609,7 +1609,62 @@ export function App() {
             />
             </details>
 
-            <div id="runtime-execution-panel">
+          </aside>
+        ) : null}
+      </main>
+
+      <section
+        id="runtime-execution-panel"
+        className="execution-drawer"
+        aria-label={jaJP.execution.runtimeExecution}
+        hidden={!executionOpen}
+      >
+        <div className="execution-drawer-toolbar">
+          <div className="execution-drawer-heading">
+            <strong>{jaJP.app.executionDrawerTitle}</strong>
+            <span role="status">
+              {bridgeSettings.bearerToken.trim()
+                ? jaJP.app.bridgeCheckAtPlan
+                : jaJP.app.bridgeNotConfigured}
+            </span>
+          </div>
+          <div className="execution-drawer-actions">
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={planCurrentGraph}
+            disabled={executionPhase === "planning" || executionPhase === "running"}
+            aria-controls="runtime-execution-panel"
+          >
+            {executionPhase === "planning"
+              ? jaJP.app.planning
+              : executionPhase === "failed"
+                ? jaJP.app.retryPlan
+                : executionPreview
+                  ? jaJP.app.replan
+                  : jaJP.app.plan}
+          </button>
+          {executionPhase === "ready" && executionPreview ? (
+            <button
+              type="button"
+              className="primary-action"
+              onClick={runCurrentGraph}
+              disabled={!allExecutionGrantsApproved}
+              aria-controls="runtime-execution-panel"
+              title={
+                allExecutionGrantsApproved
+                  ? jaJP.app.runThroughGuardedHostRuntime
+                  : jaJP.app.grantBeforeRun
+              }
+            >
+              {jaJP.app.run}
+            </button>
+          ) : null}
+            <button type="button" className="tertiary-action"
+              onClick={() => setExecutionOpen(false)}>{jaJP.common.actions.close}</button>
+          </div>
+        </div>
+            <div className="execution-drawer-content">
               <ExecutionPanel
                 graph={currentGraph}
                 phase={executionPhase}
@@ -1646,11 +1701,8 @@ export function App() {
                 </p>
               ) : null}
             </div>
+      </section>
 
-          </aside>
-        ) : null}
-      </main>
-      {/* U3_EXECUTION_CONTROLS_INSERTION */}
     </div>
   );
 }
