@@ -1,8 +1,8 @@
 use algoram_core::Graph;
 use algoram_interop::{Connector, RouteRegistry};
 use algoram_runtime::{
-    ExecutionAccessReport, ExecutionPlan, ExecutionPolicy, ExecutionTrace,
-    GuardedProcessRuntime, ImplementationRegistry, Planner, ProcessAction,
+    ExecutionAccessReport, ExecutionPlan, ExecutionPolicy, ExecutionTrace, GuardedProcessRuntime,
+    ImplementationRegistry, Planner, ProcessAction,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
@@ -212,9 +212,7 @@ impl RuntimeBridgeService {
 
     pub fn from_config(config: RuntimeBridgeConfig) -> Result<Self, BridgeError> {
         if config.schema_version != BRIDGE_CONFIG_SCHEMA_VERSION {
-            return Err(BridgeError::UnsupportedConfigVersion(
-                config.schema_version,
-            ));
+            return Err(BridgeError::UnsupportedConfigVersion(config.schema_version));
         }
 
         let mut implementations = ImplementationRegistry::new();
@@ -271,19 +269,12 @@ impl RuntimeBridgeService {
             }
         }
 
-        let access_report = GuardedProcessRuntime::preflight(
-            &preview.plan,
-            &self.implementations,
-            &policy,
-        )
-        .map_err(|error| BridgeError::Security(error.to_string()))?;
+        let access_report =
+            GuardedProcessRuntime::preflight(&preview.plan, &self.implementations, &policy)
+                .map_err(|error| BridgeError::Security(error.to_string()))?;
 
-        let trace = GuardedProcessRuntime::execute(
-            &preview.plan,
-            &self.implementations,
-            &policy,
-        )
-        .map_err(|error| BridgeError::Security(error.to_string()))?;
+        let trace = GuardedProcessRuntime::execute(&preview.plan, &self.implementations, &policy)
+            .map_err(|error| BridgeError::Security(error.to_string()))?;
 
         Ok(RunResponse {
             access_report,
@@ -488,17 +479,13 @@ fn route_http_request(
     }
 
     match (request.method.as_str(), request.path.as_str()) {
-        ("GET", "/v1/health") => HttpResponse::json(
-            200,
-            &service.health(),
-            Some(allowed_origin.to_owned()),
-        ),
+        ("GET", "/v1/health") => {
+            HttpResponse::json(200, &service.health(), Some(allowed_origin.to_owned()))
+        }
         ("POST", "/v1/plan") => {
             let request: PlanRequest = serde_json::from_slice(&request.body)?;
             match service.plan(&request.graph) {
-                Ok(response) => {
-                    HttpResponse::json(200, &response, Some(allowed_origin.to_owned()))
-                }
+                Ok(response) => HttpResponse::json(200, &response, Some(allowed_origin.to_owned())),
                 Err(error) => HttpResponse::json(
                     error.http_status(),
                     &error.api_error(),
@@ -606,10 +593,7 @@ fn read_http_request(stream: &mut TcpStream) -> Result<HttpRequest, BridgeError>
     })
 }
 
-fn write_http_response(
-    stream: &mut TcpStream,
-    response: HttpResponse,
-) -> Result<(), BridgeError> {
+fn write_http_response(stream: &mut TcpStream, response: HttpResponse) -> Result<(), BridgeError> {
     let mut writer = BufWriter::new(stream);
     let reason = match response.status {
         200 => "OK",
@@ -669,7 +653,10 @@ mod tests {
         implementations
             .register(
                 "impl:bridge-test",
-                ProcessAction::new(env::current_exe().unwrap().display().to_string(), ["--list"]),
+                ProcessAction::new(
+                    env::current_exe().unwrap().display().to_string(),
+                    ["--list"],
+                ),
             )
             .unwrap();
         RuntimeBridgeService::new(implementations, RouteRegistry::new())
@@ -764,9 +751,7 @@ mod tests {
             connectors: Vec::new(),
         };
         let service = RuntimeBridgeService::from_config(config).unwrap();
-        assert!(service
-            .plan(&executable_graph("impl:bridge-test"))
-            .is_ok());
+        assert!(service.plan(&executable_graph("impl:bridge-test")).is_ok());
     }
 
     #[test]
@@ -781,12 +766,9 @@ mod tests {
             .unwrap();
         let graph = executable_graph("impl:bridge-test");
         let plan = Planner::lower(&graph, &implementations, &RouteRegistry::new()).unwrap();
-        let denied = GuardedProcessRuntime::execute(
-            &plan,
-            &implementations,
-            &ExecutionPolicy::new(),
-        )
-        .unwrap_err();
+        let denied =
+            GuardedProcessRuntime::execute(&plan, &implementations, &ExecutionPolicy::new())
+                .unwrap_err();
         assert!(matches!(
             denied,
             ExecutionSecurityError::DeniedImplementation { .. }
