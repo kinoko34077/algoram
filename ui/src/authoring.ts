@@ -117,7 +117,7 @@ export function redoGraph(history: GraphHistory): GraphHistory {
 
   return {
     ...history,
-    past: [...history.past, history.present],
+    past: [...history.past, history.present].slice(-HISTORY_LIMIT),
     present: next,
     future: history.future.slice(1),
   };
