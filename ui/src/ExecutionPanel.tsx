@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type { AlgoramGraph } from "./algoram";
 import type {
+  ExecutionAccessRequirement,
   PlanResponse,
   RunResponse,
   RuntimeBridgeSettings,
@@ -24,11 +25,49 @@ interface ExecutionPanelProps {
   grantedImplementationRefs: Set<string>;
   onSettingsChange: (settings: RuntimeBridgeSettings) => void;
   onGrantChange: (implementationRef: string, granted: boolean) => void;
+  onRetryPlan: () => void;
   onDismiss: () => void;
+}
+
+interface GrantGroup {
+  implementationRef: string;
+  requirement: ExecutionAccessRequirement;
+  stepIds: string[];
+  blockIds: string[];
 }
 
 function commandText(program: string, args: string[]): string {
   return [program, ...args].join(" ");
+}
+
+function groupRequirements(
+  requirements: ExecutionAccessRequirement[],
+): GrantGroup[] {
+  const groups = new Map<string, GrantGroup>();
+
+  for (const requirement of requirements) {
+    const existing = groups.get(requirement.implementation_ref);
+    if (existing) {
+      existing.stepIds.push(requirement.step_id);
+      for (const blockId of requirement.origin_block_ids) {
+        if (!existing.blockIds.includes(blockId)) {
+          existing.blockIds.push(blockId);
+        }
+      }
+      continue;
+    }
+
+    groups.set(requirement.implementation_ref, {
+      implementationRef: requirement.implementation_ref,
+      requirement,
+      stepIds: [requirement.step_id],
+      blockIds: [...new Set(requirement.origin_block_ids)],
+    });
+  }
+
+  return [...groups.values()].sort((left, right) =>
+    left.implementationRef.localeCompare(right.implementationRef),
+  );
 }
 
 export function ExecutionPanel({
@@ -41,21 +80,26 @@ export function ExecutionPanel({
   grantedImplementationRefs,
   onSettingsChange,
   onGrantChange,
+  onRetryPlan,
   onDismiss,
 }: ExecutionPanelProps) {
+  const grantGroups = useMemo(
+    () => groupRequirements(preview?.access_report.requirements ?? []),
+    [preview],
+  );
+
   useEffect(() => {
     function handleEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape" || phase === "running") {
-        return;
-      }
-      const target = event.target;
       if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLSelectElement
+        event.key !== "Escape" ||
+        event.isComposing ||
+        phase === "idle" ||
+        phase === "running"
       ) {
         return;
       }
+
+      event.preventDefault();
       onDismiss();
     }
 
@@ -146,7 +190,10 @@ export function ExecutionPanel({
         <div className="execution-preview">
           <div className="execution-summary">
             <span>{preview.plan.steps.length} steps</span>
-            <span>{preview.access_report.requirements.length} access requirements</span>
+            <span>
+              {preview.access_report.requirements.length} access requirements
+            </span>
+            <span>{grantGroups.length} grants</span>
           </div>
 
           <div className="execution-requirements">
@@ -156,41 +203,54 @@ export function ExecutionPanel({
               fine-grained sandbox is implied.
             </p>
             <ul>
-              {preview.access_report.requirements.map((requirement) => (
-                <li key={requirement.step_id}>
-                  <label className="execution-grant">
-                    <input
-                      type="checkbox"
-                      checked={grantedImplementationRefs.has(
-                        requirement.implementation_ref,
+              {grantGroups.map((group) => {
+                const { requirement } = group;
+                return (
+                  <li key={group.implementationRef}>
+                    <label className="execution-grant">
+                      <input
+                        type="checkbox"
+                        checked={grantedImplementationRefs.has(
+                          group.implementationRef,
+                        )}
+                        onChange={(event) =>
+                          onGrantChange(
+                            group.implementationRef,
+                            event.target.checked,
+                          )
+                        }
+                        disabled={phase === "running"}
+                      />
+                      <span>
+                        <strong>{group.implementationRef}</strong>
+                        <small>{requirement.access_class}</small>
+                      </span>
+                    </label>
+                    <code
+                      title={commandText(
+                        requirement.action.program,
+                        requirement.action.args,
                       )}
-                      onChange={(event) =>
-                        onGrantChange(
-                          requirement.implementation_ref,
-                          event.target.checked,
-                        )
-                      }
-                      disabled={phase === "running"}
-                    />
-                    <span>
-                      <strong>{requirement.implementation_ref}</strong>
-                      <small>{requirement.access_class}</small>
-                    </span>
-                  </label>
-                  <code title={commandText(
-                    requirement.action.program,
-                    requirement.action.args,
-                  )}>
-                    {commandText(
-                      requirement.action.program,
-                      requirement.action.args,
-                    )}
-                  </code>
-                  <small>
-                    Blocks: {requirement.origin_block_ids.join(", ")}
-                  </small>
-                </li>
-              ))}
+                    >
+                      {commandText(
+                        requirement.action.program,
+                        requirement.action.args,
+                      )}
+                    </code>
+                    {requirement.action.current_dir ? (
+                      <small>
+                        Working directory: {requirement.action.current_dir}
+                      </small>
+                    ) : null}
+                    <small>
+                      Blocks: {group.blockIds.join(", ") || "none"}
+                    </small>
+                    <small>
+                      Steps: {group.stepIds.join(", ")}
+                    </small>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>
@@ -217,15 +277,24 @@ export function ExecutionPanel({
         </div>
       ) : null}
 
-      {preview || error || result ? (
+      {preview || error || result || phase === "planning" ? (
         <div className="execution-panel-actions">
+          {phase === "failed" ? (
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={onRetryPlan}
+            >
+              Retry plan
+            </button>
+          ) : null}
           <button
             type="button"
             className="tertiary-action"
             onClick={onDismiss}
             disabled={phase === "running"}
           >
-            Close preview
+            {phase === "planning" ? "Cancel planning" : "Close preview"}
           </button>
         </div>
       ) : null}
