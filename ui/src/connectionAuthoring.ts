@@ -1,5 +1,5 @@
 import type { AlgoramConnection, AlgoramGraph } from "./algoram";
-import { jaJP } from "./locales/ja-JP";
+import { jaJP } from "./locales/ja-JP/index.ts";
 
 export interface ConnectionCandidate {
   sourceBlockId: string;
