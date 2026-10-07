@@ -233,7 +233,8 @@ function CanvasBody({
   const [interactionStatus, setInteractionStatus] = useState<string | null>(
     null,
   );
-  const { fitView } = useReactFlow<FlowBlockNode>();
+  const [loadedGraphId, setLoadedGraphId] = useState<string | null>(null);
+  const { fitView, getNode } = useReactFlow<FlowBlockNode>();
 
   const edges = useMemo(
     () => [
@@ -256,6 +257,7 @@ function CanvasBody({
           : nextNodes;
 
         setBaseNodes(positioned);
+        setLoadedGraphId(graph.id);
         requestAnimationFrame(() => {
           void fitView({ padding: 0.2, duration: 160 });
         });
@@ -276,7 +278,8 @@ function CanvasBody({
   useEffect(() => {
     if (
       !focusRequest ||
-      !baseNodes.some((node) => node.id === focusRequest.blockId)
+      loadedGraphId !== graph.id ||
+      !getNode(focusRequest.blockId)
     ) {
       return;
     }
@@ -288,7 +291,7 @@ function CanvasBody({
         duration: 180,
       });
     });
-  }, [baseNodes, fitView, focusRequest]);
+  }, [fitView, focusRequest, getNode, graph.id, loadedGraphId]);
 
   const nodes = useMemo(
     () =>
