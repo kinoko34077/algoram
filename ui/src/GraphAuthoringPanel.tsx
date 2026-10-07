@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AlgoramGraph } from "./algoram";
 import type { GraphValidationIssue } from "./graphValidation";
 
@@ -18,8 +18,10 @@ export function GraphAuthoringPanel({
   onCommitLabel,
 }: GraphAuthoringPanelProps) {
   const [draftLabel, setDraftLabel] = useState(graph.label ?? "");
+  const skipBlurCommit = useRef(false);
 
   useEffect(() => {
+    skipBlurCommit.current = false;
     setDraftLabel(graph.label ?? "");
   }, [graph.id, graph.label]);
 
@@ -52,7 +54,7 @@ export function GraphAuthoringPanel({
           >
             {validationIssues.length === 0
               ? "Valid"
-              : \`\${validationIssues.length} issue\${validationIssues.length === 1 ? "" : "s"}\`}
+              : `${validationIssues.length} issue${validationIssues.length === 1 ? "" : "s"}`}
           </span>
         </div>
       </div>
@@ -70,10 +72,17 @@ export function GraphAuthoringPanel({
             <input
               value={draftLabel}
               onChange={(event) => setDraftLabel(event.target.value)}
-              onBlur={commit}
+              onBlur={() => {
+                if (skipBlurCommit.current) {
+                  skipBlurCommit.current = false;
+                  return;
+                }
+                commit();
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
                   event.preventDefault();
+                  skipBlurCommit.current = true;
                   setDraftLabel(graph.label ?? "");
                   event.currentTarget.blur();
                 }
@@ -99,7 +108,7 @@ export function GraphAuthoringPanel({
           <ul>
             {validationIssues.slice(0, 4).map((issue, index) => (
               <li
-                key={\`\${issue.code}:\${issue.connectionId ?? issue.blockId ?? index}\`}
+                key={`${issue.code}:${issue.connectionId ?? issue.blockId ?? index}`}
               >
                 {issue.message}
               </li>
