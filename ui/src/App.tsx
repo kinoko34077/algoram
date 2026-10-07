@@ -676,6 +676,16 @@ export function App() {
       grantedImplementationRefs.has(implementationRef),
     );
 
+  const clearRecoveryContext = useCallback(() => {
+    recoveryAbort.current?.abort();
+    recoveryAbort.current = null;
+    recoveryRequestRevision.current += 1;
+    setRecoveryDiscoveryPhase("idle");
+    setRecoveryOptionsResult(null);
+    setRecoveryError(null);
+    setActiveRecoverySelections(null);
+  }, []);
+
   const dismissExecutionPreview = useCallback(() => {
     if (executionPhase === "running") {
       return;
