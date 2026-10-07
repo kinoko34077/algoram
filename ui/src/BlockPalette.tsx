@@ -54,7 +54,7 @@ export function BlockPalette({ templates, onAdd }: BlockPaletteProps) {
       </div>
 
       <label className="palette-search">
-        Find Block
+        {jaJP.authoring.blockPalette.findBlock}
         <input
           type="search"
           value={query}
@@ -89,7 +89,9 @@ export function BlockPalette({ templates, onAdd }: BlockPaletteProps) {
                 <strong>{template.label}</strong>
                 <span>{template.definitionRef}</span>
                 <small>
-                  {inputs} in · {outputs} out
+                  {jaJP.authoring.blockPalette.ioSummary
+                    .replace("{inputs}", String(inputs))
+                    .replace("{outputs}", String(outputs))}
                 </small>
               </button>
             </li>

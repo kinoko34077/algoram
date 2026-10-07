@@ -83,6 +83,10 @@ assert.match(palette, /type="search"/);
 assert.match(palette, /aria-pressed=\{selectedRow\}/);
 assert.match(palette, /event\.key === "Escape"/);
 assert.match(palette, /jaJP\.authoring\.blockPalette\.addBlock/);
+assert.match(palette, /jaJP\.authoring\.blockPalette\.findBlock/);
+assert.match(palette, /jaJP\.authoring\.blockPalette\.ioSummary/);
+assert.equal(palette.includes("Find Block"), false);
+assert.equal(palette.includes("{inputs} in · {outputs} out"), false);
 
 assert.match(draft, /<form/);
 assert.match(draft, /<label>/);
