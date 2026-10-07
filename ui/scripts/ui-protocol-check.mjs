@@ -121,7 +121,7 @@ assert.match(app, /textEditorOwnsKeys/);
 
 assert.match(styles, /\.primary-action/);
 assert.match(styles, /\.execution-panel/);
-assert.match(app, />\s*Plan\s*</);
+assert.match(app, /"Plan"/);
 assert.match(app, />\s*Run\s*</);
 assert.match(app, /className="primary-action"/);
 assert.match(app, /planCurrentGraph/);
