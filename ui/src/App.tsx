@@ -847,6 +847,7 @@ export function App() {
   const planCurrentGraph = useCallback(async () => {
     setInspectorOpen(true);
     setExecutionResult(null);
+    clearRecoveryContext();
 
     if (currentValidationIssues.length > 0) {
       executionPlanAbort.current?.abort();
@@ -912,6 +913,7 @@ export function App() {
     }
   }, [
     bridgeSettings,
+    clearRecoveryContext,
     currentGraph,
     currentValidationIssues,
     executionPreview,
