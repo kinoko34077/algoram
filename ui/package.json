@@ -16,7 +16,8 @@
     "test:ui-protocol": "node scripts/ui-protocol-check.mjs",
     "test:platform": "node scripts/browser-platform-check.mjs",
     "test:interaction": "node scripts/smooth-interaction-check.mjs",
-    "test:authoring": "node --experimental-strip-types scripts/canonical-authoring-check.mjs"
+    "test:authoring": "node --experimental-strip-types scripts/canonical-authoring-check.mjs",
+    "test:validation-parity": "node --experimental-strip-types scripts/graph-validation-parity-check.mjs"
   },
   "dependencies": {
     "@xyflow/react": "12.12.0",
