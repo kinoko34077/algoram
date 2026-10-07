@@ -85,6 +85,7 @@ export function ExecutionPanel({
               value={settings.baseUrl}
               inputMode="url"
               autoComplete="off"
+              disabled={phase === "running"}
               onChange={(event) =>
                 onSettingsChange({
                   ...settings,
@@ -99,6 +100,7 @@ export function ExecutionPanel({
               type="password"
               value={settings.bearerToken}
               autoComplete="off"
+              disabled={phase === "running"}
               onChange={(event) =>
                 onSettingsChange({
                   ...settings,
