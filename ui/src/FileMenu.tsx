@@ -25,7 +25,14 @@ export function FileMenu({
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  function closeMenu() {
+    if (detailsRef.current) {
+      detailsRef.current.open = false;
+    }
+  }
+
   function chooseFile() {
+    closeMenu();
     inputRef.current?.click();
   }
 
@@ -76,11 +83,21 @@ export function FileMenu({
             type="button"
             className="tertiary-action"
             disabled={!canSaveLocal}
-            onClick={() => void onSaveLocal()}
+            onClick={() => {
+              closeMenu();
+              void onSaveLocal();
+            }}
           >
             Save local
           </button>
-          <button type="button" className="tertiary-action" onClick={onExport}>
+          <button
+            type="button"
+            className="tertiary-action"
+            onClick={() => {
+              closeMenu();
+              onExport();
+            }}
+          >
             Export
           </button>
           <small>Ctrl/Cmd+O · Ctrl/Cmd+S</small>
