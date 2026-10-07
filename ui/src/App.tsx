@@ -663,8 +663,8 @@ export function App() {
               id="graph-export-status"
               className={
                 exportStatus.kind === "error"
-                  ? "header-export-status error"
-                  : "header-export-status"
+                  ? "header-editor-status error-text"
+                  : "header-editor-status"
               }
               role={exportStatus.kind === "error" ? "alert" : "status"}
               title={exportStatus.message}
