@@ -46,6 +46,7 @@ interface GraphCanvasProps {
   graph: AlgoramGraph;
   editable: boolean;
   blockTemplates: ReusableBlockTemplate[];
+  authoringStatus: string | null;
   selectedBlockId: string | null;
   focusRequest: GraphFocusRequest | null;
   presentation: GraphPresentationState;
@@ -251,6 +252,7 @@ function CanvasBody({
   graph,
   editable,
   blockTemplates,
+  authoringStatus,
   selectedBlockId,
   focusRequest,
   presentation,
@@ -565,6 +567,7 @@ function CanvasBody({
 
         <div className="canvas-status" aria-live="polite">
           <span>{presentation.draftLinks.length} drafts</span>
+          {authoringStatus ? <span>{authoringStatus}</span> : null}
           {interactionStatus ? <span>{interactionStatus}</span> : null}
           {layoutError ? (
             <span className="error-text" role="alert">
