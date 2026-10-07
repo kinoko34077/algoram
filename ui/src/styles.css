@@ -651,6 +651,12 @@ textarea:focus-visible,
   fill-opacity: 0.94;
 }
 
+.canvas-surface .react-flow__edge.canonical-edge.selected .react-flow__edge-path,
+.canvas-surface .react-flow__edge.canonical-edge:focus-visible .react-flow__edge-path {
+  stroke: var(--color-accent);
+  stroke-width: 2.5;
+}
+
 .canvas-surface .react-flow__edge.draft-edge .react-flow__edge-path {
   stroke: var(--color-accent);
   stroke-width: 2;
