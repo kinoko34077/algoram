@@ -5,6 +5,7 @@ import {
   normalizeLoopbackBridgeUrl,
   requiredImplementationRefs,
 } from "../src/runtimeBridge.ts";
+import { jaJP } from "../src/locales/ja-JP/index.ts";
 
 assert.equal(
   normalizeLoopbackBridgeUrl("http://127.0.0.1:39091/"),
@@ -16,19 +17,21 @@ assert.equal(
 );
 assert.throws(
   () => normalizeLoopbackBridgeUrl("https://example.com"),
-  /loopback localhost/i,
+  (error) => error instanceof Error && error.message === jaJP.errors.runtimeBridge.loopbackOnly,
 );
 assert.throws(
   () => normalizeLoopbackBridgeUrl("file:///tmp/bridge"),
-  /http or https/i,
+  (error) => error instanceof Error && error.message === jaJP.errors.runtimeBridge.httpOnly,
 );
 assert.throws(
   () => normalizeLoopbackBridgeUrl("http://user:pass@127.0.0.1:39091"),
-  /credentials/i,
+  (error) =>
+    error instanceof Error &&
+    error.message === jaJP.errors.runtimeBridge.noCredentialsQueryFragment,
 );
 assert.throws(
   () => normalizeLoopbackBridgeUrl("http://127.0.0.1:39091/admin"),
-  /without a path/i,
+  (error) => error instanceof Error && error.message === jaJP.errors.runtimeBridge.originOnly,
 );
 
 const graph = {
@@ -260,7 +263,7 @@ assert.throws(
         throw new Error("must not fetch");
       },
     ),
-  /loopback localhost/i,
+  (error) => error instanceof Error && error.message === jaJP.errors.runtimeBridge.loopbackOnly,
 );
 assert.equal(fetched, false);
 
