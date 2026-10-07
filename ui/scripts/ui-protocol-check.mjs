@@ -5,7 +5,7 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-const [app, canvas, palette, draft, search, annotation, authoring, execution, bridge, traceDetail, traceUnmapped, traceProjection, styles, traceStyles] = await Promise.all([
+const [app, canvas, palette, draft, search, annotation, authoring, execution, recovery, bridge, traceDetail, traceUnmapped, traceProjection, styles, traceStyles] = await Promise.all([
   source("../src/App.tsx"),
   source("../src/GraphCanvas.tsx"),
   source("../src/BlockPalette.tsx"),
@@ -14,6 +14,7 @@ const [app, canvas, palette, draft, search, annotation, authoring, execution, br
   source("../src/AnnotationPanel.tsx"),
   source("../src/GraphAuthoringPanel.tsx"),
   source("../src/ExecutionPanel.tsx"),
+  source("../src/RecoveryPanel.tsx"),
   source("../src/runtimeBridge.ts"),
   source("../src/TraceDetailPanel.tsx"),
   source("../src/TraceUnmappedPanel.tsx"),
@@ -154,6 +155,24 @@ assert.match(bridge, /fetchImpl/);
 assert.match(bridge, /signal\?: AbortSignal/);
 assert.equal(bridge.includes("child_process"), false);
 assert.equal(bridge.includes("node:"), false);
+assert.match(bridge, /\/v1\/recovery\/options/);
+assert.match(bridge, /\/v1\/recovery\/plan/);
+assert.match(bridge, /\/v1\/recovery\/run/);
+
+assert.match(recovery, /aria-label="Manual recovery"/);
+assert.match(recovery, /type="radio"/);
+assert.match(recovery, /Apply &amp; re-plan/);
+assert.match(recovery, /does nothing until Apply/);
+assert.match(recovery, /No local fallback will be used/);
+assert.match(recovery, /Marketplace catalog is not connected/);
+assert.match(recovery, /hasExecutableRecoverySelection/);
+assert.match(app, /requestRecoveryOptions/);
+assert.match(app, /recoveryPlanGraph/);
+assert.match(app, /recoveryRunGraph/);
+assert.match(app, /activeRecoverySelections/);
+assert.match(app, /discoverRecoveryOptions/);
+assert.match(styles, /\.recovery-panel/);
+assert.match(styles, /\.recovery-choice/);
 
 assert.match(app, /projectExecutionTrace/);
 assert.match(app, /traceProjection=\{currentTraceProjection\}/);
@@ -203,5 +222,8 @@ console.log(
     trace_evidence_boundary: "pass",
     trace_text_symbol_semantics: "pass",
     unmapped_trace_evidence: "pass",
+    manual_recovery_panel: "pass",
+    explicit_recovery_apply: "pass",
+    remote_runtime_no_fallback_boundary: "pass",
   }),
 );
