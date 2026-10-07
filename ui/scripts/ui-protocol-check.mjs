@@ -5,7 +5,7 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-const [app, canvas, palette, draft, search, annotation, authoring, execution, recovery, bridge, traceDetail, traceUnmapped, traceProjection, styles, traceStyles] = await Promise.all([
+const [app, canvas, palette, draft, search, annotation, authoring, execution, recovery, bridge, traceDetail, traceUnmapped, traceProjection, fileMenu, persistenceStore, persistenceModel, styles, traceStyles] = await Promise.all([
   source("../src/App.tsx"),
   source("../src/GraphCanvas.tsx"),
   source("../src/BlockPalette.tsx"),
@@ -19,6 +19,9 @@ const [app, canvas, palette, draft, search, annotation, authoring, execution, re
   source("../src/TraceDetailPanel.tsx"),
   source("../src/TraceUnmappedPanel.tsx"),
   source("../src/traceProjection.ts"),
+  source("../src/FileMenu.tsx"),
+  source("../src/browserPersistence.ts"),
+  source("../src/documentPersistence.ts"),
   source("../src/styles.css"),
   source("../src/trace.css"),
 ]);
@@ -126,6 +129,31 @@ assert.match(app, />\s*Undo\s*</);
 assert.match(app, />\s*Redo\s*</);
 assert.match(app, /textEditorOwnsKeys/);
 
+assert.match(fileMenu, /Ctrl\/Cmd\+O/);
+assert.match(fileMenu, /Ctrl\/Cmd\+S/);
+assert.match(fileMenu, /type="file"/);
+assert.match(fileMenu, /accept="\.algoram\.json,application\/json"/);
+assert.match(fileMenu, /event\.key === "Escape"/);
+assert.match(app, /readCanonicalGraphFile/);
+assert.match(app, /saveLocalDocument/);
+assert.match(app, /loadLastLocalDocument/);
+assert.match(app, /window\.confirm/);
+assert.match(app, /beforeunload/);
+assert.match(app, /markGraphSaved/);
+assert.match(canvas, /onMoveEnd=/);
+assert.match(canvas, /setPresentationViewport/);
+assert.match(canvas, /setViewport\(presentation\.viewport/);
+assert.match(persistenceStore, /indexedDB\.open/);
+assert.match(persistenceStore, /GRAPH_STORE/);
+assert.match(persistenceStore, /SESSION_STORE/);
+assert.match(persistenceStore, /META_STORE/);
+assert.equal(persistenceStore.includes("localStorage"), false);
+assert.equal(persistenceStore.includes("node:"), false);
+assert.match(persistenceModel, /draftLinks:\s*\[\]/);
+assert.equal(persistenceModel.includes("bearerToken"), false);
+assert.equal(persistenceModel.includes("executionResult"), false);
+assert.match(styles, /\.file-menu-popover/);
+
 assert.match(styles, /\.primary-action/);
 assert.match(styles, /\.execution-panel/);
 assert.match(app, /"Plan"/);
@@ -225,5 +253,9 @@ console.log(
     manual_recovery_panel: "pass",
     explicit_recovery_apply: "pass",
     remote_runtime_no_fallback_boundary: "pass",
+    browser_file_menu: "pass",
+    indexeddb_document_session_separation: "pass",
+    settled_viewport_persistence: "pass",
+    transient_runtime_state_not_persisted: "pass",
   }),
 );
