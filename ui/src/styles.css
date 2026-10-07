@@ -1228,6 +1228,52 @@ textarea:focus-visible,
   color: var(--color-error);
 }
 
+.node-observed-status b {
+  font-weight: 700;
+}
+
+.trace-unmapped-panel {
+  margin: 0 var(--space-3) var(--space-3);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-raised);
+}
+
+.trace-unmapped-panel summary {
+  cursor: pointer;
+  color: var(--color-muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.trace-unmapped-panel ul {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trace-unmapped-panel li {
+  display: grid;
+  gap: 2px;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
+}
+
+.trace-unmapped-panel li strong {
+  color: var(--color-text);
+  font-size: 8px;
+}
+
+.trace-unmapped-panel li span {
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 8px;
+}
+
 .block-inspector,
 .source-panel {
   padding: var(--space-3);
