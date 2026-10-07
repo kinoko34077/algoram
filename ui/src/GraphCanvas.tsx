@@ -492,6 +492,12 @@ function CanvasBody({
     setInteractionStatus("Draft links cleared.");
   }, [onPresentationChange]);
 
+  useEffect(() => {
+    if (authoringStatus) {
+      setInteractionStatus(null);
+    }
+  }, [authoringStatus]);
+
   const addFromPalette = useCallback(
     (template: ReusableBlockTemplate) => {
       const surface = surfaceRef.current;
@@ -511,7 +517,6 @@ function CanvasBody({
       }
 
       onAddBlock(template, position);
-      setInteractionStatus(`Added ${template.label}.`);
     },
     [onAddBlock, screenToFlowPosition],
   );
@@ -568,7 +573,9 @@ function CanvasBody({
         <div className="canvas-status" aria-live="polite">
           <span>{presentation.draftLinks.length} drafts</span>
           {authoringStatus ? <span>{authoringStatus}</span> : null}
-          {interactionStatus ? <span>{interactionStatus}</span> : null}
+          {!authoringStatus && interactionStatus ? (
+            <span>{interactionStatus}</span>
+          ) : null}
           {layoutError ? (
             <span className="error-text" role="alert">
               {layoutError}
@@ -629,7 +636,6 @@ function CanvasBody({
             disableKeyboardA11y={false}
             ariaLabelConfig={ariaLabelConfig}
             deleteKeyCode={null}
-            fitView
             colorMode="dark"
             connectionLineStyle={{
               stroke: "var(--color-accent)",
