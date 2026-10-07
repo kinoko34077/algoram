@@ -136,8 +136,8 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
           position={Position.Left}
           className={`algoram-handle ${port.channel}`}
           style={{ top: portTop(index, inputs.length) }}
-          title={`${port.channel} input ${contractLabel(port.contract)}`}
-          aria-label={`${block.label} ${port.id} input`}
+          title={jaJP.authoring.canvas.inputPortLabel.replace("{channel}", port.channel).replace("{contract}", contractLabel(port.contract))}
+          aria-label={`${block.label} ${port.id} 入力`}
         />
       ))}
 
@@ -188,7 +188,7 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
         {observation ? (
           <span
             className={`observed-status ${observation.status}`}
-            title={`Observed run: ${observedStatusLabel(observation.status)}`}
+            title={`${jaJP.authoring.canvas.observedRun.replace("{status}", observedStatusLabel(observation.status))}`}
           >
             <b aria-hidden="true">
               {observedStatusSymbol(observation.status)}
@@ -198,7 +198,7 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
         ) : null}
         {block.source_anchor ? <span>{jaJP.authoring.canvas.sourceBadge}</span> : null}
         {block.diagnostics?.length ? (
-          <span>{block.diagnostics.length} diag</span>
+          <span>{jaJP.authoring.canvas.diagnosticsCount.replace("{count}", String(block.diagnostics.length))}</span>
         ) : null}
       </div>
 
@@ -210,8 +210,8 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
           position={Position.Right}
           className={`algoram-handle ${port.channel}`}
           style={{ top: portTop(index, outputs.length) }}
-          title={`${port.channel} output ${contractLabel(port.contract)}`}
-          aria-label={`${block.label} ${port.id} output`}
+          title={jaJP.authoring.canvas.outputPortLabel.replace("{channel}", port.channel).replace("{contract}", contractLabel(port.contract))}
+          aria-label={`${block.label} ${port.id} 出力`}
         />
       ))}
     </div>
@@ -259,7 +259,7 @@ function draftToEdge(link: DraftLink): Edge {
     targetHandle: link.targetPortId,
     animated: true,
     className: "draft-edge",
-    label: "draft",
+    label: jaJP.authoring.canvas.draftLabel,
     focusable: false,
     selectable: false,
   };
@@ -598,7 +598,7 @@ function CanvasBody({
               aria-pressed={paletteOpen}
               onClick={() => setPaletteOpen((open) => !open)}
             >
-              Library
+              {jaJP.authoring.canvas.library}
             </button>
           ) : null}
           <button
@@ -607,7 +607,7 @@ function CanvasBody({
             onClick={resetLayout}
             disabled={Object.keys(presentation.positions).length === 0}
           >
-            Reset layout
+            {jaJP.authoring.canvas.resetLayoutAction}
           </button>
           <button
             type="button"
@@ -615,23 +615,23 @@ function CanvasBody({
             onClick={clearDrafts}
             disabled={presentation.draftLinks.length === 0}
           >
-            Clear drafts
+            {jaJP.authoring.canvas.clearDraftsAction}
           </button>
         </div>
 
         <p className="canvas-help">
           {editable
-            ? "Library Add and handle connections change the canonical Graph. Drag/layout remain presentation-only."
-            : "Canonical connection handles are disabled. Draft planning remains in the Inspector."}
+            ? jaJP.authoring.canvas.editableHint
+            : jaJP.authoring.canvas.readOnlyHint}
         </p>
 
         <div className="canvas-status" aria-live="polite">
-          <span>{presentation.draftLinks.length} drafts</span>
+          <span>{jaJP.authoring.canvas.draftsCount.replace("{count}", String(presentation.draftLinks.length))}</span>
           {traceProjection ? (
             <span>
-              Observed {Object.keys(traceProjection.byBlockId).length} Blocks
+              {jaJP.authoring.canvas.observedBlocks.replace("{count}", String(Object.keys(traceProjection.byBlockId).length))}
               {traceProjection.unmappedOrigins.length > 0
-                ? ` · ${traceProjection.unmappedOrigins.length} unmapped origin${traceProjection.unmappedOrigins.length === 1 ? "" : "s"}`
+                ? ` · ${jaJP.authoring.canvas.unmappedOrigins.replace("{count}", String(traceProjection.unmappedOrigins.length))}`
                 : ""}
             </span>
           ) : null}
@@ -691,7 +691,7 @@ function CanvasBody({
               onSelectBlock(node.id);
             }}
             onEdgeClick={(_, edge) => {
-              if (!edge.id.startsWith("{jaJP.authoring.canvas.draftPrefix}")) {
+              if (!edge.id.startsWith("draft:")) {
                 onSelectBlock(null);
                 onSelectConnection(edge.id);
               }
