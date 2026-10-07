@@ -1,6 +1,6 @@
 import type { AlgoramGraph } from "./algoram";
 import type { PersistedEditorSession } from "./documentPersistence";
-import { jaJP } from "./locales/ja-JP";
+import { jaJP } from "./locales/ja-JP/index.ts";
 
 const DATABASE_NAME = "algoram-editor";
 const DATABASE_VERSION = 1;
