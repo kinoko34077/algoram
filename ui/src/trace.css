@@ -1,0 +1,209 @@
+.algoram-node.observed-succeeded:not(.selected) {
+  border-left: 3px solid #5f9b74;
+}
+
+.algoram-node.observed-failed:not(.selected) {
+  border-left: 3px solid var(--color-danger);
+}
+
+.algoram-node.observed-not_run:not(.selected) {
+  border-left: 3px solid var(--color-faint);
+}
+
+.algoram-node.observed-mixed:not(.selected) {
+  border-left: 3px solid var(--color-accent-border);
+}
+
+.node-meta .node-observed-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid var(--color-border-strong);
+  text-transform: none;
+}
+
+.node-observed-status.succeeded {
+  border-color: #3d684f;
+  color: #9fd3b2;
+}
+
+.node-observed-status.failed {
+  border-color: #75444c;
+  color: var(--color-error);
+}
+
+.node-observed-status.not_run {
+  color: var(--color-muted);
+}
+
+.node-observed-status.mixed {
+  border-color: var(--color-accent-border);
+  color: #cfbbff;
+}
+
+.trace-detail-panel {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.trace-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.trace-detail-heading > span {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+  font-size: 8px;
+}
+
+.observed-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.observed-status.succeeded {
+  color: #9fd3b2;
+}
+
+.observed-status.failed {
+  color: var(--color-error);
+}
+
+.observed-status.not_run {
+  color: var(--color-muted);
+}
+
+.observed-status.mixed {
+  color: #cfbbff;
+}
+
+.trace-facts {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.trace-facts > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.trace-facts dt {
+  color: var(--color-faint);
+  font-size: 8px;
+}
+
+.trace-facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 8px;
+}
+
+.trace-stderr,
+.trace-output {
+  min-width: 0;
+}
+
+.trace-stderr > strong,
+.trace-output summary {
+  color: var(--color-muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.trace-output summary,
+.trace-unmapped-panel summary {
+  cursor: pointer;
+}
+
+.trace-stderr pre,
+.trace-output pre {
+  max-width: 100%;
+  max-height: 104px;
+  overflow: auto;
+  margin: 4px 0 0;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #0d1218;
+  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 8px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.trace-stderr pre {
+  border-color: #75444c;
+  color: var(--color-error);
+}
+
+.trace-unmapped-panel {
+  margin: 0 var(--space-3) var(--space-3);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-raised);
+}
+
+.trace-unmapped-panel summary {
+  color: var(--color-muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.trace-unmapped-panel ul {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trace-unmapped-panel li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(70px, 0.7fr) minmax(0, 1fr);
+  gap: var(--space-2);
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
+  font-size: 8px;
+}
+
+.trace-unmapped-panel li strong,
+.trace-unmapped-panel li span {
+  overflow-wrap: anywhere;
+}
+
+.trace-unmapped-panel li strong {
+  color: var(--color-text);
+}
+
+.trace-unmapped-panel li span {
+  color: var(--color-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (max-width: 480px) {
+  .trace-facts > div,
+  .trace-unmapped-panel li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
