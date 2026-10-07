@@ -5,7 +5,6 @@ import type {
   PortRef,
 } from "./algoram";
 import { jaJP } from "./locales/ja-JP";
-import { jaJP } from "./locales/ja-JP";
 
 export const GRAPH_SCHEMA_VERSION = "algoram.graph/0.1";
 
