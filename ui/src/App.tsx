@@ -932,12 +932,23 @@ export function App() {
     setInspectorOpen(true);
 
     try {
-      const result = await runGraph(
-        bridgeSettings,
-        currentGraph,
-        executionPreview.plan,
-        [...grantedImplementationRefs].sort(),
-      );
+      const allowedImplementationRefs = [...grantedImplementationRefs].sort();
+      const result =
+        activeRecoverySelections &&
+        hasExecutableRecoverySelection(activeRecoverySelections)
+          ? await recoveryRunGraph(
+              bridgeSettings,
+              currentGraph,
+              executionPreview.plan,
+              allowedImplementationRefs,
+              activeRecoverySelections,
+            )
+          : await runGraph(
+              bridgeSettings,
+              currentGraph,
+              executionPreview.plan,
+              allowedImplementationRefs,
+            );
       if (executionRequestRevision.current !== requestRevision) {
         return;
       }
@@ -947,8 +958,12 @@ export function App() {
         (entry) => entry.status === "succeeded",
       );
       setExecutionPhase(succeeded ? "succeeded" : "failed");
-      if (!succeeded) {
+      if (succeeded) {
+        clearRecoveryContext();
+      } else {
         setExecutionError("Guarded run completed with a failed execution step.");
+        setActiveRecoverySelections(null);
+        void discoverRecoveryOptions(executionPreview.plan, result.trace);
       }
     } catch (error: unknown) {
       if (executionRequestRevision.current !== requestRevision) {
@@ -960,9 +975,12 @@ export function App() {
       );
     }
   }, [
+    activeRecoverySelections,
     allExecutionGrantsApproved,
     bridgeSettings,
+    clearRecoveryContext,
     currentGraph,
+    discoverRecoveryOptions,
     executionPreview,
     grantedImplementationRefs,
   ]);
