@@ -1081,9 +1081,7 @@ fn write_http_response(stream: &mut TcpStream, response: HttpResponse) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algoram_core::{
-        Block, Connection, Extensions, Port, PortChannel, PortDirection, PortRef,
-    };
+    use algoram_core::{Block, Connection, Extensions, Port, PortChannel, PortDirection, PortRef};
     use algoram_interop::{Connector, ContractId};
     use algoram_runtime::{ExecutionSecurityError, TraceEntry, TraceStatus};
     use std::env;
