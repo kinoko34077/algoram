@@ -128,6 +128,7 @@ export function App() {
     Set<string>
   >(() => new Set());
   const executionRequestRevision = useRef(0);
+  const executionPlanAbort = useRef<AbortController | null>(null);
   const [annotations, setAnnotations] = useState<BlockAnnotations>({});
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [focusRequest, setFocusRequest] = useState<GraphFocusRequest | null>(
@@ -185,6 +186,8 @@ export function App() {
 
   useEffect(() => {
     setExportStatus(null);
+    executionPlanAbort.current?.abort();
+    executionPlanAbort.current = null;
     executionRequestRevision.current += 1;
     setExecutionPhase("idle");
     setExecutionPreview(null);
@@ -630,6 +633,8 @@ export function App() {
     if (executionPhase === "running") {
       return;
     }
+    executionPlanAbort.current?.abort();
+    executionPlanAbort.current = null;
     executionRequestRevision.current += 1;
     setExecutionPhase("idle");
     setExecutionPreview(null);
@@ -640,6 +645,8 @@ export function App() {
 
   const updateBridgeSettings = useCallback(
     (settings: RuntimeBridgeSettings) => {
+      executionPlanAbort.current?.abort();
+      executionPlanAbort.current = null;
       executionRequestRevision.current += 1;
       setBridgeSettings(settings);
       setExecutionPhase("idle");
@@ -669,10 +676,12 @@ export function App() {
   const planCurrentGraph = useCallback(async () => {
     setInspectorOpen(true);
     setExecutionResult(null);
-    setGrantedImplementationRefs(new Set());
 
     if (currentValidationIssues.length > 0) {
+      executionPlanAbort.current?.abort();
+      executionPlanAbort.current = null;
       setExecutionPreview(null);
+      setGrantedImplementationRefs(new Set());
       setExecutionPhase("failed");
       setExecutionError(
         `Local Graph validation failed: ${currentValidationIssues[0]?.message ?? "invalid Graph"}`,
@@ -680,6 +689,11 @@ export function App() {
       return;
     }
 
+    executionPlanAbort.current?.abort();
+    const controller = new AbortController();
+    executionPlanAbort.current = controller;
+
+    const previousPreview = executionPreview;
     const requestRevision = executionRequestRevision.current + 1;
     executionRequestRevision.current = requestRevision;
     setExecutionPreview(null);
@@ -687,22 +701,50 @@ export function App() {
     setExecutionPhase("planning");
 
     try {
-      const preview = await planGraph(bridgeSettings, currentGraph);
+      const preview = await planGraph(
+        bridgeSettings,
+        currentGraph,
+        controller.signal,
+      );
       if (executionRequestRevision.current !== requestRevision) {
         return;
       }
+
+      const samePlan =
+        previousPreview !== null &&
+        JSON.stringify(previousPreview.plan) === JSON.stringify(preview.plan);
+      const requiredRefs = new Set(requiredImplementationRefs(preview));
+      setGrantedImplementationRefs((current) =>
+        samePlan
+          ? new Set([...current].filter((ref) => requiredRefs.has(ref)))
+          : new Set(),
+      );
       setExecutionPreview(preview);
       setExecutionPhase("ready");
     } catch (error: unknown) {
       if (executionRequestRevision.current !== requestRevision) {
         return;
       }
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setExecutionPhase("idle");
+        setExecutionError(null);
+        return;
+      }
       setExecutionPhase("failed");
       setExecutionError(
         error instanceof Error ? error.message : "Runtime planning failed.",
       );
+    } finally {
+      if (executionPlanAbort.current === controller) {
+        executionPlanAbort.current = null;
+      }
     }
-  }, [bridgeSettings, currentGraph, currentValidationIssues]);
+  }, [
+    bridgeSettings,
+    currentGraph,
+    currentValidationIssues,
+    executionPreview,
+  ]);
 
   const runCurrentGraph = useCallback(async () => {
     if (!executionPreview || !allExecutionGrantsApproved) {
@@ -830,11 +872,13 @@ export function App() {
           >
             {executionPhase === "planning"
               ? "Planning…"
-              : executionPreview
-                ? "Replan"
-                : "Plan"}
+              : executionPhase === "failed"
+                ? "Retry plan"
+                : executionPreview
+                  ? "Replan"
+                  : "Plan"}
           </button>
-          {executionPreview ? (
+          {executionPhase === "ready" && executionPreview ? (
             <button
               type="button"
               className="primary-action"
@@ -958,6 +1002,7 @@ export function App() {
                 grantedImplementationRefs={grantedImplementationRefs}
                 onSettingsChange={updateBridgeSettings}
                 onGrantChange={setExecutionGrant}
+                onRetryPlan={planCurrentGraph}
                 onDismiss={dismissExecutionPreview}
               />
             </div>
