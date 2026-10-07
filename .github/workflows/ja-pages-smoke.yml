@@ -85,7 +85,7 @@ jobs:
                 "}"
               )
 
-              header_block_label = driver.find_element(By.CSS_SELECTOR, ".header-stat span").text
+              header_block_label = driver.find_element(By.CSS_SELECTOR, ".header-stat span").get_attribute("textContent").strip()
               plan_label = driver.find_element(
                 By.CSS_SELECTOR, 'button[aria-controls="runtime-execution-panel"]'
               ).text
