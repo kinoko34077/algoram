@@ -819,7 +819,9 @@ export function App() {
         setExecutionPreview(preview);
         setActiveRecoverySelections(structuredClone(selections));
         setExecutionPhase("ready");
-        setRecoveryDiscoveryPhase("ready");
+        setRecoveryDiscoveryPhase("idle");
+        setRecoveryOptionsResult(null);
+        setRecoveryError(null);
       } catch (error: unknown) {
         if (executionRequestRevision.current !== requestRevision) {
           return;
