@@ -59,6 +59,10 @@ assert.match(canvas, /Clear drafts/);
 assert.match(canvas, /aria-controls="block-palette"/);
 assert.match(canvas, /screenToFlowPosition/);
 assert.match(canvas, /editable && paletteOpen/);
+assert.match(canvas, /nodesConnectable=\\{editable\\}/);
+assert.match(canvas, /onEdgeClick=/);
+assert.match(canvas, /selectedConnectionId/);
+assert.match(canvas, /onAddConnection/);
 
 assert.match(palette, /aria-label="Reusable Block palette"/);
 assert.match(palette, /type="search"/);
@@ -71,6 +75,9 @@ assert.match(draft, /<label>/);
 assert.match(draft, /<select/);
 assert.match(draft, /Keyboard alternative to handle dragging/);
 assert.match(draft, /role="status"/);
+assert.match(draft, /mode === "canonical"/);
+assert.match(draft, />\\s*Create Connection\\s*</);
+assert.match(draft, /presentation only/);
 
 assert.match(search, /event\.key === "Escape"/);
 assert.match(search, /<ul className="search-result-list">/);
@@ -122,5 +129,7 @@ console.log(
     history_recovery_surface: "pass",
     reusable_block_palette: "pass",
     keyboard_block_remove: "pass",
+    canonical_connection_authoring: "pass",
+    canonical_connection_selection: "pass",
   }),
 );
