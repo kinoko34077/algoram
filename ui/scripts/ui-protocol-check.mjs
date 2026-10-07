@@ -66,11 +66,11 @@ assert.match(search, /role="status"/);
 
 assert.match(annotation, /className="danger-action"/);
 
-assert.match(authoringPanel, /<label>/);
-assert.match(authoringPanel, /event\.key === "Escape"/);
-assert.match(authoringPanel, /aria-invalid=\{displayedIssues\.length > 0\}/);
-assert.match(authoringPanel, /role="alert"/);
-assert.match(authoringPanel, /Read only/);
+assert.match(authoring, /<label>/);
+assert.match(authoring, /event\.key === "Escape"/);
+assert.match(authoring, /aria-invalid=\{displayedIssues\.length > 0\}/);
+assert.match(authoring, /role="alert"/);
+assert.match(authoring, /Read only/);
 assert.match(app, /textEditorOwnsUndo/);
 assert.match(app, /event\.metaKey \|\| event\.ctrlKey/);
 assert.match(app, /undoCurrentGraph/);
@@ -83,7 +83,8 @@ assert.match(authoring, /Modified/);
 assert.match(authoring, /Clean/);
 assert.match(authoring, /event\.key === "Escape"/);
 assert.match(authoring, /<label>/);
-assert.match(authoring, /aria-describedby=\{/);\nassert.match(authoring, /graph-label-help graph-validation/);
+assert.match(authoring, /aria-describedby=\{/);
+assert.match(authoring, /graph-label-help graph-validation/);
 assert.match(app, /aria-label="Graph history"/);
 assert.match(app, />\s*Undo\s*</);
 assert.match(app, />\s*Redo\s*</);
