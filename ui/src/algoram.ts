@@ -82,4 +82,5 @@ export interface ReferenceBundle {
   graphs: Record<string, AlgoramGraph>;
   sources: Record<string, SourceDocument>;
   routeInspections?: Record<string, string>;
+  editableGraphIds?: string[];
 }
