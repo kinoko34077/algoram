@@ -19,7 +19,8 @@
     "test:authoring": "node --experimental-strip-types scripts/canonical-authoring-check.mjs",
     "test:validation-parity": "node --experimental-strip-types scripts/graph-validation-parity-check.mjs",
     "test:block-authoring": "node --experimental-strip-types scripts/block-authoring-check.mjs",
-    "test:connection-authoring": "node --experimental-strip-types scripts/connection-authoring-check.mjs"
+    "test:connection-authoring": "node --experimental-strip-types scripts/connection-authoring-check.mjs",
+    "test:export": "node --experimental-strip-types scripts/export-graph-check.mjs"
   },
   "dependencies": {
     "@xyflow/react": "12.12.0",
