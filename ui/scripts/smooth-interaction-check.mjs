@@ -16,6 +16,21 @@ assert.match(
 );
 assert.match(canvas, /onlyRenderVisibleElements/);
 assert.match(canvas, /autoPanOnNodeFocus=\{false\}/);
+assert.equal(
+  /\n\s*fitView\s*\n\s*colorMode=/.test(canvas),
+  false,
+  "ReactFlow must not own implicit fitView after the explicit initial/navigation fitView boundaries",
+);
+assert.match(
+  canvas,
+  /if \(authoringStatus\) \{[\s\S]*?setInteractionStatus\(null\);[\s\S]*?\}/,
+);
+assert.match(canvas, /!authoringStatus && interactionStatus/);
+assert.equal(
+  canvas.includes("setInteractionStatus(\`Added \${template.label}.\`);"),
+  false,
+  "palette Add must not duplicate App-level canonical authoring feedback",
+);
 assert.match(canvas, /focusRequest\.blockId/);
 assert.equal(
   canvas.includes("selectedBlockId }],\n        padding: 0.55"),
@@ -33,5 +48,7 @@ console.log(
     pointer_drag_app_commits: "single-boundary",
     explicit_navigation_focus: "separate",
     visible_element_rendering: "enabled",
+    implicit_fit_view: "disabled",
+    canonical_feedback_precedence: "single-current-message",
   }),
 );
