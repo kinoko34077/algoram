@@ -1,6 +1,6 @@
 import type { AlgoramGraph } from "./algoram";
 import type { ExecutionTrace, TraceEntry } from "./runtimeBridge";
-import { jaJP } from "./locales/ja-JP";
+import { jaJP } from "./locales/ja-JP/index.ts";
 
 export type ObservedBlockStatus =
   | "succeeded"
