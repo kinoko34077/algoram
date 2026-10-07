@@ -1,0 +1,60 @@
+name: U2 Inspector Browser Smoke
+on:
+  push:
+    branches: [chatgpt/169-u2-browser-check]
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Start UI and browser tools
+        run: |
+          cd ui
+          npm install --ignore-scripts --no-audit --no-fund
+          nohup npm run dev -- --host 127.0.0.1 > /tmp/u1-vite.log 2>&1 &
+          python -m pip install --disable-pip-version-check selenium==4.36.0
+          google-chrome --version
+      - name: Search disclosure and canvas hierarchy smoke
+        run: |
+          python - <<'PY'
+          import json
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+          o=Options()
+          for f in ('--headless=new','--no-sandbox','--disable-dev-shm-usage'):
+            o.add_argument(f)
+          o.set_capability('goog:loggingPrefs',{'browser':'ALL'})
+          d=webdriver.Chrome(options=o)
+          try:
+            for width in (1440,480):
+              d.set_window_size(width,900)
+              d.get('http://127.0.0.1:5173/')
+              WebDriverWait(d,30).until(lambda b:b.find_elements(By.CSS_SELECTOR,'.react-flow__node'))
+              assert not d.find_elements(By.ID,'inspector-panel'), 'Inspector must be initially quiet'
+              node=d.find_element(By.CSS_SELECTOR,'.react-flow__node')
+              node_title=node.find_element(By.CSS_SELECTOR,'.node-title').text
+              viewport_before=d.find_element(By.CSS_SELECTOR,'.react-flow__viewport').get_attribute('style')
+              d.execute_script('arguments[0].click()',node)
+              inspector=WebDriverWait(d,10).until(lambda b:b.find_element(By.ID,'inspector-panel'))
+              assert inspector.is_displayed()
+              assert inspector.find_element(By.CSS_SELECTOR,'.block-inspector h2').text==node_title
+              assert inspector.find_element(By.CSS_SELECTOR,'.block-inspector').location['y'] < inspector.find_element(By.ID,'runtime-execution-panel').location['y'], 'selection detail not first'
+              assert d.find_element(By.CSS_SELECTOR,'.react-flow__viewport').get_attribute('style')==viewport_before, 'unexpected recenter'
+              disclosed=inspector.find_elements(By.CSS_SELECTOR,'.inspector-disclosure')
+              assert len(disclosed)>=2
+              assert not disclosed[0].get_attribute('open') and not disclosed[1].get_attribute('open')
+              disclosed[0].find_element(By.TAG_NAME,'summary').click()
+              assert disclosed[0].get_attribute('open') is not None
+              doc=d.execute_script('return [document.documentElement.scrollWidth,document.documentElement.clientWidth]')
+              assert doc[0]<=doc[1]+1, f'overflow {width} {doc}'
+              severe=[x for x in d.get_log('browser') if x['level']=='SEVERE' and 'favicon.ico' not in x['message']]
+              assert not severe, f'console errors {severe}'
+              print(json.dumps({'viewport':f'{width}x900','selection':'pass','disclosures':'pass','no_recenter':'pass','overflow':'none'},ensure_ascii=False))
+          finally:
+            d.quit()
+          PY
