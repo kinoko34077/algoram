@@ -172,12 +172,11 @@ impl ImplementationRegistry {
         selected_ref: &str,
     ) -> Result<Self, PlannerError> {
         let mut selected = self.clone();
-        let choice = selected
-            .choices
-            .get_mut(logical_ref)
-            .ok_or_else(|| PlannerError::MissingImplementationChoice {
+        let choice = selected.choices.get_mut(logical_ref).ok_or_else(|| {
+            PlannerError::MissingImplementationChoice {
                 logical_ref: logical_ref.to_owned(),
-            })?;
+            }
+        })?;
 
         if !choice
             .candidates
