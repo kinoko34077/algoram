@@ -61,6 +61,9 @@ const trace = {
     entry("step:shared", "succeeded", ["block:a", "block:b"], {
       implementation_ref: "impl:shared",
     }),
+    entry("step:partial", "succeeded", ["block:a", "block:missing-partial"], {
+      implementation_ref: "impl:partial",
+    }),
     entry("step:unknown", "failed", ["block:missing"], {
       implementation_ref: "impl:unknown",
       stderr: "unmapped",
@@ -76,14 +79,22 @@ if (!result.ok) {
 
 const projection = result.projection;
 assert.equal(projection.referenceGraphId, graph.id);
-assert.equal(projection.mappedEntryCount, 6);
+assert.equal(projection.mappedEntryCount, 7);
 assert.equal(projection.unmappedEntries.length, 1);
 assert.equal(projection.unmappedEntries[0].step_id, "step:unknown");
+assert.equal(projection.unmappedOrigins.length, 2);
+assert.deepEqual(
+  projection.unmappedOrigins.map((item) => [item.stepId, item.originBlockIds]),
+  [
+    ["step:partial", ["block:missing-partial"]],
+    ["step:unknown", ["block:missing"]],
+  ],
+);
 
 assert.equal(projection.byBlockId["block:a"].status, "succeeded");
 assert.deepEqual(
   projection.byBlockId["block:a"].implementationRefs,
-  ["impl:a", "impl:shared"],
+  ["impl:a", "impl:partial", "impl:shared"],
 );
 assert.deepEqual(
   projection.byBlockId["block:a"].routeConnectorIds,
@@ -125,7 +136,7 @@ console.log(
       not_run: "pass",
       mixed: "pass",
     },
-    unmapped_evidence: "retained",
+    unmapped_evidence: "retained including partial origins",
     runtime_identity: "not invented",
   }),
 );
