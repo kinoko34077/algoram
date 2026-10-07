@@ -164,7 +164,7 @@ assert.match(traceDetail, /Observed route/);
 assert.match(traceDetail, /canonical Graph Connection IDs/);
 assert.match(traceDetail, /<details className="trace-output">/);
 assert.match(traceUnmapped, /unmapped trace origin/);
-assert.match(traceUnmapped, /not attached to a visible Block by inference/);
+assert.match(traceUnmapped, /not attached to a\s+visible Block by inference/);
 assert.match(traceProjection, /trace\.reference_graph_id !== graph\.id/);
 assert.match(traceProjection, /origin_block_ids\.filter/);
 assert.equal(traceProjection.includes("runtime_ref"), false);
