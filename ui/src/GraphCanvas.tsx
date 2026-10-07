@@ -581,11 +581,7 @@ function CanvasBody({
       <div className="canvas-toolbar" aria-label={jaJP.authoring.canvas.nodeWorkspaceControls}>
         <div className="workspace-mode">
           <strong>{jaJP.authoring.canvas.nodeWorkspace}</strong>
-          <span>
-            {editable
-              ? jaJP.authoring.canvas.editableMode
-              : jaJP.authoring.canvas.readOnlyMode}
-          </span>
+          {!editable ? <span>{jaJP.authoring.canvas.readOnlyMode}</span> : null}
         </div>
 
         <div className="canvas-toolbar-actions">
@@ -601,32 +597,26 @@ function CanvasBody({
               {jaJP.authoring.canvas.library}
             </button>
           ) : null}
-          <button
-            type="button"
-            className="secondary-action"
-            onClick={resetLayout}
-            disabled={Object.keys(presentation.positions).length === 0}
-          >
-            {jaJP.authoring.canvas.resetLayoutAction}
-          </button>
-          <button
-            type="button"
-            className="secondary-action"
-            onClick={clearDrafts}
-            disabled={presentation.draftLinks.length === 0}
-          >
-            {jaJP.authoring.canvas.clearDraftsAction}
-          </button>
+          <details className="canvas-more-menu">
+            <summary className="tertiary-action" aria-label={jaJP.authoring.canvas.moreActions}>
+              {jaJP.authoring.canvas.more}
+            </summary>
+            <div className="canvas-more-popover">
+              <button type="button" className="tertiary-action"
+                onClick={resetLayout} disabled={Object.keys(presentation.positions).length === 0}>
+                {jaJP.authoring.canvas.resetLayoutAction}
+              </button>
+              <button type="button" className="tertiary-action"
+                onClick={clearDrafts} disabled={presentation.draftLinks.length === 0}>
+                {jaJP.authoring.canvas.clearDraftsAction}
+              </button>
+              <p>{editable ? jaJP.authoring.canvas.editableHint : jaJP.authoring.canvas.readOnlyHint}</p>
+            </div>
+          </details>
         </div>
 
-        <p className="canvas-help">
-          {editable
-            ? jaJP.authoring.canvas.editableHint
-            : jaJP.authoring.canvas.readOnlyHint}
-        </p>
-
         <div className="canvas-status" aria-live="polite">
-          <span>{jaJP.authoring.canvas.draftsCount.replace("{count}", String(presentation.draftLinks.length))}</span>
+          {presentation.draftLinks.length > 0 ? (<span>{jaJP.authoring.canvas.draftsCount.replace("{count}", String(presentation.draftLinks.length))}</span>) : null}
           {traceProjection ? (
             <span>
               {jaJP.authoring.canvas.observedBlocks.replace("{count}", String(Object.keys(traceProjection.byBlockId).length))}
