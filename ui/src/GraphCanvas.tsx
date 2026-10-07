@@ -17,6 +17,7 @@ import {
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AlgoramBlock, AlgoramGraph } from "./algoram";
+import { markEditorPerformance } from "./perfMarks";
 import {
   toFlowEdges,
   toFlowNodes,
@@ -459,7 +460,11 @@ function CanvasBody({
           edges={edges}
           nodeTypes={nodeTypes}
           onNodesChange={handleNodesChange}
-          onNodeDragStop={(_, node) => commitNodePosition(node)}
+          onNodeDragStart={() => markEditorPerformance("node-drag-start")}
+          onNodeDragStop={(_, node) => {
+            commitNodePosition(node);
+            markEditorPerformance("node-drag-stop");
+          }}
           onConnect={connectDraft}
           isValidConnection={isValidConnection}
           onNodeClick={(_, node) => onSelectBlock(node.id)}
