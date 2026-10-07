@@ -9,7 +9,7 @@ import type {
   SourceAnchor,
   SourceArtifact,
 } from "./algoram";
-import { jaJP } from "./locales/ja-JP";
+import { jaJP } from "./locales/ja-JP/index.ts";
 
 const pythonSource = `#!/usr/bin/env python3
 
