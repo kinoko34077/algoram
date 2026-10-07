@@ -1,5 +1,4 @@
 import type { AlgoramGraph, ReferenceBundle } from "./algoram";
-import { validateGraph, type GraphValidationIssue } from "./graphValidation";
 
 interface GraphRevision {
   graph: AlgoramGraph;
@@ -146,12 +145,6 @@ export function setGraphLabel(
     ...graph,
     label: nextLabel,
   };
-}
-
-export function validateWorkingGraph(
-  history: GraphHistory,
-): GraphValidationIssue[] {
-  return validateGraph(history.present.graph);
 }
 
 export function isNativeEditableGraph(
