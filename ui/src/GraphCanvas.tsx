@@ -14,9 +14,12 @@ import {
   type NodeChange,
   type NodeProps,
   type NodeTypes,
+  type XYPosition,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AlgoramBlock, AlgoramGraph } from "./algoram";
+import { BlockPalette } from "./BlockPalette";
+import type { ReusableBlockTemplate } from "./blockAuthoring";
 import { markEditorPerformance } from "./perfMarks";
 import {
   toFlowEdges,
@@ -41,11 +44,17 @@ interface GraphFocusRequest {
 
 interface GraphCanvasProps {
   graph: AlgoramGraph;
+  editable: boolean;
+  blockTemplates: ReusableBlockTemplate[];
   selectedBlockId: string | null;
   focusRequest: GraphFocusRequest | null;
   presentation: GraphPresentationState;
   onPresentationChange: (
     update: (current: GraphPresentationState) => GraphPresentationState,
+  ) => void;
+  onAddBlock: (
+    template: ReusableBlockTemplate,
+    position: XYPosition,
   ) => void;
   onSelectBlock: (blockId: string | null) => void;
   onOpenGraph: (graphId: string, viaBlock: AlgoramBlock) => void;
@@ -184,7 +193,7 @@ const ariaLabelConfig = {
   "node.a11yDescription.default": nodeA11yDescription,
   "node.a11yDescription.keyboardDisabled": nodeA11yDescription,
   "edge.a11yDescription.default":
-    "Connection between Blocks. Connections are not directly editable in this presentation workspace.",
+    "Connection between Blocks. Connections are not directly editable in this workspace.",
 };
 
 function connectionToDraft(connection: Connection | Edge): DraftLink | null {
@@ -218,12 +227,35 @@ function draftToEdge(link: DraftLink): Edge {
   };
 }
 
+function graphStructureKey(graph: AlgoramGraph): string {
+  return JSON.stringify({
+    blocks: graph.blocks.map((block) => [
+      block.id,
+      (block.ports ?? []).map((port) => [
+        port.id,
+        port.direction,
+        port.channel,
+      ]),
+    ]),
+    connections: graph.connections.map((connection) => [
+      connection.id,
+      connection.source.block_id,
+      connection.source.port_id,
+      connection.target.block_id,
+      connection.target.port_id,
+    ]),
+  });
+}
+
 function CanvasBody({
   graph,
+  editable,
+  blockTemplates,
   selectedBlockId,
   focusRequest,
   presentation,
   onPresentationChange,
+  onAddBlock,
   onSelectBlock,
   onOpenGraph,
 }: GraphCanvasProps) {
@@ -233,9 +265,17 @@ function CanvasBody({
   const [interactionStatus, setInteractionStatus] = useState<string | null>(
     null,
   );
+  const [paletteOpen, setPaletteOpen] = useState(true);
   const pointerDragActive = useRef(false);
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const [loadedGraphId, setLoadedGraphId] = useState<string | null>(null);
-  const { fitView, getNode } = useReactFlow<FlowBlockNode>();
+  const [loadedStructureKey, setLoadedStructureKey] = useState<string | null>(
+    null,
+  );
+  const { fitView, getNode, screenToFlowPosition } =
+    useReactFlow<FlowBlockNode>();
+
+  const structureKey = useMemo(() => graphStructureKey(graph), [graph]);
 
   const edges = useMemo(
     () => [
@@ -246,35 +286,70 @@ function CanvasBody({
   );
 
   const loadLayout = useCallback(
-    async (useSavedPositions: boolean) => {
+    async (
+      useSavedPositions: boolean,
+      fitViewport: boolean,
+      preserveCurrentPositions: boolean,
+    ) => {
       setLayoutError(null);
       try {
         const nextNodes = await toFlowNodes(graph);
-        const positioned = useSavedPositions
-          ? nextNodes.map((node) => ({
-              ...node,
-              position: presentation.positions[node.id] ?? node.position,
-            }))
-          : nextNodes;
+        setBaseNodes((currentNodes) => {
+          const currentPositions = new Map(
+            currentNodes.map((node) => [node.id, node.position]),
+          );
 
-        setBaseNodes(positioned);
-        setLoadedGraphId(graph.id);
-        requestAnimationFrame(() => {
-          void fitView({ padding: 0.2, duration: 160 });
+          return nextNodes.map((node) => ({
+            ...node,
+            position:
+              (useSavedPositions
+                ? presentation.positions[node.id]
+                : undefined) ??
+              (preserveCurrentPositions
+                ? currentPositions.get(node.id)
+                : undefined) ??
+              node.position,
+          }));
         });
+        setLoadedGraphId(graph.id);
+        setLoadedStructureKey(structureKey);
+
+        if (fitViewport) {
+          requestAnimationFrame(() => {
+            void fitView({ padding: 0.2, duration: 160 });
+          });
+        }
       } catch (error: unknown) {
         setLayoutError(
           error instanceof Error ? error.message : "Graph layout failed",
         );
       }
     },
-    [fitView, graph, presentation.positions, setBaseNodes],
+    [
+      fitView,
+      graph,
+      presentation.positions,
+      setBaseNodes,
+      structureKey,
+    ],
   );
 
   useEffect(() => {
-    void loadLayout(true);
+    void loadLayout(true, true, false);
     setInteractionStatus(null);
   }, [graph.id]);
+
+  useEffect(() => {
+    if (
+      loadedGraphId !== graph.id ||
+      loadedStructureKey === null ||
+      loadedStructureKey === structureKey
+    ) {
+      return;
+    }
+
+    void loadLayout(true, false, true);
+  }, [graph.id, loadedGraphId, loadedStructureKey, structureKey]);
 
   useEffect(() => {
     if (
@@ -406,7 +481,7 @@ function CanvasBody({
 
   const resetLayout = useCallback(() => {
     onPresentationChange(resetNodePositions);
-    void loadLayout(false);
+    void loadLayout(false, true, false);
     setInteractionStatus("Layout reset to the automatic arrangement.");
   }, [loadLayout, onPresentationChange]);
 
@@ -415,15 +490,55 @@ function CanvasBody({
     setInteractionStatus("Draft links cleared.");
   }, [onPresentationChange]);
 
+  const addFromPalette = useCallback(
+    (template: ReusableBlockTemplate) => {
+      const surface = surfaceRef.current;
+      const fallback = { x: 40, y: 40 };
+      let position = fallback;
+
+      if (surface) {
+        const bounds = surface.getBoundingClientRect();
+        const center = screenToFlowPosition({
+          x: bounds.left + bounds.width / 2,
+          y: bounds.top + bounds.height / 2,
+        });
+        position = {
+          x: center.x - 122,
+          y: center.y - 48,
+        };
+      }
+
+      onAddBlock(template, position);
+      setInteractionStatus(`Added ${template.label}.`);
+    },
+    [onAddBlock, screenToFlowPosition],
+  );
+
   return (
     <div className="graph-canvas">
       <div className="canvas-toolbar" aria-label="Node workspace controls">
         <div className="workspace-mode">
           <strong>Node workspace</strong>
-          <span>presentation only</span>
+          <span>
+            {editable
+              ? "canonical authoring + presentation"
+              : "read-only Graph + presentation"}
+          </span>
         </div>
 
         <div className="canvas-toolbar-actions">
+          {editable ? (
+            <button
+              type="button"
+              className="tertiary-action"
+              aria-controls="block-palette"
+              aria-expanded={paletteOpen}
+              aria-pressed={paletteOpen}
+              onClick={() => setPaletteOpen((open) => !open)}
+            >
+              Library
+            </button>
+          ) : null}
           <button
             type="button"
             className="secondary-action"
@@ -443,8 +558,9 @@ function CanvasBody({
         </div>
 
         <p className="canvas-help">
-          Arrow keys move a selected node. Click or drag handles to connect.
-          Graph JSON stays unchanged.
+          {editable
+            ? "Library Add changes the canonical Graph. Drag/layout/drafts remain presentation-only."
+            : "Arrow keys move a selected node. Draft links remain presentation-only."}
         </p>
 
         <div className="canvas-status" aria-live="polite">
@@ -458,67 +574,84 @@ function CanvasBody({
         </div>
       </div>
 
-      <div className="canvas-surface">
-        <ReactFlow
-          aria-label="Algoram graph canvas"
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          onNodesChange={handleNodesChange}
-          onNodeDragStart={() => {
-            pointerDragActive.current = true;
-            markEditorPerformance("node-drag-start");
-          }}
-          onNodeDragStop={(_, node) => {
-            pointerDragActive.current = false;
-            commitNodePosition(node);
-            markEditorPerformance("node-drag-stop");
-          }}
-          onConnect={connectDraft}
-          isValidConnection={isValidConnection}
-          onNodeClick={(_, node) => onSelectBlock(node.id)}
-          onNodeDoubleClick={(_, node) => {
-            const reference = node.data.block.internal_graph_ref;
-            if (reference) {
-              onOpenGraph(reference, node.data.block);
-            }
-          }}
-          onPaneClick={() => onSelectBlock(null)}
-          nodesConnectable
-          nodesDraggable
-          nodesFocusable
-          edgesFocusable={false}
-          onlyRenderVisibleElements
-          autoPanOnNodeFocus={false}
-          connectOnClick
-          disableKeyboardA11y={false}
-          ariaLabelConfig={ariaLabelConfig}
-          deleteKeyCode={null}
-          fitView
-          colorMode="dark"
-          connectionLineStyle={{
-            stroke: "var(--color-accent)",
-            strokeWidth: 2,
-          }}
-        >
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={22}
-            size={1}
-            color="var(--color-canvas-dot)"
-          />
-          <MiniMap
-            pannable
-            zoomable
-            nodeColor={(node) =>
-              node.selected
-                ? "var(--color-accent)"
-                : "var(--color-node-muted)"
-            }
-            maskColor="rgb(6 8 11 / 72%)"
-          />
-          <Controls />
-        </ReactFlow>
+      <div
+        className={
+          editable && paletteOpen
+            ? "canvas-work-area palette-open"
+            : "canvas-work-area palette-closed"
+        }
+      >
+        {editable && paletteOpen ? (
+          <div id="block-palette">
+            <BlockPalette
+              templates={blockTemplates}
+              onAdd={addFromPalette}
+            />
+          </div>
+        ) : null}
+
+        <div className="canvas-surface" ref={surfaceRef}>
+          <ReactFlow
+            aria-label="Algoram graph canvas"
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={handleNodesChange}
+            onNodeDragStart={() => {
+              pointerDragActive.current = true;
+              markEditorPerformance("node-drag-start");
+            }}
+            onNodeDragStop={(_, node) => {
+              pointerDragActive.current = false;
+              commitNodePosition(node);
+              markEditorPerformance("node-drag-stop");
+            }}
+            onConnect={connectDraft}
+            isValidConnection={isValidConnection}
+            onNodeClick={(_, node) => onSelectBlock(node.id)}
+            onNodeDoubleClick={(_, node) => {
+              const reference = node.data.block.internal_graph_ref;
+              if (reference) {
+                onOpenGraph(reference, node.data.block);
+              }
+            }}
+            onPaneClick={() => onSelectBlock(null)}
+            nodesConnectable
+            nodesDraggable
+            nodesFocusable
+            edgesFocusable={false}
+            onlyRenderVisibleElements
+            autoPanOnNodeFocus={false}
+            connectOnClick
+            disableKeyboardA11y={false}
+            ariaLabelConfig={ariaLabelConfig}
+            deleteKeyCode={null}
+            fitView
+            colorMode="dark"
+            connectionLineStyle={{
+              stroke: "var(--color-accent)",
+              strokeWidth: 2,
+            }}
+          >
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={22}
+              size={1}
+              color="var(--color-canvas-dot)"
+            />
+            <MiniMap
+              pannable
+              zoomable
+              nodeColor={(node) =>
+                node.selected
+                  ? "var(--color-accent)"
+                  : "var(--color-node-muted)"
+              }
+              maskColor="rgb(6 8 11 / 72%)"
+            />
+            <Controls />
+          </ReactFlow>
+        </div>
       </div>
     </div>
   );
