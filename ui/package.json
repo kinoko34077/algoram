@@ -15,7 +15,8 @@
     "test:presentation": "node --experimental-strip-types scripts/presentation-check.mjs",
     "test:ui-protocol": "node scripts/ui-protocol-check.mjs",
     "test:platform": "node scripts/browser-platform-check.mjs",
-    "test:interaction": "node scripts/smooth-interaction-check.mjs"
+    "test:interaction": "node scripts/smooth-interaction-check.mjs",
+    "test:authoring": "node --experimental-strip-types scripts/canonical-authoring-check.mjs"
   },
   "dependencies": {
     "@xyflow/react": "12.12.0",
