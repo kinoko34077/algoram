@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AlgoramBlock } from "./algoram";
 import {
   getBlockAnnotation,
@@ -7,9 +7,20 @@ import {
   type BlockAnnotations,
 } from "./annotations";
 import { AnnotationPanel } from "./AnnotationPanel";
+import {
+  applyGraph,
+  createAuthoringHistories,
+  graphIsDirty,
+  redoGraph,
+  setGraphLabel,
+  undoGraph,
+  type GraphHistory,
+} from "./authoring";
 import { demoBundle } from "./fixture";
 import { DraftLinkPanel } from "./DraftLinkPanel";
+import { GraphAuthoringPanel } from "./GraphAuthoringPanel";
 import { GraphCanvas } from "./GraphCanvas";
+import { validateGraph } from "./graphValidation";
 import {
   buildNavigationIndex,
   resolveBlockPath,
@@ -62,14 +73,35 @@ export function App() {
   const [focusRequest, setFocusRequest] = useState<GraphFocusRequest | null>(
     null,
   );
+  const [authoringByGraph, setAuthoringByGraph] = useState(() =>
+    createAuthoringHistories(demoBundle),
+  );
+
+  const editorBundle = useMemo(() => {
+    const workingGraphs = Object.fromEntries(
+      Object.entries(authoringByGraph).map(([graphId, history]) => [
+        graphId,
+        history.present.graph,
+      ]),
+    );
+
+    return {
+      ...demoBundle,
+      graphs: {
+        ...demoBundle.graphs,
+        ...workingGraphs,
+      },
+    };
+  }, [authoringByGraph]);
 
   const navigationIndex = useMemo(
-    () => buildNavigationIndex(demoBundle),
-    [],
+    () => buildNavigationIndex(editorBundle),
+    [editorBundle],
   );
 
   const currentGraphId = path.at(-1)?.graphId ?? demoBundle.rootGraphId;
-  const currentGraph = demoBundle.graphs[currentGraphId];
+  const currentHistory = authoringByGraph[currentGraphId] ?? null;
+  const currentGraph = editorBundle.graphs[currentGraphId];
 
   if (!currentGraph) {
     throw new Error(`Missing graph fixture: ${currentGraphId}`);
@@ -78,6 +110,11 @@ export function App() {
   const selectedBlockId = selectionByGraph[currentGraphId] ?? null;
   const currentPresentation =
     presentationByGraph[currentGraphId] ?? EMPTY_GRAPH_PRESENTATION;
+  const currentGraphDirty = currentHistory ? graphIsDirty(currentHistory) : false;
+  const currentValidationIssues = useMemo(
+    () => validateGraph(currentGraph),
+    [currentGraph],
+  );
 
   const selectedBlock = useMemo(
     () =>
@@ -88,12 +125,85 @@ export function App() {
   const selectedRouteGraphId =
     selectedBlockId === null
       ? undefined
-      : demoBundle.routeInspections?.[selectedBlockId];
+      : editorBundle.routeInspections?.[selectedBlockId];
 
   const selectedAnnotation =
     selectedBlock === null
       ? ""
       : getBlockAnnotation(annotations, selectedBlock.id);
+
+  const replaceCurrentHistory = useCallback(
+    (nextHistory: GraphHistory) => {
+      if (!currentHistory || nextHistory === currentHistory) {
+        return;
+      }
+
+      setAuthoringByGraph((current) => ({
+        ...current,
+        [currentGraphId]: nextHistory,
+      }));
+
+      if (currentGraphId === demoBundle.rootGraphId) {
+        const nextLabel =
+          nextHistory.present.graph.label ?? nextHistory.present.graph.id;
+        setPath((current) =>
+          current.map((entry, index) =>
+            index === 0 ? { ...entry, label: nextLabel } : entry,
+          ),
+        );
+      }
+    },
+    [currentGraphId, currentHistory],
+  );
+
+  const undoCurrentGraph = useCallback(() => {
+    if (currentHistory) {
+      replaceCurrentHistory(undoGraph(currentHistory));
+    }
+  }, [currentHistory, replaceCurrentHistory]);
+
+  const redoCurrentGraph = useCallback(() => {
+    if (currentHistory) {
+      replaceCurrentHistory(redoGraph(currentHistory));
+    }
+  }, [currentHistory, replaceCurrentHistory]);
+
+  useEffect(() => {
+    function textEditorOwnsUndo(target: EventTarget | null): boolean {
+      return (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      );
+    }
+
+    function handleHistoryShortcut(event: KeyboardEvent) {
+      if (
+        !currentHistory ||
+        textEditorOwnsUndo(event.target) ||
+        !(event.metaKey || event.ctrlKey)
+      ) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) {
+          redoCurrentGraph();
+        } else {
+          undoCurrentGraph();
+        }
+      } else if (key === "y" && !event.shiftKey) {
+        event.preventDefault();
+        redoCurrentGraph();
+      }
+    }
+
+    window.addEventListener("keydown", handleHistoryShortcut);
+    return () => window.removeEventListener("keydown", handleHistoryShortcut);
+  }, [currentHistory, redoCurrentGraph, undoCurrentGraph]);
 
   const updatePresentation = useCallback(
     (
@@ -141,7 +251,7 @@ export function App() {
   );
 
   function openGraphWithLabel(graphId: string, label: string) {
-    if (!demoBundle.graphs[graphId]) {
+    if (!editorBundle.graphs[graphId]) {
       return;
     }
 
@@ -215,6 +325,20 @@ export function App() {
     setNavigationStatus(null);
   }
 
+  function commitCurrentGraphLabel(label: string) {
+    if (!currentHistory) {
+      return;
+    }
+
+    const nextGraph = setGraphLabel(currentHistory.present.graph, label);
+    const issues = validateGraph(nextGraph);
+    if (issues.length > 0) {
+      return;
+    }
+
+    replaceCurrentHistory(applyGraph(currentHistory, nextGraph));
+  }
+
   function addDraftFromInspector(link: DraftLink): string | null {
     const error = validateDraftLink(currentGraph, currentPresentation, link);
     if (error) {
@@ -240,6 +364,32 @@ export function App() {
             <strong>{currentGraph.blocks.length}</strong>
             <span>Blocks</span>
           </div>
+          <div className="header-editor-status" aria-live="polite">
+            <span>{currentHistory ? "Editable" : "Read only"}</span>
+            {currentHistory ? (
+              <span>{currentGraphDirty ? "Modified" : "Clean"}</span>
+            ) : null}
+          </div>
+          {currentHistory ? (
+            <div className="history-actions" aria-label="Graph history">
+              <button
+                type="button"
+                className="tertiary-action"
+                onClick={undoCurrentGraph}
+                disabled={currentHistory.past.length === 0}
+              >
+                Undo
+              </button>
+              <button
+                type="button"
+                className="tertiary-action"
+                onClick={redoCurrentGraph}
+                disabled={currentHistory.future.length === 0}
+              >
+                Redo
+              </button>
+            </div>
+          ) : null}
           <button
             type="button"
             className="tertiary-action"
@@ -302,27 +452,31 @@ export function App() {
             className="inspector-region"
             aria-label="Block inspector"
           >
-            <section className="block-inspector">
-              <div className="panel-heading-row">
-                <div>
-                  <p className="eyebrow">Current level</p>
-                  <strong>{currentGraph.id}</strong>
-                </div>
-                {selectedBlock ? (
-                  <button
-                    type="button"
-                    className="tertiary-action"
-                    onClick={() => selectBlock(null)}
-                  >
-                    Clear selection
-                  </button>
-                ) : null}
-              </div>
+            <GraphAuthoringPanel
+              graph={currentGraph}
+              editable={currentHistory !== null}
+              dirty={currentGraphDirty}
+              validationIssues={currentValidationIssues}
+              onCommitLabel={commitCurrentGraphLabel}
+            />
 
+            <section className="block-inspector">
               {selectedBlock ? (
                 <>
-                  <h2>{selectedBlock.label}</h2>
-                  <p className="block-id">{selectedBlock.id}</p>
+                  <div className="panel-heading-row">
+                    <div>
+                      <p className="eyebrow">Selected Block</p>
+                      <h2>{selectedBlock.label}</h2>
+                      <p className="block-id">{selectedBlock.id}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="tertiary-action"
+                      onClick={() => selectBlock(null)}
+                    >
+                      Clear
+                    </button>
+                  </div>
 
                   <div className="inspector-actions">
                     {selectedBlock.internal_graph_ref ? (
@@ -378,7 +532,7 @@ export function App() {
             </section>
 
             <SourcePanel
-              bundle={demoBundle}
+              bundle={editorBundle}
               graph={currentGraph}
               selectedBlock={selectedBlock}
               onSelectBlock={selectBlock}
