@@ -662,7 +662,7 @@ export function App() {
       return;
     }
 
-    if (!window.confirm("Clear this local note? This cannot be undone.")) {
+    if (!window.confirm(jaJP.app.status.clearLocalNoteConfirm)) {
       return;
     }
 
