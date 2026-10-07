@@ -1,0 +1,72 @@
+export const appJa = {
+  restoringEditor: "エディターを復元中…",
+  brand: "ALGOram",
+  blocks: "ブロック",
+  visibleBlocks: "表示中のブロック",
+  graphHistory: "グラフ履歴",
+  graphHierarchy: "グラフ階層",
+  graphEditor: "グラフエディター",
+  blockInspector: "ブロックインスペクター",
+  selectedBlock: "選択中のブロック",
+  selectedConnection: "選択中の接続",
+  removeBlock: "ブロックを削除",
+  removeConnection: "接続を削除",
+  connectionReadOnly: "この接続は派生グラフ上では読み取り専用です。",
+  selectBlockHint:
+    "プロパティやソースを確認する、または表示専用の下書きリンクを作成するには、ブロックを選択してください。",
+  plan: "実行計画",
+  planning: "計画中…",
+  replan: "再計画",
+  retryPlan: "計画を再試行",
+  run: "実行",
+  runThroughGuardedHostRuntime: "保護されたホストランタイムで実行",
+  grantBeforeRun:
+    "実行前に、一覧にあるすべてのホストプロセス要件を許可してください。",
+  recoverySelectionsHint:
+    "現在のプレビューには手動で選択した復旧設定が使われています。実行時にも同じ設定で再計画してから実行します。",
+  actualSelectedRoute: "実際に選択されたルート",
+  status: {
+    restoredLocalGraph: "ローカルグラフを復元しました。",
+    localRestoreUnavailable: "ローカル復元を利用できません。",
+    localRestoreUnavailableWithError:
+      "ローカル復元を利用できません: {error}",
+    undidCanonicalGraphChange: "正規グラフの変更を元に戻しました。",
+    redidCanonicalGraphChange: "正規グラフの変更をやり直しました。",
+    graphValidationFailed: "グラフ検証に失敗しました。",
+    removedBlock: "{label} を削除しました。元に戻せます。",
+    removedConnection: "接続 {connectionId} を削除しました。元に戻せます。",
+    addedBlock: "{label} を追加しました。元に戻せます。",
+    clearLocalNoteConfirm:
+      "このローカルメモを消去しますか？この操作は元に戻せません。",
+    cannotReachFromRoot:
+      "読み込まれたルート階層から {label} へ到達できません。",
+    graphReadOnly: "このグラフは読み取り専用です。",
+    createdConnection: "接続 {connectionId} を作成しました。元に戻せます。",
+    recoveryDiscoveryFailed: "復旧候補の取得に失敗しました。",
+    recoveryReplanFailed: "復旧用の再計画に失敗しました。",
+    recoveryReplanBlocked: "復旧用の再計画が拒否されました: {message}",
+    localGraphValidationFailed: "ローカルグラフ検証に失敗しました: {error}",
+    runtimePlanningFailed: "ランタイム計画に失敗しました。",
+    guardedRunFailedStep:
+      "保護された実行は、失敗した実行ステップを含んだ状態で完了しました。",
+    guardedRuntimeFailed: "保護されたランタイム実行に失敗しました。",
+    saveEditableOnly:
+      "ローカル保存は編集可能なネイティブグラフでのみ利用できます。",
+    saveBlocked: "保存できません: {error}",
+    savedLocalSnapshot: "ローカルスナップショットを保存しました。",
+    saveLocalFailed: "ローカル保存に失敗しました。",
+    saveLocalFailedWithError: "ローカル保存に失敗しました: {error}",
+    openUnavailableDuringRuntime:
+      "ランタイム処理の実行中は別のグラフを開けません。",
+    discardUnsavedConfirm:
+      "未保存の正規グラフ変更を破棄して、別のグラフを開きますか？",
+    openCancelled: "開く操作をキャンセルしました。現在のグラフを保持します。",
+    openedFile:
+      "{fileName} を開きました。再読込後も復元するにはローカル保存してください。",
+    openFailed: "ファイルを開けませんでした。",
+    openFailedWithError: "ファイルを開けませんでした: {error}",
+    downloadRequested: "書き出しを開始しました: {fileName}",
+    exportBlocked: "書き出しできません。",
+    exportBlockedWithError: "書き出しできません: {error}",
+  },
+} as const;

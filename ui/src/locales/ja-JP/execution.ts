@@ -1,0 +1,31 @@
+export const executionJa = {
+  runtime: "ランタイム",
+  guardedExecution: "保護された実行",
+  runtimeExecution: "ランタイム実行",
+  bridgeConnection: "ブリッジ接続",
+  bridgeUrl: "ブリッジURL",
+  bearerToken: "Bearerトークン",
+  sessionOnlyHint:
+    "この設定はセッション内だけで使用します。ブラウザブリッジはlocalhostのループバック接続に制限され、トークンはグラフ書き出しデータへ保存されません。",
+  idleHint:
+    "実行前に現在のグラフを計画し、具体的なホストプロセス権限を確認してください。",
+  planning: "信頼済みホスト上で検証・計画中…",
+  running: "保護されたホストランタイムで実行中…",
+  executionBlocked: "実行できません",
+  hostAccess: "ホストアクセス",
+  hostAuthorityHint:
+    "これらの操作はホストプロセスと同等の権限で実行されます。細粒度サンドボックスがあることは意味しません。",
+  stepsCount: "{count} ステップ",
+  accessRequirementsCount: "アクセス要件 {count} 件",
+  grantsCount: "許可 {count} 件",
+  workingDirectory: "作業ディレクトリ: {path}",
+  blocks: "ブロック: {ids}",
+  none: "なし",
+  steps: "ステップ: {ids}",
+  runCompleted: "実行完了",
+  runFinishedWithFailure: "失敗を含んで実行終了",
+  retryPlan: "計画を再試行",
+  cancelPlanning: "計画をキャンセル",
+  closePreview: "プレビューを閉じる",
+  currentGraph: "現在のグラフ: {graphId}",
+} as const;

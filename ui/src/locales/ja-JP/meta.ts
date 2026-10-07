@@ -1,0 +1,77 @@
+/**
+ * Japanese UI copy catalog for the Browser-first editor.
+ *
+ * Placeholder tokens such as {count}, {label}, {error}, {graphId}, and {fileName}
+ * are intentional. Runtime IDs, URLs, commands, stdout/stderr, schema values,
+ * and source-code snippets stay untranslated when substituted.
+ */
+export const metaJa = {
+  locale: "ja-JP",
+  sourceLocale: "en",
+  sourceMainSha: "b8dfe694fcbdfc1f8c74b258142d3d39a089958d",
+  common: {
+    terms: {
+      graph: "グラフ",
+      block: "ブロック",
+      blocks: "ブロック",
+      connection: "接続",
+      runtime: "ランタイム",
+      route: "ルート",
+      provider: "プロバイダー",
+      trace: "実行トレース",
+      source: "ソース",
+      implementation: "実装",
+      step: "ステップ",
+    },
+    actions: {
+      undo: "元に戻す",
+      redo: "やり直す",
+      remove: "削除",
+      clear: "クリア",
+      open: "開く",
+      close: "閉じる",
+      export: "書き出し",
+      run: "実行",
+      plan: "実行計画",
+      replan: "再計画",
+      retryPlan: "計画を再試行",
+      addBlock: "ブロックを追加",
+      createConnection: "接続を作成",
+      addDraft: "下書きを追加",
+      saveLocal: "ローカル保存",
+      applyAndReplan: "適用して再計画",
+    },
+    states: {
+      idle: "待機",
+      loading: "読込中",
+      planning: "計画中",
+      ready: "準備完了",
+      running: "実行中",
+      succeeded: "成功",
+      failed: "失敗",
+      editable: "編集可能",
+      readOnly: "読み取り専用",
+      modified: "変更あり",
+      clean: "変更なし",
+      valid: "有効",
+      current: "現在",
+      hostDefault: "ホスト既定",
+      invalidPlacement: "無効な配置",
+      bridgeUnavailable: "ブリッジ利用不可",
+    },
+  },
+  headerOverflow: {
+    more: "その他",
+    moreEditorActions: "その他のエディター操作",
+    hideInspector: "インスペクターを隠す",
+    showInspector: "インスペクターを表示",
+  },
+  fileMenu: {
+    file: "ファイル",
+    open: "開く",
+    saveLocal: "ローカル保存",
+    export: "書き出し",
+    shortcutHint: "Ctrl/Cmd+O · Ctrl/Cmd+S",
+    fileOperations: "ファイル操作",
+  },
+} as const;
