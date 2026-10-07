@@ -54,9 +54,16 @@ assert.match(app, /presentationByGraph/);
 assert.match(app, /type SelectionByGraph/);
 assert.match(app, /inspectorOpen/);
 assert.match(app, /aria-expanded=\{inspectorOpen\}/);
+const inspectorAt = app.indexOf('id="inspector-panel"');
 const selectedAt = app.indexOf('<section className="block-inspector">');
-const runtimeAt = app.indexOf('<div id="runtime-execution-panel">');
-assert.ok(selectedAt >= 0 && selectedAt < runtimeAt);
+const asideEndAt = app.indexOf('</aside>', inspectorAt);
+const runtimeAt = app.indexOf('id="runtime-execution-panel"');
+assert.ok(inspectorAt >= 0 && selectedAt > inspectorAt && selectedAt < asideEndAt);
+assert.ok(runtimeAt > asideEndAt, "Execution must be outside Inspector");
+assert.match(app, /hidden=\{!executionOpen\}/);
+assert.match(app, /aria-expanded=\{executionOpen\}/);
+assert.match(app, /jaJP\.app\.bridgeNotConfigured/);
+assert.match(styles, /\.app-shell\.execution-open/);
 assert.match(app, /className="inspector-disclosure"/);
 assert.match(app, /setInspectorOpen\(true\)/);
 
