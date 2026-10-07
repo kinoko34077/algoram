@@ -1452,52 +1452,6 @@ export function App() {
             className="inspector-region"
             aria-label={jaJP.app.blockInspector}
           >
-            <div id="runtime-execution-panel">
-              <ExecutionPanel
-                graph={currentGraph}
-                phase={executionPhase}
-                settings={bridgeSettings}
-                preview={executionPreview}
-                result={executionResult}
-                error={executionError}
-                grantedImplementationRefs={grantedImplementationRefs}
-                onSettingsChange={updateBridgeSettings}
-                onGrantChange={setExecutionGrant}
-                onRetryPlan={planCurrentGraph}
-                onDismiss={dismissExecutionPreview}
-              />
-              {activeRecoverySelections ? (
-                <p className="inline-status recovery-applied-status" role="status">
-                  {jaJP.app.recoverySelectionsHint}
-                </p>
-              ) : null}
-              <RecoveryPanel
-                options={recoveryOptionsResult}
-                phase={recoveryDiscoveryPhase}
-                error={recoveryError}
-                disabled={
-                  executionPhase === "planning" || executionPhase === "running"
-                }
-                onApply={applyRecoverySelections}
-              />
-              {currentTraceProjection ? (
-                <TraceUnmappedPanel projection={currentTraceProjection} />
-              ) : null}
-              {traceProjectionError ? (
-                <p className="inline-status error-text" role="alert">
-                  {jaJP.app.observedTraceHidden.replace("{error}", traceProjectionError)}
-                </p>
-              ) : null}
-            </div>
-
-            <GraphAuthoringPanel
-              graph={currentGraph}
-              editable={currentHistory !== null}
-              dirty={currentGraphDirty}
-              validationIssues={currentValidationIssues}
-              onCommitLabel={commitCurrentGraphLabel}
-            />
-
             <section className="block-inspector">
               {selectedConnection ? (
                 <>
@@ -1652,6 +1606,52 @@ export function App() {
                 </>
               )}
             </section>
+
+            <div id="runtime-execution-panel">
+              <ExecutionPanel
+                graph={currentGraph}
+                phase={executionPhase}
+                settings={bridgeSettings}
+                preview={executionPreview}
+                result={executionResult}
+                error={executionError}
+                grantedImplementationRefs={grantedImplementationRefs}
+                onSettingsChange={updateBridgeSettings}
+                onGrantChange={setExecutionGrant}
+                onRetryPlan={planCurrentGraph}
+                onDismiss={dismissExecutionPreview}
+              />
+              {activeRecoverySelections ? (
+                <p className="inline-status recovery-applied-status" role="status">
+                  {jaJP.app.recoverySelectionsHint}
+                </p>
+              ) : null}
+              <RecoveryPanel
+                options={recoveryOptionsResult}
+                phase={recoveryDiscoveryPhase}
+                error={recoveryError}
+                disabled={
+                  executionPhase === "planning" || executionPhase === "running"
+                }
+                onApply={applyRecoverySelections}
+              />
+              {currentTraceProjection ? (
+                <TraceUnmappedPanel projection={currentTraceProjection} />
+              ) : null}
+              {traceProjectionError ? (
+                <p className="inline-status error-text" role="alert">
+                  {jaJP.app.observedTraceHidden.replace("{error}", traceProjectionError)}
+                </p>
+              ) : null}
+            </div>
+
+            <GraphAuthoringPanel
+              graph={currentGraph}
+              editable={currentHistory !== null}
+              dirty={currentGraphDirty}
+              validationIssues={currentValidationIssues}
+              onCommitLabel={commitCurrentGraphLabel}
+            />
 
             <SourcePanel
               bundle={editorBundle}
