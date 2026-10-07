@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { jaJP } from "./locales/ja-JP";
 import type { ReusableBlockTemplate } from "./blockAuthoring";
 
 interface BlockPaletteProps {
@@ -36,7 +37,7 @@ export function BlockPalette({ templates, onAdd }: BlockPaletteProps) {
   return (
     <aside
       className="block-palette"
-      aria-label="Reusable Block palette"
+      aria-label={jaJP.authoring.blockPalette.accessibilityLabel}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           setQuery("");
@@ -46,8 +47,8 @@ export function BlockPalette({ templates, onAdd }: BlockPaletteProps) {
     >
       <div className="palette-heading">
         <div>
-          <p className="eyebrow">Library</p>
-          <strong>Reusable Blocks</strong>
+          <p className="eyebrow">{jaJP.authoring.blockPalette.library}</p>
+          <strong>{jaJP.authoring.blockPalette.reusableBlocks}</strong>
         </div>
         <span>{templates.length}</span>
       </div>
@@ -58,11 +59,11 @@ export function BlockPalette({ templates, onAdd }: BlockPaletteProps) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search definitions"
+          placeholder={jaJP.authoring.blockPalette.searchDefinitions}
         />
       </label>
 
-      <ul className="palette-list" aria-label="Reusable Block definitions">
+      <ul className="palette-list" aria-label={jaJP.authoring.blockPalette.reusableBlockDefinitions}>
         {visibleTemplates.map((template) => {
           const selectedRow =
             selected?.definitionRef === template.definitionRef;
@@ -97,7 +98,7 @@ export function BlockPalette({ templates, onAdd }: BlockPaletteProps) {
       </ul>
 
       {visibleTemplates.length === 0 ? (
-        <p className="palette-empty">No reusable Blocks match.</p>
+        <p className="palette-empty">{jaJP.authoring.blockPalette.noMatches}</p>
       ) : null}
 
       <div className="palette-actions">
@@ -111,7 +112,7 @@ export function BlockPalette({ templates, onAdd }: BlockPaletteProps) {
             }
           }}
         >
-          Add Block
+          {jaJP.authoring.blockPalette.addBlock}
         </button>
       </div>
     </aside>

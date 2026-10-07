@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { jaJP } from "./locales/ja-JP";
 import {
   listSourceLanguages,
   searchNavigation,
@@ -41,10 +42,10 @@ export function SearchPanel({
   }
 
   return (
-    <section className="search-panel" aria-label="Graph search">
+    <section className="search-panel" aria-label={jaJP.authoring.search.graphSearch}>
       <div className="search-controls">
         <label>
-          <span>Find Block</span>
+          <span>{jaJP.authoring.search.findBlock}</span>
           <input
             type="search"
             value={query}
@@ -55,17 +56,17 @@ export function SearchPanel({
                 clear();
               }
             }}
-            placeholder="Label, ID, source, semantic key"
+            placeholder={jaJP.authoring.search.placeholder}
           />
         </label>
 
         <label>
-          <span>Language</span>
+          <span>{jaJP.authoring.search.language}</span>
           <select
             value={language}
             onChange={(event) => setLanguage(event.target.value)}
           >
-            <option value="">All</option>
+            <option value="">{jaJP.authoring.search.all}</option>
             {languages.map((item) => (
               <option key={item} value={item}>
                 {item}
@@ -80,7 +81,7 @@ export function SearchPanel({
           onClick={clear}
           disabled={!active}
         >
-          Clear
+          {jaJP.authoring.search.clear}
         </button>
       </div>
 
@@ -94,9 +95,9 @@ export function SearchPanel({
         <div className="search-results">
           <div className="search-summary">
             <strong>{results.length}</strong>
-            <span>matches</span>
+            <span>{jaJP.authoring.search.matches}</span>
             {results.length > RESULT_LIMIT ? (
-              <small>first {RESULT_LIMIT}</small>
+              <small>{jaJP.authoring.search.firstResults.replace("{limit}", String(RESULT_LIMIT))}</small>
             ) : null}
           </div>
 
@@ -123,7 +124,7 @@ export function SearchPanel({
             </ul>
           ) : (
             <p className="search-empty" role="status">
-              No matching Blocks.
+              {jaJP.authoring.search.noMatchingBlocks}
             </p>
           )}
         </div>

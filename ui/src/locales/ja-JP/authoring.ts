@@ -77,6 +77,13 @@ export const authoringJa = {
   },
   canvas: {
     nodeWorkspace: "ノードワークスペース",
+    library: "ライブラリ",
+    resetLayoutAction: "レイアウトをリセット",
+    clearDraftsAction: "下書きをクリア",
+    draftLabel: "下書き",
+    draftsCount: "下書き {count} 件",
+    observedBlocks: "観測済みブロック {count} 件",
+    diagnosticsCount: "診断 {count} 件",
     nodeWorkspaceControls: "ノードワークスペース操作",
     resetLayout: "レイアウトをリセット",
     clearDrafts: "下書きをクリア",

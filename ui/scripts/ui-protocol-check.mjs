@@ -5,7 +5,7 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-const [app, canvas, palette, draft, search, annotation, authoring, execution, recovery, bridge, traceDetail, traceUnmapped, traceProjection, fileMenu, headerOverflow, persistenceStore, persistenceModel, styles, traceStyles] = await Promise.all([
+const [app, canvas, palette, draft, search, annotation, authoring, execution, recovery, bridge, traceDetail, traceUnmapped, traceProjection, fileMenu, headerOverflow, persistenceStore, persistenceModel, styles, traceStyles, localeMeta] = await Promise.all([
   source("../src/App.tsx"),
   source("../src/GraphCanvas.tsx"),
   source("../src/BlockPalette.tsx"),
@@ -25,6 +25,7 @@ const [app, canvas, palette, draft, search, annotation, authoring, execution, re
   source("../src/documentPersistence.ts"),
   source("../src/styles.css"),
   source("../src/trace.css"),
+  source("../src/locales/ja-JP/meta.ts"),
 ]);
 
 assert.match(styles, /--inspector-width:\s*328px/);
@@ -57,7 +58,7 @@ assert.match(
   canvas,
   /"node\.a11yDescription\.keyboardDisabled": nodeA11yDescription/,
 );
-assert.match(canvas, /Use the arrow keys to move a selected node/);
+assert.match(canvas, /jaJP\.authoring\.canvas\.keyboardNodeHint/);
 assert.equal(canvas.includes("Press delete"), false);
 assert.match(canvas, /connectOnClick/);
 assert.match(canvas, /change\.type === "select"/);
@@ -65,8 +66,8 @@ assert.match(canvas, /onSelectBlock\(selected\.id\)/);
 assert.equal(canvas.includes("onSelectionChange="), false);
 assert.match(canvas, /isValidConnection=\{isValidConnection\}/);
 assert.match(canvas, /aria-live="polite"/);
-assert.match(canvas, /Reset layout/);
-assert.match(canvas, /Clear drafts/);
+assert.match(canvas, /jaJP\.authoring\.canvas\.resetLayoutAction/);
+assert.match(canvas, /jaJP\.authoring\.canvas\.clearDraftsAction/);
 assert.match(canvas, /aria-controls="block-palette"/);
 assert.match(canvas, /screenToFlowPosition/);
 assert.match(canvas, /editable && paletteOpen/);
@@ -75,22 +76,22 @@ assert.match(canvas, /onEdgeClick=/);
 assert.match(canvas, /selectedConnectionId/);
 assert.match(canvas, /onAddConnection/);
 assert.match(canvas, /traceProjection/);
-assert.match(canvas, /Observed \{Object\.keys\(traceProjection\.byBlockId\)\.length\} Blocks/);
+assert.match(canvas, /jaJP\.authoring\.canvas\.observedBlocks/);
 
-assert.match(palette, /aria-label="Reusable Block palette"/);
+assert.match(palette, /jaJP\.authoring\.blockPalette\.accessibilityLabel/);
 assert.match(palette, /type="search"/);
 assert.match(palette, /aria-pressed=\{selectedRow\}/);
 assert.match(palette, /event\.key === "Escape"/);
-assert.match(palette, />\s*Add Block\s*</);
+assert.match(palette, /jaJP\.authoring\.blockPalette\.addBlock/);
 
 assert.match(draft, /<form/);
 assert.match(draft, /<label>/);
 assert.match(draft, /<select/);
-assert.match(draft, /Keyboard alternative to handle dragging/);
+assert.match(draft, /jaJP\.authoring\.draftLink\.connectionHint/);
 assert.match(draft, /role="status"/);
 assert.match(draft, /mode === "canonical"/);
-assert.match(draft, /Create Connection/);
-assert.match(draft, /presentation only/);
+assert.match(draft, /jaJP\.authoring\.draftLink\.createConnection/);
+assert.match(draft, /jaJP\.authoring\.draftLink\.presentationOnly/);
 
 assert.match(search, /event\.key === "Escape"/);
 assert.match(search, /<ul className="search-result-list">/);
@@ -102,7 +103,7 @@ assert.match(authoring, /<label>/);
 assert.match(authoring, /event\.key === "Escape"/);
 assert.match(authoring, /aria-invalid=\{displayedIssues\.length > 0\}/);
 assert.match(authoring, /role="alert"/);
-assert.match(authoring, /Read only/);
+assert.match(authoring, /jaJP\.authoring\.graphProperties\.readOnly/);
 assert.match(app, /textEditorOwnsKeys/);
 assert.match(app, /event\.metaKey \|\| event\.ctrlKey/);
 assert.match(app, /undoCurrentGraph/);
@@ -110,28 +111,28 @@ assert.match(app, /redoCurrentGraph/);
 assert.match(app, /event\.key === "Delete"/);
 assert.match(app, /event\.key === "Backspace"/);
 assert.match(app, /className="danger-action"/);
-assert.match(app, />\s*Remove Block\s*</);
-assert.match(app, />\s*Remove Connection\s*</);
+assert.match(app, /jaJP\.app\.removeBlock/);
+assert.match(app, /jaJP\.app\.removeConnection/);
 assert.match(app, /selectedConnectionId/);
 assert.match(app, /addCanonicalConnection/);
 assert.match(app, /validateCanonicalLink/);
 
-assert.match(authoring, /aria-label="Graph properties"/);
-assert.match(authoring, /Editable/);
-assert.match(authoring, /Read only/);
-assert.match(authoring, /Modified/);
-assert.match(authoring, /Clean/);
+assert.match(authoring, /jaJP\.authoring\.graphProperties\.properties/);
+assert.match(authoring, /jaJP\.authoring\.graphProperties\.editable/);
+assert.match(authoring, /jaJP\.authoring\.graphProperties\.readOnly/);
+assert.match(authoring, /jaJP\.authoring\.graphProperties\.modified/);
+assert.match(authoring, /jaJP\.authoring\.graphProperties\.clean/);
 assert.match(authoring, /event\.key === "Escape"/);
 assert.match(authoring, /<label>/);
 assert.match(authoring, /aria-describedby=\{/);
 assert.match(authoring, /graph-label-help graph-validation/);
-assert.match(app, /aria-label="Graph history"/);
-assert.match(app, />\s*Undo\s*</);
-assert.match(app, />\s*Redo\s*</);
+assert.match(app, /jaJP\.app\.graphHistory/);
+assert.match(app, /jaJP\.common\.actions\.undo/);
+assert.match(app, /jaJP\.common\.actions\.redo/);
 assert.match(app, /textEditorOwnsKeys/);
 
-assert.match(fileMenu, /Ctrl\/Cmd\+O/);
-assert.match(fileMenu, /Ctrl\/Cmd\+S/);
+assert.match(fileMenu, /jaJP\.fileMenu\.shortcutHint/);
+assert.match(localeMeta, /shortcutHint:\s*"Ctrl\/Cmd\+O · Ctrl\/Cmd\+S"/);
 assert.match(fileMenu, /type="file"/);
 assert.match(fileMenu, /accept="\.algoram\.json,application\/json"/);
 assert.match(fileMenu, /event\.key === "Escape"/);
@@ -158,33 +159,33 @@ assert.match(styles, /\.header-overflow-menu/);
 assert.match(styles, /\.header-overflow-popover/);
 assert.match(styles, /\.desktop-history-actions/);
 assert.match(styles, /\.inspector-header-action/);
-assert.match(headerOverflow, /aria-label="More editor actions"/);
+assert.match(headerOverflow, /jaJP\.headerOverflow\.moreEditorActions/);
 assert.match(headerOverflow, /event\.key === "Escape"/);
-assert.match(headerOverflow, />\s*Undo\s*</);
-assert.match(headerOverflow, />\s*Redo\s*</);
-assert.match(headerOverflow, /Hide inspector/);
-assert.match(headerOverflow, /Show inspector/);
+assert.match(headerOverflow, /jaJP\.common\.actions\.undo/);
+assert.match(headerOverflow, /jaJP\.common\.actions\.redo/);
+assert.match(headerOverflow, /jaJP\.headerOverflow\.hideInspector/);
+assert.match(headerOverflow, /jaJP\.headerOverflow\.showInspector/);
 assert.match(app, /HeaderOverflowMenu/);
 assert.match(app, /className="tertiary-action inspector-header-action"/);
 
 assert.match(styles, /\.primary-action/);
 assert.match(styles, /\.execution-panel/);
-assert.match(app, /"Plan"/);
-assert.match(app, />\s*Run\s*</);
+assert.match(app, /jaJP\.app\.plan/);
+assert.match(app, /jaJP\.app\.run/);
 assert.match(app, /className="primary-action"/);
 assert.match(app, /planCurrentGraph/);
 assert.match(app, /runCurrentGraph/);
 assert.match(app, /currentValidationIssues\.length > 0/);
-assert.match(execution, /aria-label="Runtime execution"/);
+assert.match(execution, /jaJP\.execution\.runtimeExecution/);
 assert.match(execution, /type="password"/);
-assert.match(execution, /ambient host-process authority/);
+assert.match(execution, /jaJP\.execution\.hostAuthorityHint/);
 assert.match(execution, /disabled=\{phase === "running"\}/);
 assert.match(execution, /type="checkbox"/);
 assert.match(execution, /role="alert"/);
 assert.match(execution, /groupRequirements/);
 assert.match(execution, /event\.isComposing/);
-assert.match(execution, /Retry plan/);
-assert.match(execution, /Working directory:/);
+assert.match(execution, /jaJP\.execution\.retryPlan/);
+assert.match(execution, /jaJP\.execution\.workingDirectory/);
 assert.match(app, /executionPhase === "ready" && executionPreview/);
 assert.match(app, /new AbortController\(\)/);
 assert.match(app, /controller\.signal/);
@@ -200,12 +201,12 @@ assert.match(bridge, /\/v1\/recovery\/options/);
 assert.match(bridge, /\/v1\/recovery\/plan/);
 assert.match(bridge, /\/v1\/recovery\/run/);
 
-assert.match(recovery, /aria-label="Manual recovery"/);
+assert.match(recovery, /jaJP\.recovery\.manualRecovery/);
 assert.match(recovery, /type="radio"/);
-assert.match(recovery, /Apply &amp; re-plan/);
-assert.match(recovery, /does nothing until Apply/);
-assert.match(recovery, /No local fallback will be used/);
-assert.match(recovery, /Marketplace catalog is not connected/);
+assert.match(recovery, /jaJP\.recovery\.applyAndReplan/);
+assert.match(recovery, /jaJP\.recovery\.observedImpactHint/);
+assert.match(recovery, /jaJP\.recovery\.runtimeNotExecutable/);
+assert.match(recovery, /jaJP\.recovery\.marketplaceDisconnected/);
 assert.match(recovery, /hasExecutableRecoverySelection/);
 assert.match(app, /requestRecoveryOptions/);
 assert.match(app, /recoveryPlanGraph/);
@@ -221,13 +222,13 @@ assert.match(app, /TraceDetailPanel/);
 assert.match(app, /TraceUnmappedPanel/);
 assert.match(canvas, /traceProjection/);
 assert.match(canvas, /observedStatusLabel/);
-assert.match(canvas, /Observed \{Object\.keys\(traceProjection\.byBlockId\)\.length\} Blocks/);
-assert.match(traceDetail, /Observed run/);
-assert.match(traceDetail, /Observed route/);
+assert.match(canvas, /jaJP\.authoring\.canvas\.observedBlocks/);
+assert.match(traceDetail, /jaJP\.trace\.observedRun/);
+assert.match(traceDetail, /jaJP\.trace\.observedRoute/);
 assert.match(traceDetail, /stderr/);
-assert.match(traceDetail, /Route IDs are runtime evidence, not/);
-assert.match(traceUnmapped, /unmapped trace origin/);
-assert.match(traceUnmapped, /Unknown origin IDs are not attached/);
+assert.match(traceDetail, /jaJP\.trace\.evidenceOnlyHint/);
+assert.match(traceUnmapped, /jaJP\.trace\.unmappedOriginCount/);
+assert.match(traceUnmapped, /jaJP\.trace\.unmappedHint/);
 assert.match(traceProjection, /trace\.reference_graph_id !== graph\.id/);
 assert.match(traceProjection, /origin_block_ids/);
 assert.match(traceProjection, /unmappedOrigins/);

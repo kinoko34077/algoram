@@ -4,6 +4,7 @@ import type {
   AlgoramPort,
   PortRef,
 } from "./algoram";
+import { jaJP } from "./locales/ja-JP/index.ts";
 
 export const GRAPH_SCHEMA_VERSION = "algoram.graph/0.1";
 
@@ -45,8 +46,9 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
     issues.push({
       code: "unsupported-schema-version",
       graphId: graph.id,
-      message:
-        `Unsupported schema_version '${graph.schema_version}', expected '${GRAPH_SCHEMA_VERSION}'.`,
+      message: jaJP.errors.validation.unsupportedSchemaVersion
+        .replace("{actual}", graph.schema_version)
+        .replace("{expected}", GRAPH_SCHEMA_VERSION),
     });
   }
 
@@ -56,7 +58,7 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
       issues.push({
         code: "duplicate-source-artifact-id",
         graphId: graph.id,
-        message: `Duplicate source artifact id '${artifact.id}'.`,
+        message: jaJP.errors.validation.duplicateSourceArtifactId.replace("{artifactId}", artifact.id),
       });
     }
     artifactIds.add(artifact.id);
@@ -69,7 +71,7 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
         code: "duplicate-block-id",
         graphId: graph.id,
         blockId: block.id,
-        message: `Duplicate Block id '${block.id}'.`,
+        message: jaJP.errors.validation.duplicateBlockId.replace("{blockId}", block.id),
       });
     } else {
       blocks.set(block.id, block);
@@ -83,7 +85,9 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
           graphId: graph.id,
           blockId: block.id,
           portId: port.id,
-          message: `Duplicate Port id '${port.id}' in Block '${block.id}'.`,
+          message: jaJP.errors.validation.duplicatePortId
+            .replace("{portId}", port.id)
+            .replace("{blockId}", block.id),
         });
       }
       portIds.add(port.id);
@@ -101,9 +105,10 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
           code: "invalid-source-anchor-range",
           graphId: graph.id,
           blockId: block.id,
-          message:
-            `Block '${block.id}' has invalid source anchor byte range ` +
-            `${anchor.start_byte}..${anchor.end_byte}.`,
+          message: jaJP.errors.validation.invalidSourceAnchorRange
+            .replace("{blockId}", block.id)
+            .replace("{start}", String(anchor.start_byte))
+            .replace("{end}", String(anchor.end_byte)),
         });
       }
       if (!artifactIds.has(anchor.artifact_id)) {
@@ -111,9 +116,9 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
           code: "missing-source-artifact",
           graphId: graph.id,
           blockId: block.id,
-          message:
-            `Block '${block.id}' references missing source artifact ` +
-            `'${anchor.artifact_id}'.`,
+          message: jaJP.errors.validation.missingSourceArtifact
+            .replace("{blockId}", block.id)
+            .replace("{artifactId}", anchor.artifact_id),
         });
       }
     }
@@ -126,7 +131,7 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
         code: "duplicate-connection-id",
         graphId: graph.id,
         connectionId: connection.id,
-        message: `Duplicate Connection id '${connection.id}'.`,
+        message: jaJP.errors.validation.duplicateConnectionId.replace("{connectionId}", connection.id),
       });
     }
     connectionIds.add(connection.id);
@@ -138,9 +143,9 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
         graphId: graph.id,
         connectionId: connection.id,
         blockId: connection.source.block_id,
-        message:
-          `Connection '${connection.id}' references missing Block ` +
-          `'${connection.source.block_id}'.`,
+        message: jaJP.errors.validation.missingSourceBlock
+          .replace("{connectionId}", connection.id)
+          .replace("{blockId}", connection.source.block_id),
       });
       continue;
     }
@@ -152,9 +157,9 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
         graphId: graph.id,
         connectionId: connection.id,
         blockId: connection.target.block_id,
-        message:
-          `Connection '${connection.id}' references missing Block ` +
-          `'${connection.target.block_id}'.`,
+        message: jaJP.errors.validation.missingTargetBlock
+          .replace("{connectionId}", connection.id)
+          .replace("{blockId}", connection.target.block_id),
       });
       continue;
     }
@@ -167,9 +172,10 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
         connectionId: connection.id,
         blockId: connection.source.block_id,
         portId: connection.source.port_id,
-        message:
-          `Connection '${connection.id}' references missing Port ` +
-          `'${connection.source.block_id}.${connection.source.port_id}'.`,
+        message: jaJP.errors.validation.missingSourcePort
+          .replace("{connectionId}", connection.id)
+          .replace("{blockId}", connection.source.block_id)
+          .replace("{portId}", connection.source.port_id),
       });
       continue;
     }
@@ -182,9 +188,10 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
         connectionId: connection.id,
         blockId: connection.target.block_id,
         portId: connection.target.port_id,
-        message:
-          `Connection '${connection.id}' references missing Port ` +
-          `'${connection.target.block_id}.${connection.target.port_id}'.`,
+        message: jaJP.errors.validation.missingTargetPort
+          .replace("{connectionId}", connection.id)
+          .replace("{blockId}", connection.target.block_id)
+          .replace("{portId}", connection.target.port_id),
       });
       continue;
     }
@@ -194,9 +201,10 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
         code: "invalid-connection-direction",
         graphId: graph.id,
         connectionId: connection.id,
-        message:
-          `Connection '${connection.id}' requires out → in, got ` +
-          `${source.direction} → ${target.direction}.`,
+        message: jaJP.errors.validation.directionMismatch
+          .replace("{connectionId}", connection.id)
+          .replace("{sourceDirection}", source.direction)
+          .replace("{targetDirection}", target.direction),
       });
     }
 
@@ -205,9 +213,10 @@ export function validateGraph(graph: AlgoramGraph): GraphValidationIssue[] {
         code: "channel-mismatch",
         graphId: graph.id,
         connectionId: connection.id,
-        message:
-          `Connection '${connection.id}' channel mismatch: ` +
-          `${source.channel} → ${target.channel}.`,
+        message: jaJP.errors.validation.channelMismatch
+          .replace("{connectionId}", connection.id)
+          .replace("{sourceChannel}", source.channel)
+          .replace("{targetChannel}", target.channel),
       });
     }
   }

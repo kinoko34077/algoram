@@ -1,4 +1,5 @@
 import type { TraceProjection } from "./traceProjection";
+import { jaJP } from "./locales/ja-JP";
 
 interface TraceUnmappedPanelProps {
   projection: TraceProjection;
@@ -14,8 +15,7 @@ export function TraceUnmappedPanel({
   return (
     <details className="trace-unmapped-panel">
       <summary>
-        {projection.unmappedOrigins.length} unmapped trace origin
-        {projection.unmappedOrigins.length === 1 ? "" : "s"}
+        {jaJP.trace.unmappedOriginCount.replace("{count}", String(projection.unmappedOrigins.length))}
       </summary>
       <ul>
         {projection.unmappedOrigins.map((evidence, index) => (
@@ -26,8 +26,7 @@ export function TraceUnmappedPanel({
         ))}
       </ul>
       <p className="compact-hint">
-        Observed evidence only. Unknown origin IDs are not attached to a
-        visible Block by inference.
+        {jaJP.trace.unmappedHint}
       </p>
     </details>
   );

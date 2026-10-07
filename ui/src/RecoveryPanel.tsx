@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { jaJP } from "./locales/ja-JP";
 import type {
   RecoveryOptionsResponse,
   RecoverySelections,
@@ -28,12 +29,12 @@ interface RecoveryPanelProps {
 function runtimeOptionLabel(option: RuntimeRecoveryOption): string {
   const parts = [option.candidate.runtime_ref, option.candidate.class];
   if (option.candidate.is_current) {
-    parts.push("current");
+    parts.push(jaJP.common.states.current);
   }
   if (!option.placement_validated) {
-    parts.push("invalid placement");
+    parts.push(jaJP.recovery.invalidPlacement);
   } else if (!option.executable_by_bridge) {
-    parts.push("bridge unavailable");
+    parts.push(jaJP.recovery.bridgeUnavailable);
   }
   return parts.join(" · ");
 }
@@ -110,49 +111,47 @@ export function RecoveryPanel({
   }
 
   return (
-    <section className="recovery-panel" aria-label="Manual recovery">
+    <section className="recovery-panel" aria-label={jaJP.recovery.manualRecovery}>
       <div className="panel-heading-row">
         <div>
-          <p className="eyebrow">Recovery</p>
-          <strong>Manual alternatives</strong>
+          <p className="eyebrow">{jaJP.recovery.recovery}</p>
+          <strong>{jaJP.recovery.manualAlternatives}</strong>
         </div>
         <span className={`recovery-state ${phase}`} aria-live="polite">
-          {phase}
+          {jaJP.common.states[phase]}
         </span>
       </div>
 
       {phase === "loading" ? (
         <p className="inline-status" role="status">
-          Inspecting observed failure and trusted alternatives…
+          {jaJP.recovery.loading}
         </p>
       ) : null}
 
       {error ? (
         <div className="execution-error" role="alert">
-          <strong>Recovery unavailable</strong>
+          <strong>{jaJP.recovery.unavailable}</strong>
           <p>{error}</p>
         </div>
       ) : null}
 
       {options ? (
         <>
-          <div className="recovery-impact" aria-label="Observed impact">
+          <div className="recovery-impact" aria-label={jaJP.recovery.observedImpact}>
             <span>
-              Failed <strong>{options.report.impact.failed_block_ids.length}</strong>
+              {jaJP.recovery.failedCount.replace("{count}", String(options.report.impact.failed_block_ids.length))}
             </span>
             <span>
-              Affected{" "}
-              <strong>{options.report.impact.affected_block_ids.length}</strong>
+              {jaJP.recovery.affectedCount.replace("{count}", String(options.report.impact.affected_block_ids.length))}
             </span>
           </div>
           <p className="compact-hint">
-            Observed from the failed Trace. Choosing an option changes no
-            canonical Graph data and does nothing until Apply &amp; re-plan.
+            {jaJP.recovery.observedImpactHint}
           </p>
 
           {options.route_candidates.length > 0 ? (
             <fieldset className="recovery-group">
-              <legend>Route</legend>
+              <legend>{jaJP.recovery.route}</legend>
               {options.route_candidates.map((candidate) => {
                 const key = recoveryRouteCandidateKey(
                   candidate.connection_id,
@@ -189,7 +188,7 @@ export function RecoveryPanel({
 
           {providerRows.length > 0 ? (
             <fieldset className="recovery-group">
-              <legend>Provider</legend>
+              <legend>{jaJP.recovery.provider}</legend>
               {providerRows.map((row) => (
                 <label
                   className="recovery-choice"
@@ -220,17 +219,16 @@ export function RecoveryPanel({
                       {row.logicalRef}
                       {row.candidate.implementation_ref ===
                       row.selectedImplementationRef
-                        ? " · current plan"
+                        ? ` · ${jaJP.recovery.currentPlan}`
                         : ""}
-                      {row.candidate.is_default ? " · host default" : ""}
+                      {row.candidate.is_default ? ` · ${jaJP.recovery.hostDefault}` : ""}
                     </small>
                   </span>
                 </label>
               ))}
               {!options.catalog_connected ? (
                 <p className="compact-hint">
-                  Marketplace catalog is not connected to this bridge; only
-                  host-trusted local providers are shown.
+                  {jaJP.recovery.marketplaceDisconnected}
                 </p>
               ) : null}
             </fieldset>
@@ -238,7 +236,7 @@ export function RecoveryPanel({
 
           {runtimeRows.length > 0 ? (
             <fieldset className="recovery-group">
-              <legend>Runtime</legend>
+              <legend>{jaJP.recovery.runtime}</legend>
               {runtimeRows.map((row) => (
                 <label
                   className="recovery-choice"
@@ -270,9 +268,7 @@ export function RecoveryPanel({
 
           {runtimeBlocksApply ? (
             <p className="inline-status error-text" role="alert">
-              The selected runtime placement is not executable by this local
-              bridge. No local fallback will be used. Connect distributed
-              runtime transport or choose the current local runtime.
+              {jaJP.recovery.runtimeNotExecutable}
             </p>
           ) : null}
 
@@ -280,8 +276,7 @@ export function RecoveryPanel({
           providerRows.length === 0 &&
           runtimeRows.length === 0 ? (
             <p className="compact-hint">
-              No trusted recovery candidate is available for the observed
-              failure.
+              {jaJP.recovery.noTrustedCandidate}
             </p>
           ) : null}
 
@@ -292,7 +287,7 @@ export function RecoveryPanel({
               disabled={!canApply}
               onClick={() => onApply(selections)}
             >
-              Apply &amp; re-plan
+              {jaJP.recovery.applyAndReplan}
             </button>
           </div>
         </>

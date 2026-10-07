@@ -1,3 +1,4 @@
+import { jaJP } from "./locales/ja-JP";
 import {
   observedStatusLabel,
   observedStatusSymbol,
@@ -18,11 +19,11 @@ export function TraceDetailPanel({
   return (
     <section
       className="trace-detail-panel"
-      aria-label="Observed run for selected Block"
+      aria-label={jaJP.trace.selectedBlockObservedRun}
     >
       <div className="trace-detail-heading">
         <div>
-          <p className="eyebrow">Observed run</p>
+          <p className="eyebrow">{jaJP.trace.observedRun}</p>
           <strong className={`observed-status ${observation.status}`}>
             <span aria-hidden="true">
               {observedStatusSymbol(observation.status)}
@@ -30,27 +31,27 @@ export function TraceDetailPanel({
             {observedStatusLabel(observation.status)}
           </strong>
         </div>
-        <span>{observation.entries.length} step{observation.entries.length === 1 ? "" : "s"}</span>
+        <span>{jaJP.trace.stepCount.replace("{count}", String(observation.entries.length))}</span>
       </div>
 
       <dl className="trace-facts">
         <div>
-          <dt>Step</dt>
+          <dt>{jaJP.trace.step}</dt>
           <dd>{listOrDash(observation.stepIds)}</dd>
         </div>
         <div>
-          <dt>Implementation</dt>
+          <dt>{jaJP.trace.implementation}</dt>
           <dd>{listOrDash(observation.implementationRefs)}</dd>
         </div>
         {observation.routeConnectorIds.length > 0 ? (
           <div>
-            <dt>Observed route</dt>
+            <dt>{jaJP.trace.observedRoute}</dt>
             <dd>{observation.routeConnectorIds.join(", ")}</dd>
           </div>
         ) : null}
         {observation.exitCodes.length > 0 ? (
           <div>
-            <dt>Exit code</dt>
+            <dt>{jaJP.trace.exitCode}</dt>
             <dd>{observation.exitCodes.join(", ")}</dd>
           </div>
         ) : null}
@@ -75,8 +76,7 @@ export function TraceDetailPanel({
       ) : null}
 
       <p className="compact-hint">
-        Observed execution evidence only. Route IDs are runtime evidence, not
-        canonical Graph Connection IDs.
+        {jaJP.trace.evidenceOnlyHint}
       </p>
     </section>
   );

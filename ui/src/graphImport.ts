@@ -1,5 +1,6 @@
 import type { AlgoramGraph } from "./algoram";
 import { validateGraph } from "./graphValidation";
+import { jaJP } from "./locales/ja-JP/index.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -12,25 +13,25 @@ export function parseCanonicalGraphJson(input: string): AlgoramGraph {
   } catch (error: unknown) {
     throw new Error(
       error instanceof Error
-        ? `Invalid Graph JSON: ${error.message}`
-        : "Invalid Graph JSON.",
+        ? jaJP.errors.graphImport.invalidJsonWithError.replace("{error}", error.message)
+        : jaJP.errors.graphImport.invalidJson,
     );
   }
 
   if (!isRecord(parsed)) {
-    throw new Error("Graph JSON must contain one object.");
+    throw new Error(jaJP.errors.graphImport.mustContainObject);
   }
   if (typeof parsed.schema_version !== "string") {
-    throw new Error("Graph JSON is missing schema_version.");
+    throw new Error(jaJP.errors.graphImport.missingSchemaVersion);
   }
   if (typeof parsed.id !== "string") {
-    throw new Error("Graph JSON is missing id.");
+    throw new Error(jaJP.errors.graphImport.missingId);
   }
   if (!Array.isArray(parsed.blocks)) {
-    throw new Error("Graph JSON is missing blocks.");
+    throw new Error(jaJP.errors.graphImport.missingBlocks);
   }
   if (!Array.isArray(parsed.connections)) {
-    throw new Error("Graph JSON is missing connections.");
+    throw new Error(jaJP.errors.graphImport.missingConnections);
   }
 
   const graph = parsed as unknown as AlgoramGraph;

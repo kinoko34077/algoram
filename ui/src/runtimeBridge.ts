@@ -1,4 +1,5 @@
 import type { AlgoramGraph, SourceAnchor } from "./algoram";
+import { jaJP } from "./locales/ja-JP/index.ts";
 
 export interface ProcessAction {
   program: string;
@@ -245,20 +246,20 @@ export function normalizeLoopbackBridgeUrl(value: string): string {
   try {
     url = new URL(value);
   } catch {
-    throw new Error("Bridge URL must be a valid http(s) URL.");
+    throw new Error(jaJP.errors.runtimeBridge.invalidUrl);
   }
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("Bridge URL must use http or https.");
+    throw new Error(jaJP.errors.runtimeBridge.httpOnly);
   }
   if (!isLoopbackHost(url.hostname)) {
-    throw new Error("Runtime bridge URL must resolve to loopback localhost.");
+    throw new Error(jaJP.errors.runtimeBridge.loopbackOnly);
   }
   if (url.username || url.password || url.search || url.hash) {
-    throw new Error("Bridge URL cannot contain credentials, query, or fragment.");
+    throw new Error(jaJP.errors.runtimeBridge.noCredentialsQueryFragment);
   }
   if (url.pathname !== "/" && url.pathname !== "") {
-    throw new Error("Bridge URL must be an origin without a path.");
+    throw new Error(jaJP.errors.runtimeBridge.originOnly);
   }
 
   return url.origin;
@@ -273,7 +274,7 @@ async function decodeResponse<T>(response: Response): Promise<T> {
       throw new RuntimeBridgeError(
         response.status,
         "bridge_error",
-        `Runtime bridge returned HTTP ${response.status}.`,
+        jaJP.errors.runtimeBridge.returnedHttp.replace("{status}", String(response.status)),
       );
     }
   }
@@ -284,7 +285,7 @@ async function decodeResponse<T>(response: Response): Promise<T> {
       response.status,
       apiError?.code ?? "bridge_error",
       apiError?.message ??
-        `Runtime bridge request failed with HTTP ${response.status}.`,
+        jaJP.errors.runtimeBridge.requestFailedHttp.replace("{status}", String(response.status)),
     );
   }
 
@@ -297,7 +298,7 @@ export function createRuntimeBridgeClient(
 ): RuntimeBridgeClient {
   const baseUrl = normalizeLoopbackBridgeUrl(settings.baseUrl);
   if (settings.bearerToken.trim().length === 0) {
-    throw new Error("Enter the runtime bridge bearer token.");
+    throw new Error(jaJP.errors.runtimeBridge.tokenRequired);
   }
 
   async function requestJson<T>(
@@ -322,8 +323,8 @@ export function createRuntimeBridgeClient(
       }
       throw new Error(
         error instanceof Error
-          ? `Runtime bridge unavailable: ${error.message}`
-          : "Runtime bridge unavailable.",
+          ? jaJP.errors.runtimeBridge.unavailableWithError.replace("{error}", error.message)
+          : jaJP.errors.runtimeBridge.unavailable,
       );
     }
 

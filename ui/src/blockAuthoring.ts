@@ -3,6 +3,7 @@ import type {
   AlgoramGraph,
   ReferenceBundle,
 } from "./algoram";
+import { jaJP } from "./locales/ja-JP/index.ts";
 
 export interface ReusableBlockTemplate {
   definitionRef: string;
@@ -104,7 +105,7 @@ export function removeBlock(
     return {
       ok: false,
       graph,
-      reason: `Block '${blockId}' no longer exists.`,
+      reason: jaJP.errors.authoring.blockNoLongerExists.replace("{blockId}", blockId),
     };
   }
 
@@ -117,9 +118,9 @@ export function removeBlock(
     return {
       ok: false,
       graph,
-      reason:
-        `Cannot remove '${block.label}' while Connection ` +
-        `'${incident.id}' is attached. Remove the Connection first.`,
+      reason: jaJP.errors.authoring.blockHasIncidentConnection
+        .replace("{blockLabel}", block.label)
+        .replace("{connectionId}", incident.id),
     };
   }
 

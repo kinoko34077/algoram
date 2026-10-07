@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { jaJP } from "./locales/ja-JP";
 import type { AlgoramBlock, AlgoramGraph } from "./algoram";
 import {
   makeDraftLink,
@@ -118,8 +119,8 @@ export function DraftLinkPanel({
     setTargetPortId(targetPorts[0]?.id ?? "");
   }, [targetPortId, targetPorts]);
 
-  const title = mode === "canonical" ? "Connection" : "Draft link";
-  const scope = mode === "canonical" ? "canonical Graph" : "presentation only";
+  const title = mode === "canonical" ? jaJP.authoring.draftLink.connection : jaJP.authoring.draftLink.draftLink;
+  const scope = mode === "canonical" ? jaJP.authoring.draftLink.canonicalGraph : jaJP.authoring.draftLink.presentationOnly;
 
   if (outputs.length === 0) {
     return (
@@ -128,7 +129,7 @@ export function DraftLinkPanel({
           <strong>{title}</strong>
           <span>{scope}</span>
         </div>
-        <p className="compact-hint">This Block has no output ports.</p>
+        <p className="compact-hint">{jaJP.authoring.draftLink.noOutputPorts}</p>
       </section>
     );
   }
@@ -160,13 +161,13 @@ export function DraftLinkPanel({
           setStatus(
             error ??
               (mode === "canonical"
-                ? "Canonical Connection created."
-                : "Draft link added."),
+                ? jaJP.authoring.draftLink.canonicalConnectionCreated
+                : jaJP.authoring.draftLink.draftLinkAdded),
           );
         }}
       >
         <label>
-          <span>Output</span>
+          <span>{jaJP.authoring.draftLink.output}</span>
           <select
             value={sourcePortId}
             onChange={(event) => {
@@ -183,7 +184,7 @@ export function DraftLinkPanel({
         </label>
 
         <label>
-          <span>Target Block</span>
+          <span>{jaJP.authoring.draftLink.targetBlock}</span>
           <select
             value={targetBlockId}
             onChange={(event) => {
@@ -193,7 +194,7 @@ export function DraftLinkPanel({
             disabled={targetBlocks.length === 0}
           >
             {targetBlocks.length === 0 ? (
-              <option value="">No compatible target</option>
+              <option value="">{jaJP.authoring.draftLink.noCompatibleTarget}</option>
             ) : null}
             {targetBlocks.map((block) => (
               <option key={block.id} value={block.id}>
@@ -204,7 +205,7 @@ export function DraftLinkPanel({
         </label>
 
         <label>
-          <span>Input</span>
+          <span>{jaJP.authoring.draftLink.input}</span>
           <select
             value={targetPortId}
             onChange={(event) => {
@@ -214,7 +215,7 @@ export function DraftLinkPanel({
             disabled={targetPorts.length === 0}
           >
             {targetPorts.length === 0 ? (
-              <option value="">No compatible input</option>
+              <option value="">{jaJP.authoring.draftLink.noCompatibleInput}</option>
             ) : null}
             {targetPorts.map((port) => (
               <option key={port.id} value={port.id}>
@@ -225,14 +226,14 @@ export function DraftLinkPanel({
         </label>
 
         <button type="submit" className="secondary-action" disabled={!canAdd}>
-          {mode === "canonical" ? "Create Connection" : "Add draft"}
+          {mode === "canonical" ? jaJP.authoring.draftLink.createConnection : jaJP.authoring.draftLink.addDraft}
         </button>
       </form>
 
       <p className="compact-hint">
         {mode === "canonical"
-          ? "Keyboard alternative to handle dragging. Creates one canonical Graph history step."
-          : "Presentation-only planning. Canonical Graph data is not changed."}
+          ? jaJP.authoring.draftLink.connectionHint
+          : jaJP.authoring.draftLink.draftHint}
       </p>
       {status ? (
         <p className="inline-status" role="status" aria-live="polite">

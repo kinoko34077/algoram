@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { jaJP } from "./locales/ja-JP";
 
 interface HeaderOverflowMenuProps {
   historyAvailable: boolean;
@@ -42,14 +43,14 @@ export function HeaderOverflowMenu({
     <details className="header-overflow-menu" ref={detailsRef}>
       <summary
         className="tertiary-action"
-        aria-label="More editor actions"
+        aria-label={jaJP.headerOverflow.moreEditorActions}
       >
-        More
+        {jaJP.headerOverflow.more}
       </summary>
       <div
         className="header-overflow-popover"
         role="group"
-        aria-label="More editor actions"
+        aria-label={jaJP.headerOverflow.moreEditorActions}
       >
         {historyAvailable ? (
           <>
@@ -62,7 +63,7 @@ export function HeaderOverflowMenu({
                 onUndo();
               }}
             >
-              Undo
+              {jaJP.common.actions.undo}
             </button>
             <button
               type="button"
@@ -73,7 +74,7 @@ export function HeaderOverflowMenu({
                 onRedo();
               }}
             >
-              Redo
+              {jaJP.common.actions.redo}
             </button>
           </>
         ) : null}
@@ -86,7 +87,7 @@ export function HeaderOverflowMenu({
             onToggleInspector();
           }}
         >
-          {inspectorOpen ? "Hide inspector" : "Show inspector"}
+          {inspectorOpen ? jaJP.headerOverflow.hideInspector : jaJP.headerOverflow.showInspector}
         </button>
       </div>
     </details>

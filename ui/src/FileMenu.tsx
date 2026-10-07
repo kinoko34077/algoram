@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { jaJP } from "./locales/ja-JP";
 
 export interface FileOperationStatus {
   kind: "success" | "info" | "error";
@@ -69,15 +70,15 @@ export function FileMenu({
   return (
     <div className="file-menu-shell">
       <details className="file-menu" ref={detailsRef}>
-        <summary className="tertiary-action">File</summary>
-        <div className="file-menu-popover" role="group" aria-label="File operations">
+        <summary className="tertiary-action">{jaJP.fileMenu.file}</summary>
+        <div className="file-menu-popover" role="group" aria-label={jaJP.fileMenu.fileOperations}>
           <button
             type="button"
             className="tertiary-action"
             disabled={!canOpen}
             onClick={chooseFile}
           >
-            Open
+            {jaJP.fileMenu.open}
           </button>
           <button
             type="button"
@@ -88,7 +89,7 @@ export function FileMenu({
               void onSaveLocal();
             }}
           >
-            Save local
+            {jaJP.fileMenu.saveLocal}
           </button>
           <button
             type="button"
@@ -98,9 +99,9 @@ export function FileMenu({
               onExport();
             }}
           >
-            Export
+            {jaJP.fileMenu.export}
           </button>
-          <small>Ctrl/Cmd+O · Ctrl/Cmd+S</small>
+          <small>{jaJP.fileMenu.shortcutHint}</small>
         </div>
       </details>
 

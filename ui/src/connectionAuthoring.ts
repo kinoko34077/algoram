@@ -1,4 +1,5 @@
 import type { AlgoramConnection, AlgoramGraph } from "./algoram";
+import { jaJP } from "./locales/ja-JP/index.ts";
 
 export interface ConnectionCandidate {
   sourceBlockId: string;
@@ -77,14 +78,18 @@ export function validateConnectionCandidate(
     (block) => block.id === candidate.sourceBlockId,
   );
   if (!sourceBlock) {
-    return `Connection '${connection.id}' references missing Block '${candidate.sourceBlockId}'.`;
+    return jaJP.errors.authoring.connectionMissingSourceBlock
+      .replace("{connectionId}", connection.id)
+      .replace("{blockId}", candidate.sourceBlockId);
   }
 
   const targetBlock = graph.blocks.find(
     (block) => block.id === candidate.targetBlockId,
   );
   if (!targetBlock) {
-    return `Connection '${connection.id}' references missing Block '${candidate.targetBlockId}'.`;
+    return jaJP.errors.authoring.connectionMissingTargetBlock
+      .replace("{connectionId}", connection.id)
+      .replace("{blockId}", candidate.targetBlockId);
   }
 
   const source = findPort(
@@ -93,10 +98,10 @@ export function validateConnectionCandidate(
     candidate.sourcePortId,
   );
   if (!source) {
-    return (
-      `Connection '${connection.id}' references missing Port ` +
-      `'${candidate.sourceBlockId}.${candidate.sourcePortId}'.`
-    );
+    return jaJP.errors.authoring.connectionMissingSourcePort
+      .replace("{connectionId}", connection.id)
+      .replace("{blockId}", candidate.sourceBlockId)
+      .replace("{portId}", candidate.sourcePortId);
   }
 
   const target = findPort(
@@ -105,24 +110,24 @@ export function validateConnectionCandidate(
     candidate.targetPortId,
   );
   if (!target) {
-    return (
-      `Connection '${connection.id}' references missing Port ` +
-      `'${candidate.targetBlockId}.${candidate.targetPortId}'.`
-    );
+    return jaJP.errors.authoring.connectionMissingTargetPort
+      .replace("{connectionId}", connection.id)
+      .replace("{blockId}", candidate.targetBlockId)
+      .replace("{portId}", candidate.targetPortId);
   }
 
   if (source.direction !== "out" || target.direction !== "in") {
-    return (
-      `Connection '${connection.id}' requires out → in, got ` +
-      `${source.direction} → ${target.direction}.`
-    );
+    return jaJP.errors.authoring.directionMismatch
+      .replace("{connectionId}", connection.id)
+      .replace("{sourceDirection}", source.direction)
+      .replace("{targetDirection}", target.direction);
   }
 
   if (source.channel !== target.channel) {
-    return (
-      `Connection '${connection.id}' channel mismatch: ` +
-      `${source.channel} → ${target.channel}.`
-    );
+    return jaJP.errors.authoring.channelMismatch
+      .replace("{connectionId}", connection.id)
+      .replace("{sourceChannel}", source.channel)
+      .replace("{targetChannel}", target.channel);
   }
 
   return null;
@@ -163,7 +168,7 @@ export function removeConnection(
     return {
       ok: false,
       graph,
-      reason: `Connection '${connectionId}' no longer exists.`,
+      reason: jaJP.errors.authoring.connectionNoLongerExists.replace("{connectionId}", connectionId),
     };
   }
 

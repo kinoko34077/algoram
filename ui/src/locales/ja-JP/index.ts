@@ -1,11 +1,11 @@
-import { appJa } from "./app";
-import { authoringJa } from "./authoring";
-import { demoJa } from "./demo";
-import { errorsJa } from "./errors";
-import { executionJa } from "./execution";
-import { metaJa } from "./meta";
-import { recoveryJa } from "./recovery";
-import { traceJa } from "./trace";
+import { appJa } from "./app.ts";
+import { authoringJa } from "./authoring.ts";
+import { demoJa } from "./demo.ts";
+import { errorsJa } from "./errors.ts";
+import { executionJa } from "./execution.ts";
+import { metaJa } from "./meta.ts";
+import { recoveryJa } from "./recovery.ts";
+import { traceJa } from "./trace.ts";
 
 export const jaJP = {
   ...metaJa,

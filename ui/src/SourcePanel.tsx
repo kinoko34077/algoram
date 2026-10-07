@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { jaJP } from "./locales/ja-JP";
 import type {
   AlgoramBlock,
   AlgoramGraph,
@@ -132,8 +133,8 @@ export function SourcePanel({
   if (!document) {
     return (
       <aside className="source-panel">
-        <h2>Source</h2>
-        <p>No source artifact is available for this graph.</p>
+        <h2>{jaJP.authoring.sourcePanel.source}</h2>
+        <p>{jaJP.authoring.sourcePanel.noSourceArtifact}</p>
       </aside>
     );
   }
@@ -147,7 +148,7 @@ export function SourcePanel({
     <aside className="source-panel">
       <div className="source-heading">
         <div>
-          <h2>Source</h2>
+          <h2>{jaJP.authoring.sourcePanel.source}</h2>
           <p>{document.artifact.origin}</p>
         </div>
         <span>{document.artifact.language}</span>
@@ -157,15 +158,15 @@ export function SourcePanel({
         <section className="selection-card">
           <strong>{selectedBlock.label}</strong>
           <span>
-            bytes {selectedAnchor.start_byte}–{selectedAnchor.end_byte}
+            {jaJP.authoring.sourcePanel.bytes.replace("{start}", String(selectedAnchor.start_byte)).replace("{end}", String(selectedAnchor.end_byte))}
           </span>
           <pre>{byteSnippet(document.text, selectedAnchor)}</pre>
         </section>
       ) : (
-        <p className="hint">Select a visible Block or click a source line.</p>
+        <p className="hint">{jaJP.authoring.sourcePanel.selectHint}</p>
       )}
 
-      <div className="source-code" aria-label="Source code">
+      <div className="source-code" aria-label={jaJP.authoring.sourcePanel.sourceCode}>
         {lines.map((line) => {
           const highlighted =
             selectedAnchor !== undefined &&

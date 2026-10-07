@@ -92,6 +92,7 @@ import { SourcePanel } from "./SourcePanel";
 import { TraceDetailPanel } from "./TraceDetailPanel";
 import { TraceUnmappedPanel } from "./TraceUnmappedPanel";
 import { projectExecutionTrace } from "./traceProjection";
+import { jaJP } from "./locales/ja-JP";
 
 interface Breadcrumb {
   graphId: string;
@@ -281,7 +282,7 @@ export function App() {
         setDocumentRevision((revision) => revision + 1);
         setFileStatus({
           kind: "success",
-          message: "Restored local Graph.",
+          message: jaJP.app.status.restoredLocalGraph,
         });
       })
       .catch((error: unknown) => {
@@ -290,8 +291,8 @@ export function App() {
             kind: "error",
             message:
               error instanceof Error
-                ? `Local restore unavailable: ${error.message}`
-                : "Local restore unavailable.",
+                ? jaJP.app.status.localRestoreUnavailableWithError.replace("{error}", error.message)
+                : jaJP.app.status.localRestoreUnavailable,
           });
         }
       })
@@ -393,14 +394,14 @@ export function App() {
   const undoCurrentGraph = useCallback(() => {
     if (currentHistory) {
       replaceCurrentHistory(undoGraph(currentHistory));
-      setAuthoringStatus("Undid canonical Graph change.");
+      setAuthoringStatus(jaJP.app.status.undidCanonicalGraphChange);
     }
   }, [currentHistory, replaceCurrentHistory]);
 
   const redoCurrentGraph = useCallback(() => {
     if (currentHistory) {
       replaceCurrentHistory(redoGraph(currentHistory));
-      setAuthoringStatus("Redid canonical Graph change.");
+      setAuthoringStatus(jaJP.app.status.redidCanonicalGraphChange);
     }
   }, [currentHistory, replaceCurrentHistory]);
 
@@ -417,7 +418,7 @@ export function App() {
 
     const issues = validateGraph(result.graph);
     if (issues.length > 0) {
-      setAuthoringStatus(issues[0]?.message ?? "Graph validation failed.");
+      setAuthoringStatus(issues[0]?.message ?? jaJP.app.status.graphValidationFailed);
       return;
     }
 
@@ -426,7 +427,7 @@ export function App() {
       ...current,
       [currentGraphId]: null,
     }));
-    setAuthoringStatus(`Removed ${result.removed.label}. Undo is available.`);
+    setAuthoringStatus(jaJP.app.status.removedBlock.replace("{label}", result.removed.label));
   }, [currentGraphId, currentHistory, replaceCurrentHistory, selectedBlock]);
 
   const removeSelectedConnection = useCallback(() => {
@@ -449,7 +450,7 @@ export function App() {
       [currentGraphId]: null,
     }));
     setAuthoringStatus(
-      `Removed Connection ${result.removed.id}. Undo is available.`,
+      jaJP.app.status.removedConnection.replace("{connectionId}", result.removed.id),
     );
   }, [
     currentGraphId,
@@ -610,7 +611,7 @@ export function App() {
         ...current,
         [currentGraphId]: result.block.id,
       }));
-      setAuthoringStatus(`Added ${result.block.label}. Undo is available.`);
+      setAuthoringStatus(jaJP.app.status.addedBlock.replace("{label}", result.block.label));
     },
     [
       currentGraphId,
@@ -661,7 +662,7 @@ export function App() {
       return;
     }
 
-    if (!window.confirm("Clear this local note? This cannot be undone.")) {
+    if (!window.confirm(jaJP.app.status.clearLocalNoteConfirm)) {
       return;
     }
 
@@ -674,7 +675,7 @@ export function App() {
     const resolvedPath = resolveBlockPath(navigationIndex, record);
     if (!resolvedPath) {
       setNavigationStatus(
-        `Cannot reach ${record.label} from the loaded root hierarchy.`,
+        jaJP.app.status.cannotReachFromRoot.replace("{label}", record.label),
       );
       return;
     }
@@ -716,7 +717,7 @@ export function App() {
   const validateCanonicalLink = useCallback(
     (link: DraftLink): string | null => {
       if (!currentHistory) {
-        return "This Graph is read only.";
+        return jaJP.app.status.graphReadOnly;
       }
 
       return validateConnectionCandidate(currentHistory.present.graph, {
@@ -732,7 +733,7 @@ export function App() {
   const addCanonicalConnection = useCallback(
     (link: DraftLink): string | null => {
       if (!currentHistory) {
-        return "This Graph is read only.";
+        return jaJP.app.status.graphReadOnly;
       }
 
       const result = createConnection(currentHistory.present.graph, {
@@ -756,7 +757,7 @@ export function App() {
         [currentGraphId]: result.connection.id,
       }));
       setAuthoringStatus(
-        `Created Connection ${result.connection.id}. Undo is available.`,
+        jaJP.app.status.createdConnection.replace("{connectionId}", result.connection.id),
       );
       return null;
     },
@@ -868,7 +869,7 @@ export function App() {
         setRecoveryError(
           error instanceof Error
             ? error.message
-            : "Recovery candidate discovery failed.",
+            : jaJP.app.status.recoveryDiscoveryFailed,
         );
       } finally {
         if (recoveryAbort.current === controller) {
@@ -934,9 +935,9 @@ export function App() {
 
         setExecutionPhase("failed");
         const message =
-          error instanceof Error ? error.message : "Recovery re-plan failed.";
+          error instanceof Error ? error.message : jaJP.app.status.recoveryReplanFailed;
         setRecoveryError(message);
-        setExecutionError(`Recovery re-plan blocked: ${message}`);
+        setExecutionError(jaJP.app.status.recoveryReplanBlocked.replace("{message}", message));
       } finally {
         if (executionPlanAbort.current === controller) {
           executionPlanAbort.current = null;
@@ -958,7 +959,7 @@ export function App() {
       setGrantedImplementationRefs(new Set());
       setExecutionPhase("failed");
       setExecutionError(
-        `Local Graph validation failed: ${currentValidationIssues[0]?.message ?? "invalid Graph"}`,
+        jaJP.app.status.localGraphValidationFailed.replace("{error}", currentValidationIssues[0]?.message ?? "invalid Graph"),
       );
       return;
     }
@@ -1006,7 +1007,7 @@ export function App() {
       }
       setExecutionPhase("failed");
       setExecutionError(
-        error instanceof Error ? error.message : "Runtime planning failed.",
+        error instanceof Error ? error.message : jaJP.app.status.runtimePlanningFailed,
       );
     } finally {
       if (executionPlanAbort.current === controller) {
@@ -1063,7 +1064,7 @@ export function App() {
       if (succeeded) {
         clearRecoveryContext();
       } else {
-        setExecutionError("Guarded run completed with a failed execution step.");
+        setExecutionError(jaJP.app.status.guardedRunFailedStep);
         setActiveRecoverySelections(null);
         void discoverRecoveryOptions(executionPreview.plan, result.trace);
       }
@@ -1073,7 +1074,7 @@ export function App() {
       }
       setExecutionPhase("failed");
       setExecutionError(
-        error instanceof Error ? error.message : "Guarded runtime failed.",
+        error instanceof Error ? error.message : jaJP.app.status.guardedRuntimeFailed,
       );
     }
   }, [
@@ -1092,7 +1093,7 @@ export function App() {
     if (!history) {
       setFileStatus({
         kind: "error",
-        message: "Save local is available only for an editable native Graph.",
+        message: jaJP.app.status.saveEditableOnly,
       });
       return;
     }
@@ -1102,7 +1103,7 @@ export function App() {
     if (issues.length > 0) {
       setFileStatus({
         kind: "error",
-        message: `Save blocked: ${issues[0]?.message ?? "Graph validation failed."}`,
+        message: jaJP.app.status.saveBlocked.replace("{error}", issues[0]?.message ?? jaJP.app.status.graphValidationFailed),
       });
       return;
     }
@@ -1136,15 +1137,15 @@ export function App() {
       });
       setFileStatus({
         kind: "success",
-        message: "Saved local snapshot.",
+        message: jaJP.app.status.savedLocalSnapshot,
       });
     } catch (error: unknown) {
       setFileStatus({
         kind: "error",
         message:
           error instanceof Error
-            ? `Save local failed: ${error.message}`
-            : "Save local failed.",
+            ? jaJP.app.status.saveLocalFailedWithError.replace("{error}", error.message)
+            : jaJP.app.status.saveLocalFailed,
       });
     }
   }, [
@@ -1163,7 +1164,7 @@ export function App() {
       if (executionPhase === "planning" || executionPhase === "running") {
         setFileStatus({
           kind: "error",
-          message: "Open is unavailable while runtime work is active.",
+          message: jaJP.app.status.openUnavailableDuringRuntime,
         });
         return;
       }
@@ -1171,12 +1172,12 @@ export function App() {
       if (
         activeDocumentDirty &&
         !window.confirm(
-          "Open another Graph and discard unsaved canonical changes?",
+          jaJP.app.status.discardUnsavedConfirm,
         )
       ) {
         setFileStatus({
           kind: "info",
-          message: "Open cancelled; current Graph was kept.",
+          message: jaJP.app.status.openCancelled,
         });
         return;
       }
@@ -1216,7 +1217,7 @@ export function App() {
         setDocumentRevision((revision) => revision + 1);
         setFileStatus({
           kind: "success",
-          message: `Opened ${file.name}. Save local to restore after reload.`,
+          message: jaJP.app.status.openedFile.replace("{fileName}", file.name),
         });
       } catch (error: unknown) {
         setFileStatus({
@@ -1236,15 +1237,15 @@ export function App() {
       const payload = requestCanonicalGraphDownload(currentGraph);
       setFileStatus({
         kind: "info",
-        message: `Download requested: ${payload.filename}`,
+        message: jaJP.app.status.downloadRequested.replace("{fileName}", payload.filename),
       });
     } catch (error: unknown) {
       setFileStatus({
         kind: "error",
         message:
           error instanceof Error
-            ? `Export blocked: ${error.message}`
-            : "Export blocked: Graph export failed.",
+            ? jaJP.app.status.exportBlockedWithError.replace("{error}", error.message)
+            : jaJP.app.status.exportBlocked,
       });
     }
   }
@@ -1264,7 +1265,7 @@ export function App() {
   if (!persistenceReady) {
     return (
       <div className="startup-status" role="status">
-        Restoring editor…
+        {jaJP.app.restoringEditor}
       </div>
     );
   }
@@ -1273,25 +1274,25 @@ export function App() {
     <div className="app-shell">
       <header className="app-header">
         <div className="title-block">
-          <p className="eyebrow">ALGOram</p>
+          <p className="eyebrow">{jaJP.app.brand}</p>
           <h1>{currentGraph.label ?? currentGraph.id}</h1>
         </div>
 
         <div className="header-actions">
-          <div className="header-stat" aria-label="Visible Blocks">
+          <div className="header-stat" aria-label={jaJP.app.visibleBlocks}>
             <strong>{currentGraph.blocks.length}</strong>
-            <span>Blocks</span>
+            <span>{jaJP.app.blocks}</span>
           </div>
           <div className="header-editor-status" aria-live="polite">
-            <span>{currentHistory ? "Editable" : "Read only"}</span>
+            <span>{currentHistory ? jaJP.common.states.editable : jaJP.common.states.readOnly}</span>
             {currentHistory ? (
-              <span>{currentGraphDirty ? "Modified" : "Clean"}</span>
+              <span>{currentGraphDirty ? jaJP.common.states.modified : jaJP.common.states.clean}</span>
             ) : null}
           </div>
           {currentHistory ? (
             <div
               className="history-actions desktop-history-actions"
-              aria-label="Graph history"
+              aria-label={jaJP.app.graphHistory}
             >
               <button
                 type="button"
@@ -1299,7 +1300,7 @@ export function App() {
                 onClick={undoCurrentGraph}
                 disabled={currentHistory.past.length === 0}
               >
-                Undo
+                {jaJP.common.actions.undo}
               </button>
               <button
                 type="button"
@@ -1307,7 +1308,7 @@ export function App() {
                 onClick={redoCurrentGraph}
                 disabled={currentHistory.future.length === 0}
               >
-                Redo
+                {jaJP.common.actions.redo}
               </button>
             </div>
           ) : null}
@@ -1319,12 +1320,12 @@ export function App() {
             aria-controls="runtime-execution-panel"
           >
             {executionPhase === "planning"
-              ? "Planning…"
+              ? jaJP.app.planning
               : executionPhase === "failed"
-                ? "Retry plan"
+                ? jaJP.app.retryPlan
                 : executionPreview
-                  ? "Replan"
-                  : "Plan"}
+                  ? jaJP.app.replan
+                  : jaJP.app.plan}
           </button>
           {executionPhase === "ready" && executionPreview ? (
             <button
@@ -1335,11 +1336,11 @@ export function App() {
               aria-controls="runtime-execution-panel"
               title={
                 allExecutionGrantsApproved
-                  ? "Run through guarded host runtime"
-                  : "Grant every listed host-process requirement before Run"
+                  ? jaJP.app.runThroughGuardedHostRuntime
+                  : jaJP.app.grantBeforeRun
               }
             >
-              Run
+              {jaJP.app.run}
             </button>
           ) : null}
           <FileMenu
@@ -1360,7 +1361,7 @@ export function App() {
             aria-pressed={inspectorOpen}
             onClick={() => setInspectorOpen((open) => !open)}
           >
-            Inspector
+            {jaJP.app.inspector}
           </button>
           <HeaderOverflowMenu
             historyAvailable={currentHistory !== null}
@@ -1374,7 +1375,7 @@ export function App() {
         </div>
       </header>
 
-      <nav className="breadcrumbs" aria-label="Graph hierarchy">
+      <nav className="breadcrumbs" aria-label={jaJP.app.graphHierarchy}>
         {path.map((entry, index) => (
           <button
             key={`${entry.graphId}:${index}`}
@@ -1398,7 +1399,7 @@ export function App() {
           inspectorOpen ? "workspace inspector-open" : "workspace inspector-closed"
         }
       >
-        <section className="graph-region" aria-label="Graph editor">
+        <section className="graph-region" aria-label={jaJP.app.graphEditor}>
           <GraphCanvas
             graph={currentGraph}
             editable={currentHistory !== null}
@@ -1430,7 +1431,7 @@ export function App() {
           <aside
             id="inspector-panel"
             className="inspector-region"
-            aria-label="Block inspector"
+            aria-label={jaJP.app.blockInspector}
           >
             <div id="runtime-execution-panel">
               <ExecutionPanel
@@ -1448,8 +1449,7 @@ export function App() {
               />
               {activeRecoverySelections ? (
                 <p className="inline-status recovery-applied-status" role="status">
-                  Current preview uses explicit manual recovery selections.
-                  Run will replan with the same selections before execution.
+                  {jaJP.app.recoverySelectionsHint}
                 </p>
               ) : null}
               <RecoveryPanel
@@ -1466,7 +1466,7 @@ export function App() {
               ) : null}
               {traceProjectionError ? (
                 <p className="inline-status error-text" role="alert">
-                  Observed trace hidden: {traceProjectionError}
+                  {jaJP.app.observedTraceHidden.replace("{error}", traceProjectionError)}
                 </p>
               ) : null}
             </div>
@@ -1484,7 +1484,7 @@ export function App() {
                 <>
                   <div className="panel-heading-row">
                     <div>
-                      <p className="eyebrow">Selected Connection</p>
+                      <p className="eyebrow">{jaJP.app.selectedConnection}</p>
                       <h2>{selectedConnection.id}</h2>
                       <p className="block-id">
                         {selectedConnection.source.block_id}.
@@ -1498,7 +1498,7 @@ export function App() {
                       className="tertiary-action"
                       onClick={() => selectConnection(null)}
                     >
-                      Clear
+                      {jaJP.common.actions.clear}
                     </button>
                   </div>
 
@@ -1509,12 +1509,12 @@ export function App() {
                         className="danger-action"
                         onClick={removeSelectedConnection}
                       >
-                        Remove Connection
+                        {jaJP.app.removeConnection}
                       </button>
                     </div>
                   ) : (
                     <p className="compact-hint">
-                      This Connection is read only in the derived Graph.
+                      {jaJP.app.connectionReadOnly}
                     </p>
                   )}
 
@@ -1528,7 +1528,7 @@ export function App() {
                 <>
                   <div className="panel-heading-row">
                     <div>
-                      <p className="eyebrow">Selected Block</p>
+                      <p className="eyebrow">{jaJP.app.selectedBlock}</p>
                       <h2>{selectedBlock.label}</h2>
                       <p className="block-id">{selectedBlock.id}</p>
                     </div>
@@ -1553,7 +1553,7 @@ export function App() {
                           )
                         }
                       >
-                        Open graph
+                        {jaJP.app.openGraph}
                       </button>
                     ) : null}
                     {selectedRouteGraphId ? (
@@ -1563,11 +1563,11 @@ export function App() {
                         onClick={() =>
                           openGraphWithLabel(
                             selectedRouteGraphId,
-                            "Actual selected route",
+                            jaJP.app.actualSelectedRoute,
                           )
                         }
                       >
-                        Route
+                        {jaJP.app.route}
                       </button>
                     ) : null}
                     {currentHistory ? (
@@ -1576,7 +1576,7 @@ export function App() {
                         className="danger-action"
                         onClick={removeSelectedBlock}
                       >
-                        Remove Block
+                        {jaJP.app.removeBlock}
                       </button>
                     ) : null}
                   </div>
@@ -1623,8 +1623,7 @@ export function App() {
               ) : (
                 <>
                   <p className="hint">
-                    Select a Block to inspect properties, source, or create a
-                    presentation-only draft link.
+                    {jaJP.app.selectBlockHint}
                   </p>
                   {authoringStatus ? (
                     <p className="inline-status" role="status">
