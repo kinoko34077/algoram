@@ -519,10 +519,7 @@ impl RuntimeBridgeService {
             .map(|(preview, _)| preview)
     }
 
-    pub fn recovery_run(
-        &self,
-        request: &RecoveryRunRequest,
-    ) -> Result<RunResponse, BridgeError> {
+    pub fn recovery_run(&self, request: &RecoveryRunRequest) -> Result<RunResponse, BridgeError> {
         self.run_selected(
             &request.graph,
             &request.expected_plan,
@@ -588,7 +585,11 @@ impl RuntimeBridgeService {
             };
 
             for block_id in &step.origin_block_ids {
-                let Some(block) = request.graph.blocks.iter().find(|block| block.id == *block_id)
+                let Some(block) = request
+                    .graph
+                    .blocks
+                    .iter()
+                    .find(|block| block.id == *block_id)
                 else {
                     continue;
                 };
@@ -1274,17 +1275,17 @@ mod tests {
             })
             .unwrap();
 
-        assert_eq!(options.report.impact.failed_block_ids, vec!["block:bridge-test"]);
+        assert_eq!(
+            options.report.impact.failed_block_ids,
+            vec!["block:bridge-test"]
+        );
         assert_eq!(options.implementation_candidates.len(), 1);
         assert_eq!(
             options.implementation_candidates[0]
                 .candidates
                 .trusted_local
                 .iter()
-                .map(|candidate| (
-                    candidate.implementation_ref.as_str(),
-                    candidate.is_default
-                ))
+                .map(|candidate| (candidate.implementation_ref.as_str(), candidate.is_default))
                 .collect::<Vec<_>>(),
             vec![("impl:provider-a", true), ("impl:provider-b", false)]
         );
@@ -1321,7 +1322,10 @@ mod tests {
                 selections,
             })
             .unwrap();
-        assert_eq!(recovered.plan.steps[0].implementation_ref, "impl:provider-b");
+        assert_eq!(
+            recovered.plan.steps[0].implementation_ref,
+            "impl:provider-b"
+        );
 
         let default_again = service.plan(&graph).unwrap();
         assert_eq!(
