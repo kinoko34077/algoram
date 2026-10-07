@@ -1,0 +1,732 @@
+{
+  "schema_version": "algoram.graph-validation-parity/1",
+  "cases": [
+    {
+      "name": "valid",
+      "expected": null,
+      "graph": {
+        "schema_version": "algoram.graph/0.1",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "data"
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "unsupported-schema-version",
+      "expected": "unsupported-schema-version",
+      "graph": {
+        "schema_version": "algoram.graph/9",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "data"
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate-source-artifact-id",
+      "expected": "duplicate-source-artifact-id",
+      "graph": {
+        "schema_version": "algoram.graph/0.1",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "data"
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          },
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate-block-id",
+      "expected": "duplicate-block-id",
+      "graph": {
+        "schema_version": "algoram.graph/0.1",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "data"
+              }
+            ]
+          },
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate-port-id",
+      "expected": "duplicate-port-id",
+      "graph": {
+        "schema_version": "algoram.graph/0.1",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              },
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "data"
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid-source-anchor-range",
+      "expected": "invalid-source-anchor-range",
+      "graph": {
+        "schema_version": "algoram.graph/0.1",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 5,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "data"
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "missing-source-artifact",
+      "expected": "missing-source-artifact",
+      "graph": {
+        "schema_version": "algoram.graph/0.1",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:missing",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "data"
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate-connection-id",
+      "expected": "duplicate-connection-id",
+      "graph": {
+        "schema_version": "algoram.graph/0.1",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "data"
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          },
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "missing-block",
+      "expected": "missing-block",
+      "graph": {
+        "schema_version": "algoram.graph/0.1",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "data"
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:missing",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "missing-port",
+      "expected": "missing-port",
+      "graph": {
+        "schema_version": "algoram.graph/0.1",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "data"
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "missing"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "invalid-connection-direction",
+      "expected": "invalid-connection-direction",
+      "graph": {
+        "schema_version": "algoram.graph/0.1",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "in",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "data"
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    },
+    {
+      "name": "channel-mismatch",
+      "expected": "channel-mismatch",
+      "graph": {
+        "schema_version": "algoram.graph/0.1",
+        "id": "graph:validation-parity",
+        "label": "Validation parity",
+        "blocks": [
+          {
+            "id": "block:source",
+            "label": "Source",
+            "ports": [
+              {
+                "id": "out",
+                "direction": "out",
+                "channel": "data"
+              }
+            ],
+            "source_anchor": {
+              "artifact_id": "artifact:source",
+              "start_byte": 0,
+              "end_byte": 4
+            }
+          },
+          {
+            "id": "block:target",
+            "label": "Target",
+            "ports": [
+              {
+                "id": "in",
+                "direction": "in",
+                "channel": "flow"
+              }
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "id": "connection:one",
+            "source": {
+              "block_id": "block:source",
+              "port_id": "out"
+            },
+            "target": {
+              "block_id": "block:target",
+              "port_id": "in"
+            }
+          }
+        ],
+        "source_artifacts": [
+          {
+            "id": "artifact:source",
+            "origin": "fixture.txt",
+            "language": "text"
+          }
+        ]
+      }
+    }
+  ]
+}

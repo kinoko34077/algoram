@@ -160,6 +160,31 @@ textarea:focus-visible,
   font-size: 13px;
 }
 
+.header-editor-status,
+.history-actions,
+.graph-state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.header-editor-status {
+  color: var(--color-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.header-editor-status span + span::before {
+  content: "·";
+  margin-right: var(--space-1);
+  color: var(--color-faint);
+}
+
+.history-actions {
+  border-left: 1px solid var(--color-border);
+  padding-left: var(--space-1);
+}
+
 .secondary-action,
 .tertiary-action,
 .danger-action {
@@ -251,7 +276,8 @@ textarea:focus-visible,
 
 .search-controls label,
 .draft-link-form label,
-.annotation-panel label {
+.annotation-panel label,
+.graph-property-form label {
   display: grid;
   gap: 3px;
   color: var(--color-muted);
@@ -262,7 +288,8 @@ textarea:focus-visible,
 .search-controls input,
 .search-controls select,
 .draft-link-form select,
-.annotation-panel textarea {
+.annotation-panel textarea,
+.graph-property-form input {
   width: 100%;
   min-height: var(--control-height);
   border: 1px solid var(--color-border);
@@ -693,13 +720,100 @@ textarea:focus-visible,
   scrollbar-width: thin;
 }
 
+.graph-authoring-panel,
 .block-inspector,
 .source-panel {
   padding: var(--space-3);
 }
 
+.graph-authoring-panel,
 .block-inspector {
   border-bottom: 1px solid var(--color-border);
+}
+
+.graph-authoring-panel {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.graph-authoring-panel .panel-heading-row > div:first-child {
+  min-width: 0;
+}
+
+.graph-authoring-panel .panel-heading-row strong {
+  display: block;
+  overflow: hidden;
+  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-state {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.state-chip {
+  padding: 1px 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-muted);
+  font-size: 8px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.state-chip.editable {
+  border-color: #426182;
+  color: #a9c7e5;
+}
+
+.state-chip.modified {
+  border-color: var(--color-accent-border);
+  color: #cfbbff;
+}
+
+.state-chip.valid {
+  border-color: #3d684f;
+  color: #9fd3b2;
+}
+
+.state-chip.invalid {
+  border-color: #75444c;
+  color: var(--color-error);
+}
+
+.graph-property-form {
+  display: grid;
+  gap: 4px;
+}
+
+.graph-validation {
+  padding: var(--space-2);
+  border: 1px solid #75444c;
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-soft);
+  color: var(--color-error);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.graph-validation strong {
+  color: var(--color-text-strong);
+  font-size: 10px;
+}
+
+.graph-validation ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+
+.graph-validation p {
+  margin: 4px 0 0;
 }
 
 .panel-heading-row,
@@ -865,6 +979,12 @@ textarea:focus-visible,
     align-items: flex-start;
   }
 
+  .header-actions {
+    max-width: 68vw;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
   .title-block {
     display: grid;
     gap: 1px;
@@ -903,6 +1023,10 @@ textarea:focus-visible,
   .header-stat,
   .canvas-help {
     display: none;
+  }
+
+  .header-editor-status {
+    font-size: 9px;
   }
 
   .canvas-toolbar {
