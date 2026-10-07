@@ -63,6 +63,7 @@ import {
 import { SearchPanel } from "./SearchPanel";
 import { SourcePanel } from "./SourcePanel";
 import { TraceDetailPanel } from "./TraceDetailPanel";
+import { TraceUnmappedPanel } from "./TraceUnmappedPanel";
 import { projectExecutionTrace } from "./traceProjection";
 
 interface Breadcrumb {
@@ -1021,6 +1022,9 @@ export function App() {
                 onRetryPlan={planCurrentGraph}
                 onDismiss={dismissExecutionPreview}
               />
+              {currentTraceProjection ? (
+                <TraceUnmappedPanel projection={currentTraceProjection} />
+              ) : null}
               {traceProjectionError ? (
                 <p className="inline-status error-text" role="alert">
                   Observed trace hidden: {traceProjectionError}
