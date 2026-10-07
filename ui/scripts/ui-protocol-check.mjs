@@ -69,6 +69,9 @@ assert.match(canvas, /nodesConnectable=\{editable\}/);
 assert.match(canvas, /onEdgeClick=/);
 assert.match(canvas, /selectedConnectionId/);
 assert.match(canvas, /onAddConnection/);
+assert.match(canvas, /traceProjection/);
+assert.match(canvas, /node-observed-status/);
+assert.match(canvas, /Observed \{Object\.keys\(traceProjection\.byBlockId\)\.length\} Blocks/);
 
 assert.match(palette, /aria-label="Reusable Block palette"/);
 assert.match(palette, /type="search"/);
@@ -154,6 +157,21 @@ assert.equal(bridge.includes("child_process"), false);
 assert.equal(bridge.includes("node:"), false);
 
 assert.match(app, /projectExecutionTrace/);
+assert.match(app, /TraceDetailPanel/);
+assert.match(app, /TraceUnmappedPanel/);
+assert.match(traceDetail, /aria-label="Observed run for selected Block"/);
+assert.match(traceDetail, /Observed route/);
+assert.match(traceDetail, /canonical Graph Connection IDs/);
+assert.match(traceDetail, /<details className="trace-output">/);
+assert.match(traceUnmapped, /unmapped trace origin/);
+assert.match(traceUnmapped, /not attached to a visible Block by inference/);
+assert.match(traceProjection, /trace\.reference_graph_id !== graph\.id/);
+assert.match(traceProjection, /origin_block_ids\.filter/);
+assert.equal(traceProjection.includes("runtime_ref"), false);
+assert.match(styles, /\.node-observed-status\.succeeded/);
+assert.match(styles, /\.trace-detail-panel/);
+
+assert.match(app, /projectExecutionTrace/);
 assert.match(app, /traceProjection=\{currentTraceProjection\}/);
 assert.match(app, /TraceDetailPanel/);
 assert.match(app, /TraceUnmappedPanel/);
@@ -197,6 +215,8 @@ console.log(
     unique_explicit_grants: "pass",
     execution_retry_replans: "pass",
     execution_plan_cancel: "pass",
+    observed_trace_overlay: "pass",
+    trace_evidence_boundary: "pass",
     observed_trace_overlay: "pass",
     trace_text_symbol_semantics: "pass",
     unmapped_trace_evidence: "pass",
