@@ -62,6 +62,9 @@ import {
 } from "./runtimeBridge";
 import { SearchPanel } from "./SearchPanel";
 import { SourcePanel } from "./SourcePanel";
+import { TraceDetailPanel } from "./TraceDetailPanel";
+import { TraceUnmappedPanel } from "./TraceUnmappedPanel";
+import { projectExecutionTrace } from "./traceProjection";
 
 interface Breadcrumb {
   graphId: string;
@@ -183,6 +186,19 @@ export function App() {
     () => validateGraph(currentGraph),
     [currentGraph],
   );
+  const traceProjectionResult = useMemo(
+    () =>
+      executionResult
+        ? projectExecutionTrace(currentGraph, executionResult.trace)
+        : null,
+    [currentGraph, executionResult],
+  );
+  const currentTraceProjection =
+    traceProjectionResult?.ok === true
+      ? traceProjectionResult.projection
+      : null;
+  const traceProjectionError =
+    traceProjectionResult?.ok === false ? traceProjectionResult.reason : null;
 
   useEffect(() => {
     setExportStatus(null);
@@ -201,6 +217,10 @@ export function App() {
       currentGraph.blocks.find((block) => block.id === selectedBlockId) ?? null,
     [currentGraph, selectedBlockId],
   );
+  const selectedTraceObservation =
+    selectedBlockId && currentTraceProjection
+      ? currentTraceProjection.byBlockId[selectedBlockId]
+      : undefined;
   const selectedConnection = useMemo(
     () =>
       currentGraph.connections.find(
@@ -960,6 +980,7 @@ export function App() {
             editable={currentHistory !== null}
             blockTemplates={blockTemplates}
             authoringStatus={authoringStatus}
+            traceProjection={currentTraceProjection}
             selectedBlockId={selectedBlockId}
             selectedConnectionId={selectedConnectionId}
             focusRequest={
@@ -1001,6 +1022,14 @@ export function App() {
                 onRetryPlan={planCurrentGraph}
                 onDismiss={dismissExecutionPreview}
               />
+              {currentTraceProjection ? (
+                <TraceUnmappedPanel projection={currentTraceProjection} />
+              ) : null}
+              {traceProjectionError ? (
+                <p className="inline-status error-text" role="alert">
+                  Observed trace hidden: {traceProjectionError}
+                </p>
+              ) : null}
             </div>
 
             <GraphAuthoringPanel
@@ -1117,6 +1146,10 @@ export function App() {
                     <p className="inline-status" role="status">
                       {authoringStatus}
                     </p>
+                  ) : null}
+
+                  {selectedTraceObservation ? (
+                    <TraceDetailPanel observation={selectedTraceObservation} />
                   ) : null}
 
                   <DraftLinkPanel

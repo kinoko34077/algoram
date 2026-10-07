@@ -34,6 +34,12 @@ import {
   type DraftLink,
   type GraphPresentationState,
 } from "./presentation";
+import {
+  observedStatusLabel,
+  observedStatusSymbol,
+  type BlockTraceObservation,
+  type TraceProjection,
+} from "./traceProjection";
 
 interface GraphFocusRequest {
   blockId: string;
@@ -45,6 +51,7 @@ interface GraphCanvasProps {
   editable: boolean;
   blockTemplates: ReusableBlockTemplate[];
   authoringStatus: string | null;
+  traceProjection: TraceProjection | null;
   selectedBlockId: string | null;
   selectedConnectionId: string | null;
   focusRequest: GraphFocusRequest | null;
@@ -100,12 +107,23 @@ function PortLabel({
 
 function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
   const { block } = data;
+  const observation = data.traceObservation as
+    | BlockTraceObservation
+    | undefined;
   const ports = block.ports ?? [];
   const inputs = ports.filter((port) => port.direction === "in");
   const outputs = ports.filter((port) => port.direction === "out");
 
+  const nodeClassName = [
+    "algoram-node",
+    selected ? "selected" : "",
+    observation ? `observed-${observation.status}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className={selected ? "algoram-node selected" : "algoram-node"}>
+    <div className={nodeClassName}>
       {inputs.map((port, index) => (
         <Handle
           key={port.id}
@@ -163,6 +181,17 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
       )}
 
       <div className="node-meta">
+        {observation ? (
+          <span
+            className={`observed-status ${observation.status}`}
+            title={`Observed run: ${observedStatusLabel(observation.status)}`}
+          >
+            <b aria-hidden="true">
+              {observedStatusSymbol(observation.status)}
+            </b>
+            {observedStatusLabel(observation.status)}
+          </span>
+        ) : null}
         {block.source_anchor ? <span>source</span> : null}
         {block.diagnostics?.length ? (
           <span>{block.diagnostics.length} diag</span>
@@ -257,6 +286,7 @@ function CanvasBody({
   editable,
   blockTemplates,
   authoringStatus,
+  traceProjection,
   selectedBlockId,
   selectedConnectionId,
   focusRequest,
@@ -387,8 +417,12 @@ function CanvasBody({
       baseNodes.map((node) => ({
         ...node,
         selected: node.id === selectedBlockId,
+        data: {
+          ...node.data,
+          traceObservation: traceProjection?.byBlockId[node.id],
+        },
       })),
-    [baseNodes, selectedBlockId],
+    [baseNodes, selectedBlockId, traceProjection],
   );
 
   const handleNodesChange = useCallback(
@@ -581,6 +615,14 @@ function CanvasBody({
 
         <div className="canvas-status" aria-live="polite">
           <span>{presentation.draftLinks.length} drafts</span>
+          {traceProjection ? (
+            <span>
+              Observed {Object.keys(traceProjection.byBlockId).length} Blocks
+              {traceProjection.unmappedOrigins.length > 0
+                ? ` · ${traceProjection.unmappedOrigins.length} unmapped origin${traceProjection.unmappedOrigins.length === 1 ? "" : "s"}`
+                : ""}
+            </span>
+          ) : null}
           {authoringStatus ? <span>{authoringStatus}</span> : null}
           {!authoringStatus && interactionStatus ? (
             <span>{interactionStatus}</span>
