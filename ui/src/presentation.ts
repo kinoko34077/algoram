@@ -5,6 +5,12 @@ export interface NodePosition {
   y: number;
 }
 
+export interface ViewportState {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
 export interface DraftLink {
   id: string;
   sourceBlockId: string;
@@ -16,6 +22,7 @@ export interface DraftLink {
 export interface GraphPresentationState {
   positions: Record<string, NodePosition>;
   draftLinks: DraftLink[];
+  viewport?: ViewportState;
 }
 
 export const EMPTY_GRAPH_PRESENTATION: GraphPresentationState = {
@@ -154,4 +161,34 @@ export function resetNodePositions(
     ...state,
     positions: {},
   };
+}
+
+export function setPresentationViewport(
+  state: GraphPresentationState,
+  viewport: ViewportState,
+): GraphPresentationState {
+  const current = state.viewport;
+  if (
+    current?.x === viewport.x &&
+    current.y === viewport.y &&
+    current.zoom === viewport.zoom
+  ) {
+    return state;
+  }
+
+  return {
+    ...state,
+    viewport: { ...viewport },
+  };
+}
+
+export function clearPresentationViewport(
+  state: GraphPresentationState,
+): GraphPresentationState {
+  if (!state.viewport) {
+    return state;
+  }
+
+  const { viewport: _viewport, ...rest } = state;
+  return rest;
 }
