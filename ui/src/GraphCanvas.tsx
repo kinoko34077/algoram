@@ -629,7 +629,6 @@ function CanvasBody({
             disableKeyboardA11y={false}
             ariaLabelConfig={ariaLabelConfig}
             deleteKeyCode={null}
-            fitView
             colorMode="dark"
             connectionLineStyle={{
               stroke: "var(--color-accent)",
