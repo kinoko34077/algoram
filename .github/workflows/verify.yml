@@ -72,6 +72,8 @@ jobs:
         run: npm run test:export
       - name: Runtime bridge browser authority checks
         run: npm run test:runtime-bridge
+      - name: Execution trace projection checks
+        run: npm run test:trace-projection
       - name: ELK layout performance baseline
         run: npm run perf:baseline
 
