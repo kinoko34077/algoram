@@ -151,6 +151,9 @@ export function App() {
     bearerToken: "",
   });
   const [executionOpen, setExecutionOpen] = useState(false);
+  const executionButtonRef = useRef<HTMLButtonElement>(null);
+  const executionDrawerRef = useRef<HTMLElement>(null);
+  useEffect(() => { if (executionOpen) executionDrawerRef.current?.focus(); }, [executionOpen]);
   const [executionPhase, setExecutionPhase] =
     useState<ExecutionPhase>("idle");
   const [executionPreview, setExecutionPreview] =
@@ -1326,6 +1329,7 @@ export function App() {
           </button>
           <button
             type="button"
+            ref={executionButtonRef}
             className="secondary-action execution-entry-action"
             aria-controls="runtime-execution-panel"
             aria-expanded={executionOpen}
