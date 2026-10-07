@@ -21,7 +21,8 @@ jobs:
 
       - name: Inspect live Pages shell
         run: |
-          curl --fail --silent --show-error --location --dump-header /tmp/algoram-headers.txt --output /tmp/algoram-index.html https://kinoko34077.github.io/algoram/
+          url="https://kinoko34077.github.io/algoram/?smoke=$(date +%s)"
+          curl --fail --silent --show-error --location --dump-header /tmp/algoram-headers.txt --output /tmp/algoram-index.html "$url"
           cat /tmp/algoram-headers.txt
           cat /tmp/algoram-index.html
           grep -F '<html lang="ja">' /tmp/algoram-index.html
@@ -29,7 +30,7 @@ jobs:
 
       - name: Verify live Japanese Pages at desktop and narrow sizes
         env:
-          ALGOTRAM_PAGES_URL: https://kinoko34077.github.io/algoram/
+          ALGORAM_PAGES_URL: https://kinoko34077.github.io/algoram/
         run: |
           python - <<'PY'
           import json
@@ -40,9 +41,7 @@ jobs:
           from selenium.webdriver.common.by import By
           from selenium.webdriver.support.ui import WebDriverWait
 
-          url = os.environ["ALGOTRAM_PAGES_URL"]
-          markers = ["ブロック", "実行計画", "ファイル", "インスペクター", "グラフ検索"]
-          aria_labels = ["グラフ階層", "グラフエディター"]
+          base_url = os.environ["ALGORAM_PAGES_URL"]
           sizes = [(480, 900), (1440, 900)]
           results = []
 
@@ -57,6 +56,7 @@ jobs:
           try:
             for width, height in sizes:
               driver.set_window_size(width, height)
+              url = f"{base_url}?smoke={int(time.time() * 1000)}-{width}"
               driver.get(url)
               try:
                 WebDriverWait(driver, 20).until(
@@ -84,42 +84,95 @@ jobs:
                 "  innerWidth: window.innerWidth"
                 "}"
               )
-              missing_markers = [marker for marker in markers if marker not in body_text]
-              missing_aria = [
-                label
-                for label in aria_labels
-                if not driver.find_elements(By.CSS_SELECTOR, f'[aria-label="{label}"]')
-              ]
-              severe_console = [
-                entry
-                for entry in driver.get_log("browser")
-                if entry.get("level") == "SEVERE"
-              ]
+
+              header_block_label = driver.find_element(By.CSS_SELECTOR, ".header-stat span").text
+              plan_label = driver.find_element(
+                By.CSS_SELECTOR, 'button[aria-controls="runtime-execution-panel"]'
+              ).text
+              file_label = driver.find_element(
+                By.CSS_SELECTOR, ".file-menu > summary"
+              ).text
+              search_label = driver.find_element(
+                By.CSS_SELECTOR, ".search-panel"
+              ).get_attribute("aria-label")
+              graph_editor_label = driver.find_element(
+                By.CSS_SELECTOR, ".graph-region"
+              ).get_attribute("aria-label")
 
               assert lang == "ja", f"{width}x{height}: expected html lang=ja, got {lang!r}"
-              assert not missing_markers, f"{width}x{height}: missing Japanese copy {missing_markers}"
-              assert not missing_aria, f"{width}x{height}: missing Japanese aria labels {missing_aria}"
+              assert header_block_label == "ブロック", (
+                f"{width}x{height}: header block label {header_block_label!r}"
+              )
+              assert plan_label in {"実行計画", "計画中…", "計画を再試行", "再計画"}, (
+                f"{width}x{height}: plan label {plan_label!r}"
+              )
+              assert file_label == "ファイル", f"{width}x{height}: file label {file_label!r}"
+              assert search_label == "グラフ検索", (
+                f"{width}x{height}: search aria-label {search_label!r}"
+              )
+              assert graph_editor_label == "グラフエディター", (
+                f"{width}x{height}: graph editor aria-label {graph_editor_label!r}"
+              )
+
+              if width <= 600:
+                overflow_summary = driver.find_element(
+                  By.CSS_SELECTOR, ".header-overflow-menu > summary"
+                )
+                assert overflow_summary.text == "その他", (
+                  f"{width}x{height}: overflow label {overflow_summary.text!r}"
+                )
+                driver.execute_script("arguments[0].click()", overflow_summary)
+                overflow_text = driver.find_element(
+                  By.CSS_SELECTOR, ".header-overflow-popover"
+                ).text
+                assert (
+                  "インスペクターを隠す" in overflow_text
+                  or "インスペクターを表示" in overflow_text
+                ), f"{width}x{height}: localized inspector action absent: {overflow_text!r}"
+              else:
+                inspector_label = driver.find_element(
+                  By.CSS_SELECTOR, ".inspector-header-action"
+                ).text
+                assert inspector_label == "インスペクター", (
+                  f"{width}x{height}: inspector label {inspector_label!r}"
+                )
+
               assert (
                 document_metrics["scrollWidth"] <= document_metrics["clientWidth"] + 1
               ), (
                 f"{width}x{height}: horizontal overflow "
                 f"{document_metrics['scrollWidth']} > {document_metrics['clientWidth']}"
               )
-              assert not severe_console, f"{width}x{height}: severe console entries {severe_console}"
 
-              results.append(
-                {
-                  "viewport": f"{width}x{height}",
-                  "lang": lang,
-                  "japanese_markers": "pass",
-                  "japanese_aria": "pass",
-                  "horizontal_overflow": "none",
-                  "console_severe": 0,
-                  "document_metrics": document_metrics,
-                }
+              severe_console = [
+                entry
+                for entry in driver.get_log("browser")
+                if entry.get("level") == "SEVERE"
+              ]
+              assert not severe_console, (
+                f"{width}x{height}: severe console entries {severe_console}"
               )
+
+              results.append({
+                "viewport": f"{width}x{height}",
+                "lang": lang,
+                "header_block_label": header_block_label,
+                "plan_label": plan_label,
+                "file_label": file_label,
+                "search_aria": search_label,
+                "graph_editor_aria": graph_editor_label,
+                "inspector_surface": "localized",
+                "horizontal_overflow": "none",
+                "console_severe": 0,
+                "document_metrics": document_metrics,
+                "body_sample": body_text[:500],
+              })
           finally:
             driver.quit()
 
-          print(json.dumps({"kind": "live-japanese-pages-smoke", "url": url, "results": results}, ensure_ascii=False))
+          print(json.dumps({
+            "kind": "live-japanese-pages-smoke",
+            "url": base_url,
+            "results": results,
+          }, ensure_ascii=False))
           PY
