@@ -5,7 +5,7 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-const [app, canvas, palette, draft, search, annotation, authoring, execution, bridge, traceDetail, traceUnmapped, traceProjection, styles, traceStyles] = await Promise.all([
+const [app, canvas, palette, draft, search, annotation, authoring, execution, bridge, traceDetail, traceUnmapped, traceProjection, styles] = await Promise.all([
   source("../src/App.tsx"),
   source("../src/GraphCanvas.tsx"),
   source("../src/BlockPalette.tsx"),
@@ -19,7 +19,6 @@ const [app, canvas, palette, draft, search, annotation, authoring, execution, br
   source("../src/TraceUnmappedPanel.tsx"),
   source("../src/traceProjection.ts"),
   source("../src/styles.css"),
-  source("../src/trace.css"),
 ]);
 
 assert.match(styles, /--inspector-width:\s*328px/);
@@ -172,10 +171,10 @@ assert.match(traceProjection, /trace\.reference_graph_id !== graph\.id/);
 assert.match(traceProjection, /origin_block_ids/);
 assert.match(traceProjection, /unmappedOrigins/);
 assert.equal(traceProjection.includes("runtime_ref"), false);
-assert.match(traceStyles, /\.observed-status\.succeeded/);
-assert.match(traceStyles, /\.observed-status\.failed/);
-assert.match(traceStyles, /\.trace-detail-panel/);
-assert.match(traceStyles, /overflow-wrap:\s*anywhere/);
+assert.match(styles, /\.observed-status\.succeeded/);
+assert.match(styles, /\.observed-status\.failed/);
+assert.match(styles, /\.trace-detail-panel/);
+assert.match(styles, /overflow-wrap:\s*anywhere/);
 
 console.log(
   JSON.stringify({
