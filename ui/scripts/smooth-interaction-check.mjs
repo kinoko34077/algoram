@@ -8,7 +8,12 @@ const canvas = await readFile(
 const app = await readFile(new URL("../src/App.tsx", import.meta.url), "utf8");
 
 assert.match(canvas, /!pointerDragActive\.current/);
-assert.match(canvas, /pointerDragActive\.current = true/);\nassert.match(canvas, /pointerDragActive\.current = false/);\nassert.match(\n  canvas,\n  /onNodeDragStop=\{\(_, node\) => \{[\s\S]*?commitNodePosition\(node\);[\s\S]*?node-drag-stop[\s\S]*?\}\}/,\n);
+assert.match(canvas, /pointerDragActive\.current = true/);
+assert.match(canvas, /pointerDragActive\.current = false/);
+assert.match(
+  canvas,
+  /onNodeDragStop=\{\(_, node\) => \{[\s\S]*?commitNodePosition\(node\);[\s\S]*?node-drag-stop[\s\S]*?\}\}/,
+);
 assert.match(canvas, /onlyRenderVisibleElements/);
 assert.match(canvas, /autoPanOnNodeFocus=\{false\}/);
 assert.match(canvas, /focusRequest\.blockId/);
