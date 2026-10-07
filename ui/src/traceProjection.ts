@@ -1,5 +1,6 @@
 import type { AlgoramGraph } from "./algoram";
 import type { ExecutionTrace, TraceEntry } from "./runtimeBridge";
+import { jaJP } from "./locales/ja-JP";
 
 export type ObservedBlockStatus =
   | "succeeded"
@@ -99,9 +100,9 @@ export function projectExecutionTrace(
   if (trace.reference_graph_id !== graph.id) {
     return {
       ok: false,
-      reason:
-        `ExecutionTrace references Graph '${trace.reference_graph_id}', ` +
-        `but the current Graph is '${graph.id}'.`,
+      reason: jaJP.errors.traceProjection.graphMismatch
+        .replace("{traceGraphId}", trace.reference_graph_id)
+        .replace("{currentGraphId}", graph.id),
     };
   }
 
@@ -164,13 +165,13 @@ export function projectExecutionTrace(
 export function observedStatusLabel(status: ObservedBlockStatus): string {
   switch (status) {
     case "succeeded":
-      return "Succeeded";
+      return jaJP.trace.status.succeeded;
     case "failed":
-      return "Failed";
+      return jaJP.trace.status.failed;
     case "not_run":
-      return "Not run";
+      return jaJP.trace.status.notRun;
     case "mixed":
-      return "Mixed";
+      return jaJP.trace.status.mixed;
   }
 }
 
