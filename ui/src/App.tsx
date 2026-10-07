@@ -57,7 +57,6 @@ import {
 } from "./presentation";
 import { markEditorPerformance } from "./perfMarks";
 import {
-  emptyRecoverySelections,
   hasExecutableRecoverySelection,
   planGraph,
   recoveryOptions as requestRecoveryOptions,
