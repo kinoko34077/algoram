@@ -395,6 +395,7 @@ impl RuntimeBridgeService {
 
     fn selected_implementations(
         &self,
+        graph: &Graph,
         overrides: &[ImplementationOverride],
     ) -> Result<ImplementationRegistry, BridgeError> {
         let mut selected = self.implementations.clone();
@@ -411,6 +412,15 @@ impl RuntimeBridgeService {
             if !seen.insert(implementation_override.logical_ref.as_str()) {
                 return Err(BridgeError::Planning(format!(
                     "implementation recovery override for '{}' is declared more than once",
+                    implementation_override.logical_ref
+                )));
+            }
+            if !graph.blocks.iter().any(|block| {
+                block.implementation_ref.as_deref()
+                    == Some(implementation_override.logical_ref.as_str())
+            }) {
+                return Err(BridgeError::Planning(format!(
+                    "implementation recovery override '{}' is not referenced by this Graph",
                     implementation_override.logical_ref
                 )));
             }
@@ -435,7 +445,7 @@ impl RuntimeBridgeService {
             .map_err(|error| BridgeError::InvalidGraph(error.to_string()))?;
 
         let implementations =
-            self.selected_implementations(&selections.implementation_overrides)?;
+            self.selected_implementations(graph, &selections.implementation_overrides)?;
         let plan = if selections.route_overrides.is_empty() {
             Planner::lower(graph, &implementations, &self.routes)
         } else {
