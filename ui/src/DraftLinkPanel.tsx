@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { jaJP } from "./locales/ja-JP";
 import type { AlgoramBlock, AlgoramGraph } from "./algoram";
 import {
   makeDraftLink,
