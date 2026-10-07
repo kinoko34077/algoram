@@ -183,7 +183,7 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
       <div className="node-meta">
         {observation ? (
           <span
-            className={`node-observed-status ${observation.status}`}
+            className={`observed-status ${observation.status}`}
             title={`Observed run: ${observedStatusLabel(observation.status)}`}
           >
             <b aria-hidden="true">
