@@ -1,3 +1,5 @@
+import { jaJP } from "./locales/ja-JP";
+
 interface AnnotationPanelProps {
   blockId: string;
   value: string;
