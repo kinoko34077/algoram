@@ -186,6 +186,7 @@ textarea:focus-visible,
   padding-left: var(--space-1);
 }
 
+.primary-action,
 .secondary-action,
 .tertiary-action,
 .danger-action {
@@ -193,6 +194,17 @@ textarea:focus-visible,
   border-radius: var(--radius-sm);
   padding: 4px 9px;
   font-size: 11px;
+}
+
+.primary-action {
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: #0d0b12;
+  font-weight: 700;
+}
+
+.primary-action:hover:not(:disabled) {
+  filter: brightness(1.08);
 }
 
 .secondary-action {
@@ -869,6 +881,204 @@ textarea:focus-visible,
 }
 
 .graph-authoring-panel,
+.execution-panel {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.execution-panel .panel-heading-row strong {
+  color: var(--color-text-strong);
+  font-size: 11px;
+}
+
+.execution-state {
+  padding: 1px 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-muted);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.execution-state.ready,
+.execution-state.succeeded {
+  border-color: #3d684f;
+  color: #9fd3b2;
+}
+
+.execution-state.planning,
+.execution-state.running {
+  border-color: #426182;
+  color: #a9c7e5;
+}
+
+.execution-state.failed {
+  border-color: #75444c;
+  color: var(--color-error);
+}
+
+.bridge-settings {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-2);
+}
+
+.bridge-settings summary {
+  cursor: pointer;
+  color: var(--color-muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.bridge-settings-fields {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.bridge-settings-fields label {
+  display: grid;
+  gap: 3px;
+  color: var(--color-muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.bridge-settings-fields input {
+  width: 100%;
+  min-height: var(--control-height);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #0d1218;
+  color: var(--color-text);
+  padding: 4px 7px;
+  font-size: 10px;
+}
+
+.execution-error {
+  padding: var(--space-2);
+  border: 1px solid #75444c;
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-soft);
+  color: var(--color-error);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.execution-error strong {
+  color: var(--color-text-strong);
+  font-size: 10px;
+}
+
+.execution-error p {
+  margin: 3px 0 0;
+}
+
+.execution-preview {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.execution-summary {
+  display: flex;
+  gap: var(--space-2);
+  color: var(--color-muted);
+  font-size: 9px;
+}
+
+.execution-requirements > strong,
+.execution-result > strong {
+  color: var(--color-text-strong);
+  font-size: 10px;
+}
+
+.execution-requirements ul,
+.execution-result ul {
+  display: grid;
+  gap: 5px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.execution-requirements li,
+.execution-result li {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-raised);
+}
+
+.execution-grant {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+  color: var(--color-text);
+  font-size: 9px;
+}
+
+.execution-grant input {
+  margin: 2px 0 0;
+}
+
+.execution-grant span {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.execution-grant strong,
+.execution-grant small,
+.execution-requirements code,
+.execution-requirements li > small,
+.execution-result li > span,
+.execution-result li > small {
+  overflow-wrap: anywhere;
+}
+
+.execution-grant strong {
+  color: var(--color-text-strong);
+  font-size: 9px;
+}
+
+.execution-grant small,
+.execution-requirements li > small,
+.execution-result li > span,
+.execution-result li > small {
+  color: var(--color-muted);
+  font-size: 8px;
+}
+
+.execution-requirements code {
+  max-height: 42px;
+  overflow: auto;
+  color: var(--color-muted);
+  font-size: 8px;
+  white-space: pre-wrap;
+}
+
+.execution-result li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.execution-result li > small {
+  grid-column: 1 / -1;
+}
+
+.execution-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.execution-graph-id {
+  overflow-wrap: anywhere;
+}
+
 .block-inspector,
 .source-panel {
   padding: var(--space-3);
