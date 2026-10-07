@@ -1,0 +1,68 @@
+name: U3 Execution Drawer Browser Smoke
+on:
+  push:
+    branches: [chatgpt/171-u3-browser-check-final]
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Start UI and browser tools
+        run: |
+          cd ui
+          npm install --ignore-scripts --no-audit --no-fund
+          nohup npm run dev -- --host 127.0.0.1 > /tmp/u1-vite.log 2>&1 &
+          python -m pip install --disable-pip-version-check selenium==4.36.0
+          google-chrome --version
+      - name: Search disclosure and canvas hierarchy smoke
+        run: |
+          python - <<'PY'
+          import json
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+          o=Options()
+          for f in ('--headless=new','--no-sandbox','--disable-dev-shm-usage'): o.add_argument(f)
+          o.set_capability('goog:loggingPrefs',{'browser':'ALL'})
+          d=webdriver.Chrome(options=o)
+          try:
+            for width in (1440,480):
+              d.set_window_size(width,900)
+              d.get('http://127.0.0.1:5173/')
+              WebDriverWait(d,30).until(lambda b:b.find_elements(By.CSS_SELECTOR,'.react-flow__node'))
+              panel=d.find_element(By.ID,'runtime-execution-panel')
+              toggle=d.find_element(By.CSS_SELECTOR,'.execution-entry-action')
+              assert not panel.is_displayed() and toggle.get_attribute('aria-expanded')=='false'
+              assert not d.find_elements(By.ID,'inspector-panel')
+              toggle.click()
+              WebDriverWait(d,10).until(lambda b:panel.is_displayed())
+              assert toggle.get_attribute('aria-expanded')=='true'
+              assert d.switch_to.active_element == panel, 'Execution opening should focus drawer'
+              assert 'ブラウザ編集のみ' in panel.text, 'bridge readiness not explained'
+              assert '実行計画' in panel.text
+              d.execute_script('arguments[0].click()',d.find_element(By.CSS_SELECTOR,'.react-flow__node'))
+              selected=d.find_element(By.ID,'inspector-panel')
+              assert selected.is_displayed()
+              assert selected.find_element(By.CSS_SELECTOR,'.block-inspector h2').text
+              assert selected.find_elements(By.ID,'runtime-execution-panel')==[]
+              doc=d.execute_script('return [document.documentElement.scrollWidth,document.documentElement.clientWidth]')
+              assert doc[0]<=doc[1]+1,f'overflow {width} {doc}'
+              panel.find_element(By.CSS_SELECTOR,'.execution-drawer-actions button:last-child').click()
+              assert not panel.is_displayed()
+              assert toggle.get_attribute('aria-expanded')=='false'
+              assert d.switch_to.active_element == toggle, 'close should return focus'
+              toggle.click()
+              WebDriverWait(d,5).until(lambda b:panel.is_displayed())
+              d.switch_to.active_element.send_keys('\ue00c')
+              assert not panel.is_displayed(), 'Escape did not close drawer'
+              assert d.switch_to.active_element == toggle, 'Escape did not return focus'
+              severe=[x for x in d.get_log('browser') if x['level']=='SEVERE' and 'favicon.ico' not in x['message']]
+              assert not severe,f'console: {severe}'
+              print(json.dumps({'viewport':f'{width}x900','independent_inspector':'pass','readiness':'pass','drawer_toggle':'pass','overflow':'none'},ensure_ascii=False))
+          finally:
+            d.quit()
+          PY
