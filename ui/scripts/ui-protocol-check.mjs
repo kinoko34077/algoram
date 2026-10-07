@@ -37,7 +37,7 @@ assert.match(app, /if \(previous === blockId\)/);
 assert.match(app, /onPresentationChange=\{updateCurrentPresentation\}/);
 
 assert.match(canvas, /nodesFocusable/);
-assert.match(canvas, /edgesFocusable=\{false\}/);
+assert.match(canvas, /edgesFocusable/);
 assert.match(canvas, /disableKeyboardA11y=\{false\}/);
 assert.match(canvas, /const ariaLabelConfig = \{/);
 assert.match(canvas, /ariaLabelConfig=\{ariaLabelConfig\}/);
@@ -59,7 +59,7 @@ assert.match(canvas, /Clear drafts/);
 assert.match(canvas, /aria-controls="block-palette"/);
 assert.match(canvas, /screenToFlowPosition/);
 assert.match(canvas, /editable && paletteOpen/);
-assert.match(canvas, /nodesConnectable=\\{editable\\}/);
+assert.match(canvas, /nodesConnectable=\{editable\}/);
 assert.match(canvas, /onEdgeClick=/);
 assert.match(canvas, /selectedConnectionId/);
 assert.match(canvas, /onAddConnection/);
@@ -76,7 +76,7 @@ assert.match(draft, /<select/);
 assert.match(draft, /Keyboard alternative to handle dragging/);
 assert.match(draft, /role="status"/);
 assert.match(draft, /mode === "canonical"/);
-assert.match(draft, />\\s*Create Connection\\s*</);
+assert.match(draft, />\s*Create Connection\s*</);
 assert.match(draft, /presentation only/);
 
 assert.match(search, /event\.key === "Escape"/);
@@ -98,6 +98,10 @@ assert.match(app, /event\.key === "Delete"/);
 assert.match(app, /event\.key === "Backspace"/);
 assert.match(app, /className="danger-action"/);
 assert.match(app, />\s*Remove Block\s*</);
+assert.match(app, />\s*Remove Connection\s*</);
+assert.match(app, /selectedConnectionId/);
+assert.match(app, /addCanonicalConnection/);
+assert.match(app, /validateCanonicalLink/);
 
 assert.match(authoring, /aria-label="Graph properties"/);
 assert.match(authoring, /Editable/);
