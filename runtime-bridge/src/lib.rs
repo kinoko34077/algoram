@@ -496,9 +496,7 @@ fn route_http_request(
         ("POST", "/v1/run") => {
             let request: RunRequest = serde_json::from_slice(&request.body)?;
             match service.run(&request) {
-                Ok(response) => {
-                    HttpResponse::json(200, &response, Some(allowed_origin.to_owned()))
-                }
+                Ok(response) => HttpResponse::json(200, &response, Some(allowed_origin.to_owned())),
                 Err(error) => HttpResponse::json(
                     error.http_status(),
                     &error.api_error(),
