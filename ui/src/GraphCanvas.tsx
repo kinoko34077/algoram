@@ -337,7 +337,7 @@ function CanvasBody({
         > =>
           change.type === "position" &&
           change.position !== undefined &&
-          change.dragging !== true,
+          change.dragging === undefined,
       );
 
       if (settledPositions.length === 0) {
