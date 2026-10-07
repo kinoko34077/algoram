@@ -529,6 +529,7 @@ export function App() {
             graph={currentGraph}
             editable={currentHistory !== null}
             blockTemplates={blockTemplates}
+            authoringStatus={authoringStatus}
             selectedBlockId={selectedBlockId}
             focusRequest={
               focusRequest?.graphId === currentGraphId
