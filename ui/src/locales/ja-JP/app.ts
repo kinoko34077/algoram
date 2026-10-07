@@ -19,6 +19,10 @@ export const appJa = {
   connectionReadOnly: "この接続は派生グラフ上では読み取り専用です。",
   selectBlockHint:
     "ブロックや接続を選ぶと詳細が表示されます。",
+  executionEntry: "実行…",
+  executionDrawerTitle: "実行",
+  bridgeNotConfigured: "ブラウザ編集のみ。実行にはローカルブリッジと認証が必要です。",
+  bridgeCheckAtPlan: "ブリッジ接続は実行計画時に確認します。",
   plan: "実行計画",
   planning: "計画中…",
   replan: "再計画",
