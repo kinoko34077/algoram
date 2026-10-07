@@ -48,6 +48,77 @@ const plan = {
     },
   ],
 };
+const failedTrace = {
+  reference_graph_id: graph.id,
+  entries: [
+    {
+      step_id: "step:test",
+      implementation_ref: "impl:a",
+      status: "failed",
+      origin_block_ids: ["block:test"],
+      source_anchors: [],
+      route_connector_ids: [],
+      exit_code: 17,
+      stdout: "",
+      stderr: "provider unavailable",
+    },
+  ],
+};
+const recoverySelections = {
+  route_overrides: [],
+  implementation_overrides: [
+    {
+      logical_ref: "logical:test",
+      implementation_ref: "impl:b",
+    },
+  ],
+};
+const recoveryOptions = {
+  report: {
+    reference_graph_id: graph.id,
+    failures: [{ entry: failedTrace.entries[0] }],
+    impact: {
+      failed_block_ids: ["block:test"],
+      affected_block_ids: [],
+      traversed_connections: [],
+    },
+    selected_route_health: [],
+  },
+  route_candidates: [],
+  implementation_candidates: [
+    {
+      step_id: "step:test",
+      selected_implementation_ref: "impl:a",
+      candidates: {
+        logical_implementation_ref: "logical:test",
+        trusted_local: [
+          { implementation_ref: "impl:a", is_default: true },
+          { implementation_ref: "impl:b", is_default: false },
+        ],
+        catalog_only: [],
+      },
+    },
+  ],
+  runtime_candidates: [
+    {
+      step_id: "step:test",
+      current_runtime_ref: "runtime:local-bridge",
+      candidates: [
+        {
+          candidate: {
+            runtime_ref: "runtime:agent-alt",
+            class: "runtime_agent",
+            is_current: false,
+          },
+          placement_validated: true,
+          executable_by_bridge: false,
+        },
+      ],
+    },
+  ],
+  catalog_connected: false,
+};
+
 const preview = {
   plan,
   access_report: {
@@ -94,10 +165,54 @@ const mockFetch = async (url, init) => {
     });
   }
 
+  if (String(url).endsWith("/v1/run")) {
+    assert.deepEqual(request, {
+      graph,
+      expected_plan: plan,
+      allowed_implementation_refs: ["impl:a"],
+    });
+    assert.equal(JSON.stringify(request).includes("super-secret"), false);
+    return new Response(
+      JSON.stringify({
+        access_report: preview.access_report,
+        trace: { reference_graph_id: graph.id, entries: [] },
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  if (String(url).endsWith("/v1/recovery/options")) {
+    assert.deepEqual(request, {
+      graph,
+      expected_plan: plan,
+      trace: failedTrace,
+    });
+    return new Response(JSON.stringify(recoveryOptions), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if (String(url).endsWith("/v1/recovery/plan")) {
+    assert.deepEqual(request, {
+      graph,
+      selections: recoverySelections,
+    });
+    return new Response(JSON.stringify(preview), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  assert.equal(String(url).endsWith("/v1/recovery/run"), true);
   assert.deepEqual(request, {
     graph,
     expected_plan: plan,
-    allowed_implementation_refs: ["impl:a"],
+    allowed_implementation_refs: ["impl:b"],
+    selections: recoverySelections,
   });
   assert.equal(JSON.stringify(request).includes("super-secret"), false);
   return new Response(
@@ -119,8 +234,14 @@ const settings = {
 const client = createRuntimeBridgeClient(settings, mockFetch);
 await client.plan(graph);
 await client.run(graph, plan, ["impl:a"]);
+assert.deepEqual(
+  await client.recoveryOptions(graph, plan, failedTrace),
+  recoveryOptions,
+);
+await client.recoveryPlan(graph, recoverySelections);
+await client.recoveryRun(graph, plan, ["impl:b"], recoverySelections);
 
-assert.equal(calls.length, 2);
+assert.equal(calls.length, 5);
 for (const call of calls) {
   assert.equal(call.init.headers.Authorization, "Bearer super-secret");
   assert.equal(call.url.startsWith("http://127.0.0.1:39091/v1/"), true);
@@ -193,5 +314,8 @@ console.log(
     explicit_grant_body: "pass",
     typed_api_error: "pass",
     planning_abort_signal: "pass",
+    recovery_discovery_payload: "pass",
+    recovery_plan_payload: "pass",
+    recovery_run_payload: "pass",
   }),
 );
