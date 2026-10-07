@@ -1,5 +1,6 @@
 import type { AlgoramGraph } from "./algoram";
 import type { PersistedEditorSession } from "./documentPersistence";
+import { jaJP } from "./locales/ja-JP";
 
 const DATABASE_NAME = "algoram-editor";
 const DATABASE_VERSION = 1;
@@ -25,7 +26,7 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
     });
     request.addEventListener(
       "error",
-      () => reject(request.error ?? new Error("IndexedDB request failed.")),
+      () => reject(request.error ?? new Error(jaJP.errors.persistence.indexedDbRequestFailed)),
       { once: true },
     );
   });
@@ -36,12 +37,12 @@ function transactionComplete(transaction: IDBTransaction): Promise<void> {
     transaction.addEventListener("complete", () => resolve(), { once: true });
     transaction.addEventListener(
       "abort",
-      () => reject(transaction.error ?? new Error("IndexedDB transaction aborted.")),
+      () => reject(transaction.error ?? new Error(jaJP.errors.persistence.indexedDbTransactionAborted)),
       { once: true },
     );
     transaction.addEventListener(
       "error",
-      () => reject(transaction.error ?? new Error("IndexedDB transaction failed.")),
+      () => reject(transaction.error ?? new Error(jaJP.errors.persistence.indexedDbTransactionFailed)),
       { once: true },
     );
   });
@@ -49,7 +50,7 @@ function transactionComplete(transaction: IDBTransaction): Promise<void> {
 
 function openDatabase(): Promise<IDBDatabase> {
   if (!("indexedDB" in globalThis)) {
-    return Promise.reject(new Error("This browser does not provide IndexedDB."));
+    return Promise.reject(new Error(jaJP.errors.persistence.indexedDbUnavailable));
   }
 
   return new Promise((resolve, reject) => {
@@ -73,7 +74,7 @@ function openDatabase(): Promise<IDBDatabase> {
     });
     request.addEventListener(
       "error",
-      () => reject(request.error ?? new Error("Could not open editor storage.")),
+      () => reject(request.error ?? new Error(jaJP.errors.persistence.editorStorageOpenFailed)),
       { once: true },
     );
   });
