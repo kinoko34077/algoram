@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type {
+  AlternativeRouteCandidate,
   RecoveryOptionsResponse,
   RecoverySelections,
   RuntimeRecoveryOption,
@@ -64,12 +65,14 @@ export function RecoveryPanel({
   }, [options]);
 
   const routeByKey = useMemo(() => {
-    const entries =
-      options?.route_candidates.map((candidate) => [
+    const candidates = new Map<string, AlternativeRouteCandidate>();
+    for (const candidate of options?.route_candidates ?? []) {
+      candidates.set(
         candidateKey(candidate.connection_id, candidate.connector_ids),
         candidate,
-      ]) ?? [];
-    return new Map(entries);
+      );
+    }
+    return candidates;
   }, [options]);
 
   const providerRows = useMemo(
@@ -103,12 +106,17 @@ export function RecoveryPanel({
     }
 
     const route_overrides = Object.entries(routeSelections)
-      .map(([, key]) => routeByKey.get(key))
-      .filter((candidate) => candidate !== undefined)
-      .map((candidate) => ({
-        connection_id: candidate.connection_id,
-        connector_ids: candidate.connector_ids,
-      }))
+      .flatMap(([, key]) => {
+        const candidate = routeByKey.get(key);
+        return candidate
+          ? [
+              {
+                connection_id: candidate.connection_id,
+                connector_ids: candidate.connector_ids,
+              },
+            ]
+          : [];
+      })
       .sort((left, right) =>
         left.connection_id.localeCompare(right.connection_id),
       );
