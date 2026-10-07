@@ -154,7 +154,7 @@ export function RecoveryPanel({
             <fieldset className="recovery-group">
               <legend>Route</legend>
               {options.route_candidates.map((candidate) => {
-                const key = candidateKey(
+                const key = recoveryRouteCandidateKey(
                   candidate.connection_id,
                   candidate.connector_ids,
                 );
