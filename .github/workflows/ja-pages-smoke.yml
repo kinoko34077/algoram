@@ -1,0 +1,104 @@
+name: Japanese Pages Smoke
+
+on:
+  push:
+    branches:
+      - chatgpt/162-live-pages-smoke
+
+permissions:
+  contents: read
+
+jobs:
+  live-pages-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Browser toolchain
+        run: |
+          google-chrome --version
+          python --version
+          python -m pip install --disable-pip-version-check --no-cache-dir selenium==4.36.0
+
+      - name: Verify live Japanese Pages at desktop and narrow sizes
+        env:
+          ALGOTRAM_PAGES_URL: https://kinoko34077.github.io/algoram/
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+
+          url = os.environ["ALGOTRAM_PAGES_URL"]
+          markers = ["ブロック", "実行計画", "ファイル", "インスペクター", "グラフ検索"]
+          aria_labels = ["グラフ階層", "グラフエディター"]
+          sizes = [(480, 900), (1440, 900)]
+          results = []
+
+          options = Options()
+          options.add_argument("--headless=new")
+          options.add_argument("--no-sandbox")
+          options.add_argument("--disable-dev-shm-usage")
+          options.add_argument("--disable-gpu")
+          options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
+
+          driver = webdriver.Chrome(options=options)
+          try:
+            for width, height in sizes:
+              driver.set_window_size(width, height)
+              driver.get(url)
+              WebDriverWait(driver, 20).until(
+                lambda d: "グラフ検索" in d.find_element(By.TAG_NAME, "body").text
+              )
+
+              body_text = driver.find_element(By.TAG_NAME, "body").text
+              lang = driver.execute_script("return document.documentElement.lang")
+              document_metrics = driver.execute_script(
+                "return {"
+                "  scrollWidth: document.documentElement.scrollWidth,"
+                "  clientWidth: document.documentElement.clientWidth,"
+                "  innerWidth: window.innerWidth"
+                "}"
+              )
+              missing_markers = [marker for marker in markers if marker not in body_text]
+              missing_aria = [
+                label
+                for label in aria_labels
+                if not driver.find_elements(By.CSS_SELECTOR, f'[aria-label="{label}"]')
+              ]
+              severe_console = [
+                entry
+                for entry in driver.get_log("browser")
+                if entry.get("level") == "SEVERE"
+              ]
+
+              assert lang == "ja", f"{width}x{height}: expected html lang=ja, got {lang!r}"
+              assert not missing_markers, f"{width}x{height}: missing Japanese copy {missing_markers}"
+              assert not missing_aria, f"{width}x{height}: missing Japanese aria labels {missing_aria}"
+              assert (
+                document_metrics["scrollWidth"] <= document_metrics["clientWidth"] + 1
+              ), (
+                f"{width}x{height}: horizontal overflow "
+                f"{document_metrics['scrollWidth']} > {document_metrics['clientWidth']}"
+              )
+              assert not severe_console, f"{width}x{height}: severe console entries {severe_console}"
+
+              results.append(
+                {
+                  "viewport": f"{width}x{height}",
+                  "lang": lang,
+                  "japanese_markers": "pass",
+                  "japanese_aria": "pass",
+                  "horizontal_overflow": "none",
+                  "console_severe": 0,
+                  "document_metrics": document_metrics,
+                }
+              )
+          finally:
+            driver.quit()
+
+          print(json.dumps({"kind": "live-japanese-pages-smoke", "url": url, "results": results}, ensure_ascii=False))
+          PY
