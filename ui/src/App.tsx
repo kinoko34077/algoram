@@ -22,6 +22,7 @@ import {
   type DraftLink,
   type GraphPresentationState,
 } from "./presentation";
+import { markEditorPerformance } from "./perfMarks";
 import { SearchPanel } from "./SearchPanel";
 import { SourcePanel } from "./SourcePanel";
 
@@ -99,6 +100,7 @@ export function App() {
       graphId: string,
       update: (current: GraphPresentationState) => GraphPresentationState,
     ) => {
+      markEditorPerformance("presentation-commit");
       setPresentationByGraph((current) => {
         const previous = current[graphId] ?? EMPTY_GRAPH_PRESENTATION;
         const next = update(previous);
