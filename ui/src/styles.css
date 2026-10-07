@@ -1114,6 +1114,10 @@ textarea:focus-visible,
     border-top: 1px solid var(--color-border);
     border-left: 0;
   }
+
+  .canvas-work-area.palette-open {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 680px) {
