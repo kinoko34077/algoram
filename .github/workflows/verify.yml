@@ -76,6 +76,8 @@ jobs:
         run: npm run test:trace-projection
       - name: Manual recovery selection checks
         run: npm run test:recovery
+      - name: Browser document persistence checks
+        run: npm run test:persistence
       - name: ELK layout performance baseline
         run: npm run perf:baseline
 

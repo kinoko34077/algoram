@@ -14,6 +14,7 @@ import {
   type NodeChange,
   type NodeProps,
   type NodeTypes,
+  type Viewport,
   type XYPosition,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -28,9 +29,11 @@ import {
 } from "./graphAdapter";
 import {
   clearDraftLinks,
+  clearPresentationViewport,
   makeDraftLink,
   resetNodePositions,
   setNodePosition,
+  setPresentationViewport,
   type DraftLink,
   type GraphPresentationState,
 } from "./presentation";
@@ -312,7 +315,7 @@ function CanvasBody({
   const [loadedStructureKey, setLoadedStructureKey] = useState<string | null>(
     null,
   );
-  const { fitView, getNode, screenToFlowPosition } =
+  const { fitView, getNode, screenToFlowPosition, setViewport } =
     useReactFlow<FlowBlockNode>();
 
   const structureKey = useMemo(() => graphStructureKey(graph), [graph]);
@@ -359,7 +362,11 @@ function CanvasBody({
 
         if (fitViewport) {
           requestAnimationFrame(() => {
-            void fitView({ padding: 0.2, duration: 160 });
+            if (useSavedPositions && presentation.viewport) {
+              void setViewport(presentation.viewport, { duration: 0 });
+            } else {
+              void fitView({ padding: 0.2, duration: 160 });
+            }
           });
         }
       } catch (error: unknown) {
@@ -372,7 +379,9 @@ function CanvasBody({
       fitView,
       graph,
       presentation.positions,
+      presentation.viewport,
       setBaseNodes,
+      setViewport,
       structureKey,
     ],
   );
@@ -525,7 +534,9 @@ function CanvasBody({
   );
 
   const resetLayout = useCallback(() => {
-    onPresentationChange(resetNodePositions);
+    onPresentationChange((current) =>
+      clearPresentationViewport(resetNodePositions(current)),
+    );
     void loadLayout(false, true, false);
     setInteractionStatus("Layout reset to the automatic arrangement.");
   }, [loadLayout, onPresentationChange]);
@@ -666,6 +677,11 @@ function CanvasBody({
               pointerDragActive.current = false;
               commitNodePosition(node);
               markEditorPerformance("node-drag-stop");
+            }}
+            onMoveEnd={(_, viewport: Viewport) => {
+              onPresentationChange((current) =>
+                setPresentationViewport(current, viewport),
+              );
             }}
             onConnect={connectCanonical}
             isValidConnection={isValidConnection}
