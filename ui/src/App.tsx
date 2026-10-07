@@ -142,6 +142,8 @@ export function App() {
   const [presentationByGraph, setPresentationByGraph] =
     useState<PresentationByGraph>({});
   const [navigationStatus, setNavigationStatus] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
   const [authoringStatus, setAuthoringStatus] = useState<string | null>(null);
   const [fileStatus, setFileStatus] = useState<FileOperationStatus | null>(null);
   const [bridgeSettings, setBridgeSettings] = useState<RuntimeBridgeSettings>({
@@ -1279,10 +1281,6 @@ export function App() {
         </div>
 
         <div className="header-actions">
-          <div className="header-stat" aria-label={jaJP.app.visibleBlocks}>
-            <strong>{currentGraph.blocks.length}</strong>
-            <span>{jaJP.app.blocks}</span>
-          </div>
           <div className="header-editor-status" aria-live="polite">
             <span>{currentHistory ? jaJP.common.states.editable : jaJP.common.states.readOnly}</span>
             {currentHistory ? (
@@ -1312,6 +1310,17 @@ export function App() {
               </button>
             </div>
           ) : null}
+          <button
+            type="button"
+            ref={searchButtonRef}
+            className="tertiary-action header-search-action"
+            aria-controls="editor-search-panel"
+            aria-expanded={searchOpen}
+            aria-label={jaJP.authoring.search.graphSearch}
+            onClick={() => setSearchOpen((open) => !open)}
+          >
+            {jaJP.app.search}
+          </button>
           <button
             type="button"
             className="secondary-action"
@@ -1388,11 +1397,21 @@ export function App() {
         ))}
       </nav>
 
-      <SearchPanel
-        index={navigationIndex}
-        status={navigationStatus}
-        onSelectResult={jumpToSearchResult}
-      />
+      <div id="editor-search-panel" className="search-overlay" hidden={!searchOpen}>
+        <SearchPanel
+          index={navigationIndex}
+          status={navigationStatus}
+          open={searchOpen}
+          onClose={() => {
+            setSearchOpen(false);
+            searchButtonRef.current?.focus();
+          }}
+          onSelectResult={(record) => {
+            jumpToSearchResult(record);
+            setSearchOpen(false);
+          }}
+        />
+      </div>
 
       <main
         className={

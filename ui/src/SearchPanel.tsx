@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { jaJP } from "./locales/ja-JP";
 import {
   listSourceLanguages,
@@ -10,6 +10,8 @@ import {
 interface SearchPanelProps {
   index: NavigationIndex;
   status?: string | null;
+  open: boolean;
+  onClose: () => void;
   onSelectResult: (record: NavigationRecord) => void;
 }
 
@@ -18,10 +20,16 @@ const RESULT_LIMIT = 12;
 export function SearchPanel({
   index,
   status,
+  open,
+  onClose,
   onSelectResult,
 }: SearchPanelProps) {
   const [query, setQuery] = useState("");
   const [language, setLanguage] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
 
   const languages = useMemo(() => listSourceLanguages(index), [index]);
   const active = query.trim().length > 0 || language.length > 0;
@@ -42,20 +50,22 @@ export function SearchPanel({
   }
 
   return (
-    <section className="search-panel" aria-label={jaJP.authoring.search.graphSearch}>
+    <section className="search-panel" aria-label={jaJP.authoring.search.graphSearch} onKeyDown={(event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      }
+    }}>
+      <div className="search-panel-heading"><strong>{jaJP.authoring.search.graphSearch}</strong><button type="button" className="tertiary-action" onClick={onClose}>{jaJP.common.actions.close}</button></div>
       <div className="search-controls">
         <label>
           <span>{jaJP.authoring.search.findBlock}</span>
           <input
+            ref={inputRef}
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape" && active) {
-                event.preventDefault();
-                clear();
-              }
-            }}
             placeholder={jaJP.authoring.search.placeholder}
           />
         </label>
