@@ -174,7 +174,6 @@ fn loopback_http_boundary_enforces_origin_auth_and_guarded_run() {
     server_thread.join().unwrap();
 }
 
-
 fn recovery_service() -> RuntimeBridgeService {
     let mut implementations = ImplementationRegistry::new();
     let action = ProcessAction::new(
