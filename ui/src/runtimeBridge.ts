@@ -70,6 +70,111 @@ export interface RunResponse {
   trace: ExecutionTrace;
 }
 
+export interface RouteOverride {
+  connection_id: string;
+  connector_ids: string[];
+}
+
+export interface ImplementationOverride {
+  logical_ref: string;
+  implementation_ref: string;
+}
+
+export interface RecoverySelections {
+  route_overrides: RouteOverride[];
+  implementation_overrides: ImplementationOverride[];
+}
+
+export interface FailureEvidence {
+  runtime_ref?: string;
+  entry: TraceEntry;
+}
+
+export interface ImpactConnection {
+  connection_id: string;
+  source_block_id: string;
+  target_block_id: string;
+  channel: "flow" | "data";
+}
+
+export interface DependencyImpact {
+  failed_block_ids: string[];
+  affected_block_ids: string[];
+  traversed_connections: ImpactConnection[];
+}
+
+export interface SelectedRouteHealth {
+  step_id: string;
+  origin_block_ids: string[];
+  connector_id: string;
+  health: "available" | "unavailable" | "unknown";
+}
+
+export interface ResilienceReport {
+  reference_graph_id: string;
+  failures: FailureEvidence[];
+  impact: DependencyImpact;
+  selected_route_health: SelectedRouteHealth[];
+}
+
+export interface AlternativeRouteCandidate {
+  step_id: string;
+  origin_block_ids: string[];
+  connection_id: string;
+  source_contract: string;
+  target_contract: string;
+  connector_ids: string[];
+}
+
+export interface TrustedImplementationCandidate {
+  implementation_ref: string;
+  is_default: boolean;
+}
+
+export interface CatalogImplementationCandidate {
+  listing_id: string;
+  supplier: string;
+  implementation_ref: string;
+}
+
+export interface ImplementationRecoveryCandidates {
+  logical_implementation_ref: string;
+  trusted_local: TrustedImplementationCandidate[];
+  catalog_only: CatalogImplementationCandidate[];
+}
+
+export interface StepImplementationRecovery {
+  step_id: string;
+  selected_implementation_ref: string;
+  candidates: ImplementationRecoveryCandidates;
+}
+
+export interface RuntimeRecoveryCandidate {
+  runtime_ref: string;
+  class: "local_process" | "runtime_agent";
+  is_current: boolean;
+}
+
+export interface RuntimeRecoveryOption {
+  candidate: RuntimeRecoveryCandidate;
+  placement_validated: boolean;
+  executable_by_bridge: boolean;
+}
+
+export interface StepRuntimeRecovery {
+  step_id: string;
+  current_runtime_ref: string;
+  candidates: RuntimeRecoveryOption[];
+}
+
+export interface RecoveryOptionsResponse {
+  report: ResilienceReport;
+  route_candidates: AlternativeRouteCandidate[];
+  implementation_candidates: StepImplementationRecovery[];
+  runtime_candidates: StepRuntimeRecovery[];
+  catalog_connected: boolean;
+}
+
 export interface RuntimeBridgeSettings {
   baseUrl: string;
   bearerToken: string;
@@ -81,6 +186,24 @@ export interface RuntimeBridgeClient {
     graph: AlgoramGraph,
     expectedPlan: ExecutionPlan,
     allowedImplementationRefs: string[],
+    signal?: AbortSignal,
+  ): Promise<RunResponse>;
+  recoveryOptions(
+    graph: AlgoramGraph,
+    expectedPlan: ExecutionPlan,
+    trace: ExecutionTrace,
+    signal?: AbortSignal,
+  ): Promise<RecoveryOptionsResponse>;
+  recoveryPlan(
+    graph: AlgoramGraph,
+    selections: RecoverySelections,
+    signal?: AbortSignal,
+  ): Promise<PlanResponse>;
+  recoveryRun(
+    graph: AlgoramGraph,
+    expectedPlan: ExecutionPlan,
+    allowedImplementationRefs: string[],
+    selections: RecoverySelections,
     signal?: AbortSignal,
   ): Promise<RunResponse>;
 }
@@ -223,6 +346,48 @@ export function createRuntimeBridgeClient(
         signal,
       );
     },
+
+    recoveryOptions(graph, expectedPlan, trace, signal) {
+      return requestJson<RecoveryOptionsResponse>(
+        "/v1/recovery/options",
+        {
+          graph,
+          expected_plan: expectedPlan,
+          trace,
+        },
+        signal,
+      );
+    },
+
+    recoveryPlan(graph, selections, signal) {
+      return requestJson<PlanResponse>(
+        "/v1/recovery/plan",
+        {
+          graph,
+          selections,
+        },
+        signal,
+      );
+    },
+
+    recoveryRun(
+      graph,
+      expectedPlan,
+      allowedImplementationRefs,
+      selections,
+      signal,
+    ) {
+      return requestJson<RunResponse>(
+        "/v1/recovery/run",
+        {
+          graph,
+          expected_plan: expectedPlan,
+          allowed_implementation_refs: allowedImplementationRefs,
+          selections,
+        },
+        signal,
+      );
+    },
   };
 }
 
@@ -259,4 +424,66 @@ export function requiredImplementationRefs(
       ),
     ),
   ].sort();
+}
+
+
+export function recoveryOptions(
+  settings: RuntimeBridgeSettings,
+  graph: AlgoramGraph,
+  expectedPlan: ExecutionPlan,
+  trace: ExecutionTrace,
+  signal?: AbortSignal,
+): Promise<RecoveryOptionsResponse> {
+  return createRuntimeBridgeClient(settings).recoveryOptions(
+    graph,
+    expectedPlan,
+    trace,
+    signal,
+  );
+}
+
+export function recoveryPlanGraph(
+  settings: RuntimeBridgeSettings,
+  graph: AlgoramGraph,
+  selections: RecoverySelections,
+  signal?: AbortSignal,
+): Promise<PlanResponse> {
+  return createRuntimeBridgeClient(settings).recoveryPlan(
+    graph,
+    selections,
+    signal,
+  );
+}
+
+export function recoveryRunGraph(
+  settings: RuntimeBridgeSettings,
+  graph: AlgoramGraph,
+  expectedPlan: ExecutionPlan,
+  allowedImplementationRefs: string[],
+  selections: RecoverySelections,
+  signal?: AbortSignal,
+): Promise<RunResponse> {
+  return createRuntimeBridgeClient(settings).recoveryRun(
+    graph,
+    expectedPlan,
+    allowedImplementationRefs,
+    selections,
+    signal,
+  );
+}
+
+export function emptyRecoverySelections(): RecoverySelections {
+  return {
+    route_overrides: [],
+    implementation_overrides: [],
+  };
+}
+
+export function hasExecutableRecoverySelection(
+  selections: RecoverySelections,
+): boolean {
+  return (
+    selections.route_overrides.length > 0 ||
+    selections.implementation_overrides.length > 0
+  );
 }
