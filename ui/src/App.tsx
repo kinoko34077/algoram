@@ -698,7 +698,8 @@ export function App() {
     setExecutionResult(null);
     setExecutionError(null);
     setGrantedImplementationRefs(new Set());
-  }, [executionPhase]);
+    clearRecoveryContext();
+  }, [clearRecoveryContext, executionPhase]);
 
   const updateBridgeSettings = useCallback(
     (settings: RuntimeBridgeSettings) => {
@@ -711,8 +712,9 @@ export function App() {
       setExecutionResult(null);
       setExecutionError(null);
       setGrantedImplementationRefs(new Set());
+      clearRecoveryContext();
     },
-    [],
+    [clearRecoveryContext],
   );
 
   const setExecutionGrant = useCallback(
