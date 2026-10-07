@@ -5,7 +5,7 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-const [app, canvas, palette, draft, search, annotation, authoring, styles] = await Promise.all([
+const [app, canvas, palette, draft, search, annotation, authoring, execution, bridge, styles] = await Promise.all([
   source("../src/App.tsx"),
   source("../src/GraphCanvas.tsx"),
   source("../src/BlockPalette.tsx"),
@@ -13,6 +13,8 @@ const [app, canvas, palette, draft, search, annotation, authoring, styles] = awa
   source("../src/SearchPanel.tsx"),
   source("../src/AnnotationPanel.tsx"),
   source("../src/GraphAuthoringPanel.tsx"),
+  source("../src/ExecutionPanel.tsx"),
+  source("../src/runtimeBridge.ts"),
   source("../src/styles.css"),
 ]);
 
@@ -117,6 +119,36 @@ assert.match(app, />\s*Undo\s*</);
 assert.match(app, />\s*Redo\s*</);
 assert.match(app, /textEditorOwnsKeys/);
 
+assert.match(styles, /\.primary-action/);
+assert.match(styles, /\.execution-panel/);
+assert.match(app, /"Plan"/);
+assert.match(app, />\s*Run\s*</);
+assert.match(app, /className="primary-action"/);
+assert.match(app, /planCurrentGraph/);
+assert.match(app, /runCurrentGraph/);
+assert.match(app, /currentValidationIssues\.length > 0/);
+assert.match(execution, /aria-label="Runtime execution"/);
+assert.match(execution, /type="password"/);
+assert.match(execution, /ambient host-process authority/);
+assert.match(execution, /disabled=\{phase === "running"\}/);
+assert.match(execution, /type="checkbox"/);
+assert.match(execution, /role="alert"/);
+assert.match(execution, /groupRequirements/);
+assert.match(execution, /event\.isComposing/);
+assert.match(execution, /Retry plan/);
+assert.match(execution, /Working directory:/);
+assert.match(app, /executionPhase === "ready" && executionPreview/);
+assert.match(app, /new AbortController\(\)/);
+assert.match(app, /controller\.signal/);
+assert.match(app, /samePlan/);
+assert.match(bridge, /isLoopbackHost/);
+assert.match(bridge, /Authorization:/);
+assert.match(bridge, /createRuntimeBridgeClient/);
+assert.match(bridge, /fetchImpl/);
+assert.match(bridge, /signal\?: AbortSignal/);
+assert.equal(bridge.includes("child_process"), false);
+assert.equal(bridge.includes("node:"), false);
+
 console.log(
   JSON.stringify({
     kind: "ui-protocol-check",
@@ -135,5 +167,9 @@ console.log(
     keyboard_block_remove: "pass",
     canonical_connection_authoring: "pass",
     canonical_connection_selection: "pass",
+    guarded_execution_panel: "pass",
+    unique_explicit_grants: "pass",
+    execution_retry_replans: "pass",
+    execution_plan_cancel: "pass",
   }),
 );

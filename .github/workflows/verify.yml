@@ -70,6 +70,8 @@ jobs:
         run: npm run test:connection-authoring
       - name: Canonical Graph export checks
         run: npm run test:export
+      - name: Runtime bridge browser authority checks
+        run: npm run test:runtime-bridge
       - name: ELK layout performance baseline
         run: npm run perf:baseline
 

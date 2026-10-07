@@ -1,5 +1,5 @@
 import type { XYPosition } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AlgoramBlock } from "./algoram";
 import {
   getBlockAnnotation,
@@ -31,6 +31,10 @@ import {
 import { requestCanonicalGraphDownload } from "./browserDownload";
 import { demoBundle } from "./fixture";
 import { DraftLinkPanel } from "./DraftLinkPanel";
+import {
+  ExecutionPanel,
+  type ExecutionPhase,
+} from "./ExecutionPanel";
 import { GraphAuthoringPanel } from "./GraphAuthoringPanel";
 import { GraphCanvas } from "./GraphCanvas";
 import { validateGraph, type GraphValidationIssue } from "./graphValidation";
@@ -48,6 +52,14 @@ import {
   type GraphPresentationState,
 } from "./presentation";
 import { markEditorPerformance } from "./perfMarks";
+import {
+  planGraph,
+  requiredImplementationRefs,
+  runGraph,
+  type PlanResponse,
+  type RunResponse,
+  type RuntimeBridgeSettings,
+} from "./runtimeBridge";
 import { SearchPanel } from "./SearchPanel";
 import { SourcePanel } from "./SourcePanel";
 
@@ -101,6 +113,22 @@ export function App() {
   const [navigationStatus, setNavigationStatus] = useState<string | null>(null);
   const [authoringStatus, setAuthoringStatus] = useState<string | null>(null);
   const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
+  const [bridgeSettings, setBridgeSettings] = useState<RuntimeBridgeSettings>({
+    baseUrl: "http://127.0.0.1:39091",
+    bearerToken: "",
+  });
+  const [executionPhase, setExecutionPhase] =
+    useState<ExecutionPhase>("idle");
+  const [executionPreview, setExecutionPreview] =
+    useState<PlanResponse | null>(null);
+  const [executionResult, setExecutionResult] =
+    useState<RunResponse | null>(null);
+  const [executionError, setExecutionError] = useState<string | null>(null);
+  const [grantedImplementationRefs, setGrantedImplementationRefs] = useState<
+    Set<string>
+  >(() => new Set());
+  const executionRequestRevision = useRef(0);
+  const executionPlanAbort = useRef<AbortController | null>(null);
   const [annotations, setAnnotations] = useState<BlockAnnotations>({});
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [focusRequest, setFocusRequest] = useState<GraphFocusRequest | null>(
@@ -158,6 +186,14 @@ export function App() {
 
   useEffect(() => {
     setExportStatus(null);
+    executionPlanAbort.current?.abort();
+    executionPlanAbort.current = null;
+    executionRequestRevision.current += 1;
+    setExecutionPhase("idle");
+    setExecutionPreview(null);
+    setExecutionResult(null);
+    setExecutionError(null);
+    setGrantedImplementationRefs(new Set());
   }, [currentGraphId, currentHistory?.present.revision]);
 
   const selectedBlock = useMemo(
@@ -580,6 +616,184 @@ export function App() {
     [currentGraphId, currentHistory, replaceCurrentHistory],
   );
 
+  const requiredExecutionRefs = useMemo(
+    () =>
+      executionPreview
+        ? requiredImplementationRefs(executionPreview)
+        : [],
+    [executionPreview],
+  );
+  const allExecutionGrantsApproved =
+    requiredExecutionRefs.length > 0 &&
+    requiredExecutionRefs.every((implementationRef) =>
+      grantedImplementationRefs.has(implementationRef),
+    );
+
+  const dismissExecutionPreview = useCallback(() => {
+    if (executionPhase === "running") {
+      return;
+    }
+    executionPlanAbort.current?.abort();
+    executionPlanAbort.current = null;
+    executionRequestRevision.current += 1;
+    setExecutionPhase("idle");
+    setExecutionPreview(null);
+    setExecutionResult(null);
+    setExecutionError(null);
+    setGrantedImplementationRefs(new Set());
+  }, [executionPhase]);
+
+  const updateBridgeSettings = useCallback(
+    (settings: RuntimeBridgeSettings) => {
+      executionPlanAbort.current?.abort();
+      executionPlanAbort.current = null;
+      executionRequestRevision.current += 1;
+      setBridgeSettings(settings);
+      setExecutionPhase("idle");
+      setExecutionPreview(null);
+      setExecutionResult(null);
+      setExecutionError(null);
+      setGrantedImplementationRefs(new Set());
+    },
+    [],
+  );
+
+  const setExecutionGrant = useCallback(
+    (implementationRef: string, granted: boolean) => {
+      setGrantedImplementationRefs((current) => {
+        const next = new Set(current);
+        if (granted) {
+          next.add(implementationRef);
+        } else {
+          next.delete(implementationRef);
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const planCurrentGraph = useCallback(async () => {
+    setInspectorOpen(true);
+    setExecutionResult(null);
+
+    if (currentValidationIssues.length > 0) {
+      executionPlanAbort.current?.abort();
+      executionPlanAbort.current = null;
+      setExecutionPreview(null);
+      setGrantedImplementationRefs(new Set());
+      setExecutionPhase("failed");
+      setExecutionError(
+        `Local Graph validation failed: ${currentValidationIssues[0]?.message ?? "invalid Graph"}`,
+      );
+      return;
+    }
+
+    executionPlanAbort.current?.abort();
+    const controller = new AbortController();
+    executionPlanAbort.current = controller;
+
+    const previousPreview = executionPreview;
+    const requestRevision = executionRequestRevision.current + 1;
+    executionRequestRevision.current = requestRevision;
+    setExecutionPreview(null);
+    setExecutionError(null);
+    setExecutionPhase("planning");
+
+    try {
+      const preview = await planGraph(
+        bridgeSettings,
+        currentGraph,
+        controller.signal,
+      );
+      if (executionRequestRevision.current !== requestRevision) {
+        return;
+      }
+
+      const samePlan =
+        previousPreview !== null &&
+        JSON.stringify(previousPreview.plan) === JSON.stringify(preview.plan);
+      const requiredRefs = new Set(requiredImplementationRefs(preview));
+      setGrantedImplementationRefs((current) =>
+        samePlan
+          ? new Set([...current].filter((ref) => requiredRefs.has(ref)))
+          : new Set(),
+      );
+      setExecutionPreview(preview);
+      setExecutionPhase("ready");
+    } catch (error: unknown) {
+      if (executionRequestRevision.current !== requestRevision) {
+        return;
+      }
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setExecutionPhase("idle");
+        setExecutionError(null);
+        return;
+      }
+      setExecutionPhase("failed");
+      setExecutionError(
+        error instanceof Error ? error.message : "Runtime planning failed.",
+      );
+    } finally {
+      if (executionPlanAbort.current === controller) {
+        executionPlanAbort.current = null;
+      }
+    }
+  }, [
+    bridgeSettings,
+    currentGraph,
+    currentValidationIssues,
+    executionPreview,
+  ]);
+
+  const runCurrentGraph = useCallback(async () => {
+    if (!executionPreview || !allExecutionGrantsApproved) {
+      return;
+    }
+
+    const requestRevision = executionRequestRevision.current + 1;
+    executionRequestRevision.current = requestRevision;
+    setExecutionResult(null);
+    setExecutionError(null);
+    setExecutionPhase("running");
+    setInspectorOpen(true);
+
+    try {
+      const result = await runGraph(
+        bridgeSettings,
+        currentGraph,
+        executionPreview.plan,
+        [...grantedImplementationRefs].sort(),
+      );
+      if (executionRequestRevision.current !== requestRevision) {
+        return;
+      }
+
+      setExecutionResult(result);
+      const succeeded = result.trace.entries.every(
+        (entry) => entry.status === "succeeded",
+      );
+      setExecutionPhase(succeeded ? "succeeded" : "failed");
+      if (!succeeded) {
+        setExecutionError("Guarded run completed with a failed execution step.");
+      }
+    } catch (error: unknown) {
+      if (executionRequestRevision.current !== requestRevision) {
+        return;
+      }
+      setExecutionPhase("failed");
+      setExecutionError(
+        error instanceof Error ? error.message : "Guarded runtime failed.",
+      );
+    }
+  }, [
+    allExecutionGrantsApproved,
+    bridgeSettings,
+    currentGraph,
+    executionPreview,
+    grantedImplementationRefs,
+  ]);
+
   function exportCurrentGraph() {
     try {
       const payload = requestCanonicalGraphDownload(currentGraph);
@@ -648,6 +862,37 @@ export function App() {
                 Redo
               </button>
             </div>
+          ) : null}
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={planCurrentGraph}
+            disabled={executionPhase === "planning" || executionPhase === "running"}
+            aria-controls="runtime-execution-panel"
+          >
+            {executionPhase === "planning"
+              ? "Planning…"
+              : executionPhase === "failed"
+                ? "Retry plan"
+                : executionPreview
+                  ? "Replan"
+                  : "Plan"}
+          </button>
+          {executionPhase === "ready" && executionPreview ? (
+            <button
+              type="button"
+              className="primary-action"
+              onClick={runCurrentGraph}
+              disabled={!allExecutionGrantsApproved}
+              aria-controls="runtime-execution-panel"
+              title={
+                allExecutionGrantsApproved
+                  ? "Run through guarded host runtime"
+                  : "Grant every listed host-process requirement before Run"
+              }
+            >
+              Run
+            </button>
           ) : null}
           <button
             type="button"
@@ -742,6 +987,22 @@ export function App() {
             className="inspector-region"
             aria-label="Block inspector"
           >
+            <div id="runtime-execution-panel">
+              <ExecutionPanel
+                graph={currentGraph}
+                phase={executionPhase}
+                settings={bridgeSettings}
+                preview={executionPreview}
+                result={executionResult}
+                error={executionError}
+                grantedImplementationRefs={grantedImplementationRefs}
+                onSettingsChange={updateBridgeSettings}
+                onGrantChange={setExecutionGrant}
+                onRetryPlan={planCurrentGraph}
+                onDismiss={dismissExecutionPreview}
+              />
+            </div>
+
             <GraphAuthoringPanel
               graph={currentGraph}
               editable={currentHistory !== null}
