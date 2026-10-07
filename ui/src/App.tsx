@@ -12,6 +12,7 @@ import {
   applyGraph,
   createAuthoringHistories,
   createGraphHistory,
+  graphFingerprint,
   graphIsDirty,
   markGraphSaved,
   redoGraph,
@@ -124,6 +125,7 @@ export function App() {
     demoBundle.rootGraphId,
   );
   const [persistenceReady, setPersistenceReady] = useState(false);
+  const [documentRevision, setDocumentRevision] = useState(0);
   const [path, setPath] = useState<Breadcrumb[]>([
     {
       graphId: demoBundle.rootGraphId,
@@ -258,7 +260,8 @@ export function App() {
         );
 
         setActiveRootGraphId(localDocument.graph.id);
-        setAuthoringByGraph((current) => ({
+        setFileStatus(null);
+      setAuthoringByGraph((current) => ({
           ...current,
           [localDocument.graph.id]: createGraphHistory(localDocument.graph),
         }));
@@ -275,6 +278,7 @@ export function App() {
         setSelectionByGraph(restored.selectedBlockIds);
         setConnectionSelectionByGraph(restored.selectedConnectionIds);
         setInspectorOpen(restored.inspectorOpen);
+        setDocumentRevision((revision) => revision + 1);
         setFileStatus({
           kind: "success",
           message: "Restored local Graph.",
@@ -317,7 +321,6 @@ export function App() {
   }, [activeDocumentDirty]);
 
   useEffect(() => {
-    setFileStatus(null);
     executionPlanAbort.current?.abort();
     executionPlanAbort.current = null;
     executionRequestRevision.current += 1;
@@ -333,7 +336,7 @@ export function App() {
     setRecoveryOptionsResult(null);
     setRecoveryError(null);
     setActiveRecoverySelections(null);
-  }, [currentGraphId, currentHistory?.present.revision]);
+  }, [currentGraphId, currentHistory?.present.revision, documentRevision]);
 
   const selectedBlock = useMemo(
     () =>
