@@ -883,11 +883,7 @@ export function App() {
               type="button"
               className="primary-action"
               onClick={runCurrentGraph}
-              disabled={
-                !allExecutionGrantsApproved ||
-                executionPhase === "planning" ||
-                executionPhase === "running"
-              }
+              disabled={!allExecutionGrantsApproved}
               aria-controls="runtime-execution-panel"
               title={
                 allExecutionGrantsApproved
@@ -895,7 +891,7 @@ export function App() {
                   : "Grant every listed host-process requirement before Run"
               }
             >
-              {executionPhase === "running" ? "Running…" : "Run"}
+              Run
             </button>
           ) : null}
           <button
