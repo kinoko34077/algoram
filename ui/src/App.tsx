@@ -1610,7 +1610,7 @@ export function App() {
             </section>
 
             <details className="inspector-disclosure">
-              <summary>{jaJP.authoring.graphProperties.properties}</summary>
+              <summary>{jaJP.authoring.graphProperties.properties}{currentValidationIssues.length > 0 ? ` · ${jaJP.authoring.graphProperties.issueCount.replace("{count}", String(currentValidationIssues.length))}` : ""}</summary>
             <GraphAuthoringPanel
               graph={currentGraph}
               editable={currentHistory !== null}
