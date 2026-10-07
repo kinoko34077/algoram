@@ -225,11 +225,18 @@ export function App() {
     executionPlanAbort.current?.abort();
     executionPlanAbort.current = null;
     executionRequestRevision.current += 1;
+    recoveryAbort.current?.abort();
+    recoveryAbort.current = null;
+    recoveryRequestRevision.current += 1;
     setExecutionPhase("idle");
     setExecutionPreview(null);
     setExecutionResult(null);
     setExecutionError(null);
     setGrantedImplementationRefs(new Set());
+    setRecoveryDiscoveryPhase("idle");
+    setRecoveryOptionsResult(null);
+    setRecoveryError(null);
+    setActiveRecoverySelections(null);
   }, [currentGraphId, currentHistory?.present.revision]);
 
   const selectedBlock = useMemo(
