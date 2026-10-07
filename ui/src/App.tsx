@@ -1086,6 +1086,150 @@ export function App() {
     grantedImplementationRefs,
   ]);
 
+  const saveActiveDocumentLocal = useCallback(async () => {
+    const history = authoringByGraph[activeRootGraphId];
+    if (!history) {
+      setFileStatus({
+        kind: "error",
+        message: "Save local is available only for an editable native Graph.",
+      });
+      return;
+    }
+
+    const graphSnapshot = history.present.graph;
+    const issues = validateGraph(graphSnapshot);
+    if (issues.length > 0) {
+      setFileStatus({
+        kind: "error",
+        message: `Save blocked: ${issues[0]?.message ?? "Graph validation failed."}`,
+      });
+      return;
+    }
+
+    const savedFingerprint = graphFingerprint(graphSnapshot);
+    const session = createPersistedEditorSession(
+      activeRootGraphId,
+      editorBundle.graphs,
+      path.map((entry) => entry.graphId),
+      presentationByGraph,
+      selectionByGraph,
+      connectionSelectionByGraph,
+      inspectorOpen,
+    );
+
+    try {
+      await saveLocalDocument(graphSnapshot, session);
+      setAuthoringByGraph((current) => {
+        const latest = current[activeRootGraphId];
+        if (
+          !latest ||
+          latest.present.fingerprint !== savedFingerprint
+        ) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [activeRootGraphId]: markGraphSaved(latest),
+        };
+      });
+      setFileStatus({
+        kind: "success",
+        message: "Saved local snapshot.",
+      });
+    } catch (error: unknown) {
+      setFileStatus({
+        kind: "error",
+        message:
+          error instanceof Error
+            ? `Save local failed: ${error.message}`
+            : "Save local failed.",
+      });
+    }
+  }, [
+    activeRootGraphId,
+    authoringByGraph,
+    connectionSelectionByGraph,
+    editorBundle.graphs,
+    inspectorOpen,
+    path,
+    presentationByGraph,
+    selectionByGraph,
+  ]);
+
+  const openCanonicalGraphFile = useCallback(
+    async (file: File) => {
+      if (executionPhase === "planning" || executionPhase === "running") {
+        setFileStatus({
+          kind: "error",
+          message: "Open is unavailable while runtime work is active.",
+        });
+        return;
+      }
+
+      if (
+        activeDocumentDirty &&
+        !window.confirm(
+          "Open another Graph and discard unsaved canonical changes?",
+        )
+      ) {
+        setFileStatus({
+          kind: "info",
+          message: "Open cancelled; current Graph was kept.",
+        });
+        return;
+      }
+
+      try {
+        const graph = await readCanonicalGraphFile(file);
+        const nextHistory = createGraphHistory(graph);
+
+        setActiveRootGraphId(graph.id);
+        setAuthoringByGraph((current) => ({
+          ...current,
+          [graph.id]: nextHistory,
+        }));
+        setPath([
+          {
+            graphId: graph.id,
+            label: graph.label ?? graph.id,
+          },
+        ]);
+        setPresentationByGraph((current) => {
+          const next = { ...current };
+          delete next[graph.id];
+          return next;
+        });
+        setSelectionByGraph((current) => ({
+          ...current,
+          [graph.id]: null,
+        }));
+        setConnectionSelectionByGraph((current) => ({
+          ...current,
+          [graph.id]: null,
+        }));
+        setFocusRequest(null);
+        setAuthoringStatus(null);
+        setNavigationStatus(null);
+        setInspectorOpen(true);
+        setDocumentRevision((revision) => revision + 1);
+        setFileStatus({
+          kind: "success",
+          message: `Opened ${file.name}. Save local to restore after reload.`,
+        });
+      } catch (error: unknown) {
+        setFileStatus({
+          kind: "error",
+          message:
+            error instanceof Error
+              ? `Open failed: ${error.message}`
+              : "Open failed.",
+        });
+      }
+    },
+    [activeDocumentDirty, executionPhase],
+  );
+
   function exportCurrentGraph() {
     try {
       const payload = requestCanonicalGraphDownload(currentGraph);
@@ -1114,6 +1258,14 @@ export function App() {
       addDraftLink(currentGraph, current, link),
     );
     return null;
+  }
+
+  if (!persistenceReady) {
+    return (
+      <div className="startup-status" role="status">
+        Restoring editor…
+      </div>
+    );
   }
 
   return (
@@ -1186,29 +1338,16 @@ export function App() {
               Run
             </button>
           ) : null}
-          <button
-            type="button"
-            className="secondary-action"
-            onClick={exportCurrentGraph}
-            aria-describedby={exportStatus ? "graph-export-status" : undefined}
-            title="Export current Graph as .algoram.json"
-          >
-            Export
-          </button>
-          {exportStatus ? (
-            <span
-              id="graph-export-status"
-              className={
-                exportStatus.kind === "error"
-                  ? "header-editor-status error-text"
-                  : "header-editor-status"
-              }
-              role={exportStatus.kind === "error" ? "alert" : "status"}
-              title={exportStatus.message}
-            >
-              {exportStatus.message}
-            </span>
-          ) : null}
+          <FileMenu
+            canOpen={
+              executionPhase !== "planning" && executionPhase !== "running"
+            }
+            canSaveLocal={activeRootHistory !== null}
+            status={fileStatus}
+            onOpenFile={openCanonicalGraphFile}
+            onSaveLocal={saveActiveDocumentLocal}
+            onExport={exportCurrentGraph}
+          />
           <button
             type="button"
             className="tertiary-action"
