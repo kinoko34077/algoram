@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { jaJP } from "./locales/ja-JP";
 import type { AlgoramGraph } from "./algoram";
 import type { GraphValidationIssue } from "./graphValidation";
 
@@ -35,19 +36,19 @@ export function GraphAuthoringPanel({
     commitIssues.length > 0 ? commitIssues : validationIssues;
 
   return (
-    <section className="graph-authoring-panel" aria-label="Graph properties">
+    <section className="graph-authoring-panel" aria-label={jaJP.authoring.graphProperties.properties}>
       <div className="panel-heading-row">
         <div>
-          <p className="eyebrow">Graph</p>
+          <p className="eyebrow">{jaJP.authoring.graphProperties.graph}</p>
           <strong>{graph.id}</strong>
         </div>
         <div className="graph-state" aria-live="polite">
           <span className={editable ? "state-chip editable" : "state-chip"}>
-            {editable ? "Editable" : "Read only"}
+            {editable ? jaJP.authoring.graphProperties.editable : jaJP.authoring.graphProperties.readOnly}
           </span>
           {editable ? (
             <span className={dirty ? "state-chip modified" : "state-chip"}>
-              {dirty ? "Modified" : "Clean"}
+              {dirty ? jaJP.authoring.graphProperties.modified : jaJP.authoring.graphProperties.clean}
             </span>
           ) : null}
           <span
@@ -58,8 +59,8 @@ export function GraphAuthoringPanel({
             }
           >
             {displayedIssues.length === 0
-              ? "Valid"
-              : `${displayedIssues.length} issue${displayedIssues.length === 1 ? "" : "s"}`}
+              ? jaJP.authoring.graphProperties.valid
+              : jaJP.authoring.graphProperties.issueCount.replace("{count}", String(displayedIssues.length))}
           </span>
         </div>
       </div>
@@ -73,7 +74,7 @@ export function GraphAuthoringPanel({
           }}
         >
           <label>
-            Label
+            {jaJP.authoring.graphProperties.label}
             <input
               value={draftLabel}
               onChange={(event) => {
@@ -105,20 +106,18 @@ export function GraphAuthoringPanel({
             />
           </label>
           <p id="graph-label-help" className="compact-hint">
-            Enter or leave the field to commit. Esc cancels the current text
-            edit. Canonical changes support Undo/Redo.
+            {jaJP.authoring.graphProperties.editHint}
           </p>
         </form>
       ) : (
         <p className="compact-hint">
-          This Graph is a derived/source-backed view. Canonical editing is
-          disabled; presentation state remains local to the editor.
+          {jaJP.authoring.graphProperties.derivedReadOnlyHint}
         </p>
       )}
 
       {displayedIssues.length > 0 ? (
         <div id="graph-validation" className="graph-validation" role="alert">
-          <strong>Graph validation</strong>
+          <strong>{jaJP.authoring.graphProperties.validation}</strong>
           <ul>
             {displayedIssues.slice(0, 4).map((issue, index) => (
               <li
@@ -129,7 +128,7 @@ export function GraphAuthoringPanel({
             ))}
           </ul>
           {displayedIssues.length > 4 ? (
-            <p>{displayedIssues.length - 4} more issues.</p>
+            <p>{jaJP.authoring.graphProperties.moreIssues.replace("{count}", String(displayedIssues.length - 4))}</p>
           ) : null}
         </div>
       ) : null}
