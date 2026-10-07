@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import {
+  RuntimeBridgeError,
+  createRuntimeBridgeClient,
   normalizeLoopbackBridgeUrl,
-  planGraph,
   requiredImplementationRefs,
-  runGraph,
 } from "../src/runtimeBridge.ts";
 
 assert.equal(
@@ -25,6 +25,10 @@ assert.throws(
 assert.throws(
   () => normalizeLoopbackBridgeUrl("http://user:pass@127.0.0.1:39091"),
   /credentials/i,
+);
+assert.throws(
+  () => normalizeLoopbackBridgeUrl("http://127.0.0.1:39091/admin"),
+  /without a path/i,
 );
 
 const graph = {
@@ -77,9 +81,10 @@ const preview = {
 assert.deepEqual(requiredImplementationRefs(preview), ["impl:a", "impl:b"]);
 
 const calls = [];
-globalThis.fetch = async (url, init) => {
+const mockFetch = async (url, init) => {
   calls.push({ url: String(url), init });
   const request = JSON.parse(String(init?.body ?? "{}"));
+
   if (String(url).endsWith("/v1/plan")) {
     assert.deepEqual(request, { graph });
     assert.equal(JSON.stringify(request).includes("super-secret"), false);
@@ -111,42 +116,82 @@ const settings = {
   baseUrl: "http://127.0.0.1:39091",
   bearerToken: "super-secret",
 };
-await planGraph(settings, graph);
-await runGraph(settings, graph, plan, ["impl:a"]);
+const client = createRuntimeBridgeClient(settings, mockFetch);
+await client.plan(graph);
+await client.run(graph, plan, ["impl:a"]);
 
 assert.equal(calls.length, 2);
 for (const call of calls) {
-  assert.equal(
-    call.init.headers.Authorization,
-    "Bearer super-secret",
-  );
+  assert.equal(call.init.headers.Authorization, "Bearer super-secret");
   assert.equal(call.url.startsWith("http://127.0.0.1:39091/v1/"), true);
 }
 
 let fetched = false;
-globalThis.fetch = async () => {
-  fetched = true;
-  throw new Error("must not fetch");
-};
-await assert.rejects(
+assert.throws(
   () =>
-    planGraph(
+    createRuntimeBridgeClient(
       {
         baseUrl: "https://evil.example",
         bearerToken: "super-secret",
       },
-      graph,
+      async () => {
+        fetched = true;
+        throw new Error("must not fetch");
+      },
     ),
   /loopback localhost/i,
 );
 assert.equal(fetched, false);
 
+const deniedClient = createRuntimeBridgeClient(settings, async () =>
+  new Response(
+    JSON.stringify({
+      code: "execution_denied",
+      message: "guarded execution denied: implementation is not allowed",
+    }),
+    {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    },
+  ),
+);
+await assert.rejects(
+  () => deniedClient.plan(graph),
+  (error) =>
+    error instanceof RuntimeBridgeError &&
+    error.status === 403 &&
+    error.code === "execution_denied",
+);
+
+let observedSignal = null;
+const cancelClient = createRuntimeBridgeClient(settings, async (_url, init) => {
+  observedSignal = init?.signal ?? null;
+  return await new Promise((_resolve, reject) => {
+    observedSignal?.addEventListener(
+      "abort",
+      () => reject(new DOMException("Aborted", "AbortError")),
+      { once: true },
+    );
+  });
+});
+const controller = new AbortController();
+const pending = cancelClient.plan(graph, controller.signal);
+controller.abort();
+await assert.rejects(
+  () => pending,
+  (error) => error instanceof DOMException && error.name === "AbortError",
+);
+assert.equal(observedSignal, controller.signal);
+
 console.log(
   JSON.stringify({
     kind: "runtime-bridge-ui-check",
     loopback_url_guard: "pass",
+    replaceable_fetch_adapter: "pass",
     bearer_header_only: "pass",
     graph_body_has_no_secret: "pass",
     explicit_grant_body: "pass",
+    typed_api_error: "pass",
+    planning_abort_signal: "pass",
   }),
 );
