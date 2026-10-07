@@ -22,6 +22,7 @@ import {
   type DraftLink,
   type GraphPresentationState,
 } from "./presentation";
+import { markEditorPerformance } from "./perfMarks";
 import { SearchPanel } from "./SearchPanel";
 import { SourcePanel } from "./SourcePanel";
 
@@ -32,6 +33,12 @@ interface Breadcrumb {
 
 type PresentationByGraph = Record<string, GraphPresentationState>;
 type SelectionByGraph = Record<string, string | null>;
+
+interface GraphFocusRequest {
+  graphId: string;
+  blockId: string;
+  revision: number;
+}
 
 function graphLabel(graphId: string): string {
   return demoBundle.graphs[graphId]?.label ?? graphId;
@@ -52,6 +59,9 @@ export function App() {
   const [navigationStatus, setNavigationStatus] = useState<string | null>(null);
   const [annotations, setAnnotations] = useState<BlockAnnotations>({});
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [focusRequest, setFocusRequest] = useState<GraphFocusRequest | null>(
+    null,
+  );
 
   const navigationIndex = useMemo(
     () => buildNavigationIndex(demoBundle),
@@ -90,6 +100,7 @@ export function App() {
       graphId: string,
       update: (current: GraphPresentationState) => GraphPresentationState,
     ) => {
+      markEditorPerformance("presentation-commit");
       setPresentationByGraph((current) => {
         const previous = current[graphId] ?? EMPTY_GRAPH_PRESENTATION;
         const next = update(previous);
@@ -196,6 +207,11 @@ export function App() {
       ...current,
       [record.graphId]: record.blockId,
     }));
+    setFocusRequest((current) => ({
+      graphId: record.graphId,
+      blockId: record.blockId,
+      revision: (current?.revision ?? 0) + 1,
+    }));
     setNavigationStatus(null);
   }
 
@@ -265,6 +281,14 @@ export function App() {
           <GraphCanvas
             graph={currentGraph}
             selectedBlockId={selectedBlockId}
+            focusRequest={
+              focusRequest?.graphId === currentGraphId
+                ? {
+                    blockId: focusRequest.blockId,
+                    revision: focusRequest.revision,
+                  }
+                : null
+            }
             presentation={currentPresentation}
             onPresentationChange={updateCurrentPresentation}
             onSelectBlock={selectBlock}

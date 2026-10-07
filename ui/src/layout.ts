@@ -1,4 +1,6 @@
-import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js";
+import ELK from "elkjs/lib/elk-api.js";
+import ElkWorker from "elkjs/lib/elk-worker.min.js?worker";
+import type { ElkNode } from "elkjs/lib/elk-api.js";
 import type { AlgoramGraph } from "./algoram";
 
 export interface NodePosition {
@@ -6,7 +8,9 @@ export interface NodePosition {
   y: number;
 }
 
-const elk = new ELK();
+const elk = new ELK({
+  workerFactory: () => new ElkWorker(),
+});
 
 function nodeHeight(portCount: number): number {
   return Math.max(92, 76 + portCount * 14);

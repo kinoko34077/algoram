@@ -15,8 +15,9 @@ import {
   type NodeProps,
   type NodeTypes,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AlgoramBlock, AlgoramGraph } from "./algoram";
+import { markEditorPerformance } from "./perfMarks";
 import {
   toFlowEdges,
   toFlowNodes,
@@ -33,9 +34,15 @@ import {
   type GraphPresentationState,
 } from "./presentation";
 
+interface GraphFocusRequest {
+  blockId: string;
+  revision: number;
+}
+
 interface GraphCanvasProps {
   graph: AlgoramGraph;
   selectedBlockId: string | null;
+  focusRequest: GraphFocusRequest | null;
   presentation: GraphPresentationState;
   onPresentationChange: (
     update: (current: GraphPresentationState) => GraphPresentationState,
@@ -214,6 +221,7 @@ function draftToEdge(link: DraftLink): Edge {
 function CanvasBody({
   graph,
   selectedBlockId,
+  focusRequest,
   presentation,
   onPresentationChange,
   onSelectBlock,
@@ -225,7 +233,9 @@ function CanvasBody({
   const [interactionStatus, setInteractionStatus] = useState<string | null>(
     null,
   );
-  const { fitView } = useReactFlow<FlowBlockNode>();
+  const pointerDragActive = useRef(false);
+  const [loadedGraphId, setLoadedGraphId] = useState<string | null>(null);
+  const { fitView, getNode } = useReactFlow<FlowBlockNode>();
 
   const edges = useMemo(
     () => [
@@ -248,6 +258,7 @@ function CanvasBody({
           : nextNodes;
 
         setBaseNodes(positioned);
+        setLoadedGraphId(graph.id);
         requestAnimationFrame(() => {
           void fitView({ padding: 0.2, duration: 160 });
         });
@@ -267,20 +278,21 @@ function CanvasBody({
 
   useEffect(() => {
     if (
-      !selectedBlockId ||
-      !baseNodes.some((node) => node.id === selectedBlockId)
+      !focusRequest ||
+      loadedGraphId !== graph.id ||
+      !getNode(focusRequest.blockId)
     ) {
       return;
     }
 
     requestAnimationFrame(() => {
       void fitView({
-        nodes: [{ id: selectedBlockId }],
+        nodes: [{ id: focusRequest.blockId }],
         padding: 0.55,
         duration: 180,
       });
     });
-  }, [baseNodes, fitView, selectedBlockId]);
+  }, [fitView, focusRequest, getNode, graph.id, loadedGraphId]);
 
   const nodes = useMemo(
     () =>
@@ -317,22 +329,26 @@ function CanvasBody({
         onSelectBlock(null);
       }
 
-      const positioned = changes.filter(
+      const settledPositions = changes.filter(
         (
           change,
         ): change is Extract<
           NodeChange<FlowBlockNode>,
           { type: "position" }
-        > => change.type === "position" && change.position !== undefined,
+        > =>
+          change.type === "position" &&
+          change.position !== undefined &&
+          change.dragging !== true &&
+          !pointerDragActive.current,
       );
 
-      if (positioned.length === 0) {
+      if (settledPositions.length === 0) {
         return;
       }
 
       onPresentationChange((current) => {
         let next = current;
-        for (const change of positioned) {
+        for (const change of settledPositions) {
           if (change.position) {
             next = setNodePosition(next, change.id, change.position);
           }
@@ -346,6 +362,15 @@ function CanvasBody({
       onSelectBlock,
       selectedBlockId,
     ],
+  );
+
+  const commitNodePosition = useCallback(
+    (node: FlowBlockNode) => {
+      onPresentationChange((current) =>
+        setNodePosition(current, node.id, node.position),
+      );
+    },
+    [onPresentationChange],
   );
 
   const isValidConnection = useCallback(
@@ -440,6 +465,15 @@ function CanvasBody({
           edges={edges}
           nodeTypes={nodeTypes}
           onNodesChange={handleNodesChange}
+          onNodeDragStart={() => {
+            pointerDragActive.current = true;
+            markEditorPerformance("node-drag-start");
+          }}
+          onNodeDragStop={(_, node) => {
+            pointerDragActive.current = false;
+            commitNodePosition(node);
+            markEditorPerformance("node-drag-stop");
+          }}
           onConnect={connectDraft}
           isValidConnection={isValidConnection}
           onNodeClick={(_, node) => onSelectBlock(node.id)}
@@ -454,6 +488,8 @@ function CanvasBody({
           nodesDraggable
           nodesFocusable
           edgesFocusable={false}
+          onlyRenderVisibleElements
+          autoPanOnNodeFocus={false}
           connectOnClick
           disableKeyboardA11y={false}
           ariaLabelConfig={ariaLabelConfig}
