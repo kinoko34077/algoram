@@ -1193,6 +1193,15 @@ export function App() {
                 onRetryPlan={planCurrentGraph}
                 onDismiss={dismissExecutionPreview}
               />
+              <RecoveryPanel
+                options={recoveryOptionsResult}
+                phase={recoveryDiscoveryPhase}
+                error={recoveryError}
+                disabled={
+                  executionPhase === "planning" || executionPhase === "running"
+                }
+                onApply={applyRecoverySelections}
+              />
               {currentTraceProjection ? (
                 <TraceUnmappedPanel projection={currentTraceProjection} />
               ) : null}
