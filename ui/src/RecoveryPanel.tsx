@@ -251,7 +251,7 @@ export function RecoveryPanel({
                       runtimeSelections[row.stepId] ===
                       row.option.candidate.runtime_ref
                     }
-                    disabled={disabled || row.option.candidate.is_current}
+                    disabled={disabled}
                     onChange={() =>
                       setRuntimeSelections((current) => ({
                         ...current,
