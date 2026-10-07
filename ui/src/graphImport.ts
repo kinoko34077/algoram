@@ -1,6 +1,6 @@
 import type { AlgoramGraph } from "./algoram";
 import { validateGraph } from "./graphValidation";
-import { jaJP } from "./locales/ja-JP";
+import { jaJP } from "./locales/ja-JP/index.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
