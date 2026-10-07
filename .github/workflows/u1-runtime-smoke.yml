@@ -1,0 +1,64 @@
+name: U1 Browser Smoke
+on:
+  push:
+    branches: [chatgpt/167-u1-runtime-smoke]
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Start UI and browser tools
+        run: |
+          cd ui
+          npm install --ignore-scripts --no-audit --no-fund
+          nohup npm run dev -- --host 127.0.0.1 > /tmp/u1-vite.log 2>&1 &
+          python -m pip install --disable-pip-version-check selenium==4.36.0
+          google-chrome --version
+      - name: Search disclosure and canvas hierarchy smoke
+        run: |
+          python - <<'PY'
+          import json
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.common.keys import Keys
+          from selenium.webdriver.support.ui import WebDriverWait
+          o=Options()
+          for f in ('--headless=new','--no-sandbox','--disable-dev-shm-usage'):
+            o.add_argument(f)
+          o.set_capability('goog:loggingPrefs', {'browser':'ALL'})
+          d=webdriver.Chrome(options=o)
+          try:
+            for width in (1440,480):
+              d.set_window_size(width,900)
+              d.get('http://127.0.0.1:5173/')
+              WebDriverWait(d,30).until(lambda b:b.find_elements(By.CSS_SELECTOR,'.app-shell'))
+              overlay=d.find_element(By.ID,'editor-search-panel')
+              button=d.find_element(By.CSS_SELECTOR,'.header-search-action')
+              assert not overlay.is_displayed(), 'search initially visible'
+              assert not d.find_elements(By.CSS_SELECTOR,'.header-stat'), 'decorative block-count still visible'
+              assert not d.find_elements(By.CSS_SELECTOR,'.canvas-help'), 'permanent helper still visible'
+              button.click()
+              WebDriverWait(d,5).until(lambda b:overlay.is_displayed())
+              search=d.find_element(By.CSS_SELECTOR,'.search-controls input[type=search]')
+              assert d.switch_to.active_element == search, 'search focus missing'
+              search.send_keys(Keys.ESCAPE)
+              WebDriverWait(d,5).until(lambda b:not overlay.is_displayed())
+              assert d.switch_to.active_element == button, 'search focus not returned'
+              menu=d.find_element(By.CSS_SELECTOR,'.canvas-more-menu > summary')
+              d.execute_script('arguments[0].click()', menu)
+              popup=d.find_element(By.CSS_SELECTOR,'.canvas-more-popover')
+              assert popup.is_displayed(), 'low-frequency menu cannot open'
+              assert 'レイアウトをリセット' in popup.text
+              d.execute_script('arguments[0].click()', menu)
+              doc=d.execute_script('return [document.documentElement.scrollWidth,document.documentElement.clientWidth]')
+              assert doc[0] <= doc[1]+1, f'horizontal overflow {width} {doc}'
+              severe=[x for x in d.get_log('browser') if x['level']=='SEVERE' and 'favicon.ico' not in x['message']]
+              assert not severe, f'browser errors: {severe}'
+              print(json.dumps({'viewport':f'{width}x900','search':'pass','focus_return':'pass','canvas_overflow':'pass','horizontal_overflow':'none','console_severe':0},ensure_ascii=False))
+          finally:
+            d.quit()
+          PY
