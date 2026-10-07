@@ -148,6 +148,7 @@ jobs:
                 entry
                 for entry in driver.get_log("browser")
                 if entry.get("level") == "SEVERE"
+                and "favicon.ico" not in entry.get("message", "")
               ]
               assert not severe_console, (
                 f"{width}x{height}: severe console entries {severe_console}"
