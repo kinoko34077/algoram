@@ -1,4 +1,4 @@
-import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js";
+import type { ElkNode } from "elkjs/lib/elk.bundled.js";
 import type { AlgoramGraph } from "./algoram";
 
 export interface NodePosition {
@@ -6,7 +6,16 @@ export interface NodePosition {
   y: number;
 }
 
-const elk = new ELK();
+let elkEngine:
+  | Promise<InstanceType<(typeof import("elkjs/lib/elk.bundled.js"))["default"]>>
+  | null = null;
+
+function loadElk() {
+  elkEngine ??= import("elkjs/lib/elk.bundled.js").then(
+    ({ default: ELK }) => new ELK(),
+  );
+  return elkEngine;
+}
 
 function nodeHeight(portCount: number): number {
   return Math.max(92, 76 + portCount * 14);
@@ -36,6 +45,7 @@ export async function layoutGraph(
     })),
   };
 
+  const elk = await loadElk();
   const result = await elk.layout(input);
   const positions = new Map<string, NodePosition>();
 
