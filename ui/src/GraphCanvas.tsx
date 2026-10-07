@@ -186,9 +186,9 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
             className={`node-observed-status ${observation.status}`}
             title={`Observed run: ${observedStatusLabel(observation.status)}`}
           >
-            <span aria-hidden="true">
+            <b aria-hidden="true">
               {observedStatusSymbol(observation.status)}
-            </span>
+            </b>
             {observedStatusLabel(observation.status)}
           </span>
         ) : null}
