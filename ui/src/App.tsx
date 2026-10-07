@@ -779,6 +779,71 @@ export function App() {
     [bridgeSettings, currentGraph],
   );
 
+  const applyRecoverySelections = useCallback(
+    async (selections: RecoverySelections) => {
+      if (!hasExecutableRecoverySelection(selections)) {
+        return;
+      }
+
+      executionPlanAbort.current?.abort();
+      const controller = new AbortController();
+      executionPlanAbort.current = controller;
+      const requestRevision = executionRequestRevision.current + 1;
+      executionRequestRevision.current = requestRevision;
+      const previousPreview = executionPreview;
+
+      setExecutionError(null);
+      setRecoveryError(null);
+      setExecutionPhase("planning");
+
+      try {
+        const preview = await recoveryPlanGraph(
+          bridgeSettings,
+          currentGraph,
+          selections,
+          controller.signal,
+        );
+        if (executionRequestRevision.current !== requestRevision) {
+          return;
+        }
+
+        const sameAccess =
+          previousPreview !== null &&
+          JSON.stringify(previousPreview.access_report.requirements) ===
+            JSON.stringify(preview.access_report.requirements);
+        const requiredRefs = new Set(requiredImplementationRefs(preview));
+        setGrantedImplementationRefs((current) =>
+          sameAccess
+            ? new Set([...current].filter((ref) => requiredRefs.has(ref)))
+            : new Set(),
+        );
+        setExecutionPreview(preview);
+        setActiveRecoverySelections(structuredClone(selections));
+        setExecutionPhase("ready");
+        setRecoveryDiscoveryPhase("ready");
+      } catch (error: unknown) {
+        if (executionRequestRevision.current !== requestRevision) {
+          return;
+        }
+        if (error instanceof DOMException && error.name === "AbortError") {
+          setExecutionPhase("failed");
+          return;
+        }
+
+        setExecutionPhase("failed");
+        const message =
+          error instanceof Error ? error.message : "Recovery re-plan failed.";
+        setRecoveryError(message);
+        setExecutionError(`Recovery re-plan blocked: ${message}`);
+      } finally {
+        if (executionPlanAbort.current === controller) {
+          executionPlanAbort.current = null;
+        }
+      }
+    },
+    [bridgeSettings, currentGraph, executionPreview],
+  );
+
   const planCurrentGraph = useCallback(async () => {
     setInspectorOpen(true);
     setExecutionResult(null);
