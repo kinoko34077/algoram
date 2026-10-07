@@ -15,7 +15,7 @@ import {
   type NodeProps,
   type NodeTypes,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AlgoramBlock, AlgoramGraph } from "./algoram";
 import { markEditorPerformance } from "./perfMarks";
 import {
@@ -337,7 +337,8 @@ function CanvasBody({
         > =>
           change.type === "position" &&
           change.position !== undefined &&
-          change.dragging === undefined,
+          change.dragging !== true &&
+          !pointerDragActive.current,
       );
 
       if (settledPositions.length === 0) {
@@ -463,8 +464,12 @@ function CanvasBody({
           edges={edges}
           nodeTypes={nodeTypes}
           onNodesChange={handleNodesChange}
-          onNodeDragStart={() => markEditorPerformance("node-drag-start")}
+          onNodeDragStart={() => {
+            pointerDragActive.current = true;
+            markEditorPerformance("node-drag-start");
+          }}
           onNodeDragStop={(_, node) => {
+            pointerDragActive.current = false;
             commitNodePosition(node);
             markEditorPerformance("node-drag-stop");
           }}
