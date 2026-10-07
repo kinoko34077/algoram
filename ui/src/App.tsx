@@ -20,7 +20,7 @@ import { demoBundle } from "./fixture";
 import { DraftLinkPanel } from "./DraftLinkPanel";
 import { GraphAuthoringPanel } from "./GraphAuthoringPanel";
 import { GraphCanvas } from "./GraphCanvas";
-import { validateGraph } from "./graphValidation";
+import { validateGraph, type GraphValidationIssue } from "./graphValidation";
 import {
   buildNavigationIndex,
   resolveBlockPath,
@@ -325,18 +325,19 @@ export function App() {
     setNavigationStatus(null);
   }
 
-  function commitCurrentGraphLabel(label: string) {
+  function commitCurrentGraphLabel(label: string): GraphValidationIssue[] {
     if (!currentHistory) {
-      return;
+      return [];
     }
 
     const nextGraph = setGraphLabel(currentHistory.present.graph, label);
     const issues = validateGraph(nextGraph);
     if (issues.length > 0) {
-      return;
+      return issues;
     }
 
     replaceCurrentHistory(applyGraph(currentHistory, nextGraph));
+    return [];
   }
 
   function addDraftFromInspector(link: DraftLink): string | null {
