@@ -95,6 +95,15 @@ const blankHistory = createGraphHistory(nativeGraph);
 const blankLabel = setGraphLabel(blankHistory.present.graph, "   ");
 assert.equal(blankLabel.label, undefined);
 
+let boundedHistory = createGraphHistory(nativeGraph);
+for (let index = 0; index < 150; index += 1) {
+  boundedHistory = applyGraph(
+    boundedHistory,
+    setGraphLabel(boundedHistory.present.graph, "Revision " + index),
+  );
+}
+assert.equal(boundedHistory.past.length, 100, "history must stay bounded");
+
 assert.deepEqual(validateGraph(nativeGraph), []);
 
 function codes(graph) {
@@ -105,6 +114,17 @@ assert.equal(
   codes({ ...nativeGraph, schema_version: "algoram.graph/9.9" }).has(
     "unsupported-schema-version",
   ),
+  true,
+);
+
+assert.equal(
+  codes({
+    ...nativeGraph,
+    source_artifacts: [
+      { id: "artifact:same", origin: "a", language: "x" },
+      { id: "artifact:same", origin: "b", language: "y" },
+    ],
+  }).has("duplicate-source-artifact-id"),
   true,
 );
 
@@ -161,6 +181,44 @@ assert.equal(
     ],
     connections: [],
   }).has("missing-source-artifact"),
+  true,
+);
+
+assert.equal(
+  codes({
+    ...nativeGraph,
+    source_artifacts: [{ id: "artifact:a", origin: "a", language: "x" }],
+    blocks: [
+      {
+        ...block("negative-anchor"),
+        source_anchor: {
+          artifact_id: "artifact:a",
+          start_byte: -1,
+          end_byte: 10,
+        },
+      },
+    ],
+    connections: [],
+  }).has("invalid-source-anchor-range"),
+  true,
+);
+
+assert.equal(
+  codes({
+    ...nativeGraph,
+    source_artifacts: [{ id: "artifact:a", origin: "a", language: "x" }],
+    blocks: [
+      {
+        ...block("fractional-anchor"),
+        source_anchor: {
+          artifact_id: "artifact:a",
+          start_byte: 0.5,
+          end_byte: 10,
+        },
+      },
+    ],
+    connections: [],
+  }).has("invalid-source-anchor-range"),
   true,
 );
 
@@ -230,7 +288,7 @@ console.log(
     kind: "canonical-authoring-check",
     editable_policy: "explicit",
     immutable_working_copy: "pass",
-    history: "apply/undo/redo/mark-saved",
+    history: "apply/undo/redo/mark-saved/bounded-100",
     graph_core_validation_mirror: "pass",
   }),
 );
