@@ -1,5 +1,4 @@
 import type { AlgoramConnection, AlgoramGraph } from "./algoram";
-import { validateGraph } from "./graphValidation";
 
 export interface ConnectionCandidate {
   sourceBlockId: string;
@@ -59,40 +58,96 @@ export function makeCanonicalConnection(
   };
 }
 
+function findPort(
+  graph: AlgoramGraph,
+  blockId: string,
+  portId: string,
+) {
+  return graph.blocks
+    .find((block) => block.id === blockId)
+    ?.ports?.find((port) => port.id === portId);
+}
+
 export function validateConnectionCandidate(
   graph: AlgoramGraph,
   candidate: ConnectionCandidate,
 ): string | null {
   const connection = makeCanonicalConnection(graph, candidate);
-  const nextGraph: AlgoramGraph = {
-    ...graph,
-    connections: [...graph.connections, connection],
-  };
-  const issue = validateGraph(nextGraph)[0];
-  return issue?.message ?? null;
+  const sourceBlock = graph.blocks.find(
+    (block) => block.id === candidate.sourceBlockId,
+  );
+  if (!sourceBlock) {
+    return `Connection '${connection.id}' references missing Block '${candidate.sourceBlockId}'.`;
+  }
+
+  const targetBlock = graph.blocks.find(
+    (block) => block.id === candidate.targetBlockId,
+  );
+  if (!targetBlock) {
+    return `Connection '${connection.id}' references missing Block '${candidate.targetBlockId}'.`;
+  }
+
+  const source = findPort(
+    graph,
+    candidate.sourceBlockId,
+    candidate.sourcePortId,
+  );
+  if (!source) {
+    return (
+      `Connection '${connection.id}' references missing Port ` +
+      `'${candidate.sourceBlockId}.${candidate.sourcePortId}'.`
+    );
+  }
+
+  const target = findPort(
+    graph,
+    candidate.targetBlockId,
+    candidate.targetPortId,
+  );
+  if (!target) {
+    return (
+      `Connection '${connection.id}' references missing Port ` +
+      `'${candidate.targetBlockId}.${candidate.targetPortId}'.`
+    );
+  }
+
+  if (source.direction !== "out" || target.direction !== "in") {
+    return (
+      `Connection '${connection.id}' requires out → in, got ` +
+      `${source.direction} → ${target.direction}.`
+    );
+  }
+
+  if (source.channel !== target.channel) {
+    return (
+      `Connection '${connection.id}' channel mismatch: ` +
+      `${source.channel} → ${target.channel}.`
+    );
+  }
+
+  return null;
 }
 
 export function createConnection(
   graph: AlgoramGraph,
   candidate: ConnectionCandidate,
 ): CreateConnectionResult {
-  const connection = makeCanonicalConnection(graph, candidate);
-  const nextGraph: AlgoramGraph = {
-    ...graph,
-    connections: [...graph.connections, connection],
-  };
-  const issue = validateGraph(nextGraph)[0];
-  if (issue) {
+  const reason = validateConnectionCandidate(graph, candidate);
+  if (reason) {
     return {
       ok: false,
       graph,
-      reason: issue.message,
+      reason,
     };
   }
 
+  const connection = makeCanonicalConnection(graph, candidate);
   return {
     ok: true,
-    graph: nextGraph,
+    graph: {
+      ...graph,
+      connections: [...graph.connections, connection],
+    },
     connection,
   };
 }
