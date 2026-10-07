@@ -1,8 +1,13 @@
 use algoram_core::{Block, Extensions, Graph};
 use algoram_interop::RouteRegistry;
-use algoram_runtime::{ImplementationRegistry, ProcessAction};
+use algoram_runtime::{
+    ExecutionTrace, ImplementationRegistry, ProcessAction, RuntimeEndpoint, RuntimeLocationClass,
+    TraceEntry, TraceStatus,
+};
 use algoram_runtime_bridge::{
-    PlanRequest, PlanResponse, RunRequest, RunResponse, RuntimeBridgeServer, RuntimeBridgeService,
+    ImplementationOverride, PlanRequest, PlanResponse, RecoveryOptionsRequest,
+    RecoveryOptionsResponse, RecoveryPlanRequest, RecoveryRunRequest, RecoverySelections,
+    RunRequest, RunResponse, RuntimeBridgeServer, RuntimeBridgeService,
 };
 use std::env;
 use std::io::{Read, Write};
@@ -42,10 +47,12 @@ fn service() -> RuntimeBridgeService {
     RuntimeBridgeService::new(implementations, RouteRegistry::new())
 }
 
-fn spawn_server(request_count: usize) -> (SocketAddr, thread::JoinHandle<()>) {
+fn spawn_server_with(
+    service: RuntimeBridgeService,
+    request_count: usize,
+) -> (SocketAddr, thread::JoinHandle<()>) {
     let server =
-        RuntimeBridgeServer::bind(service(), "127.0.0.1:0".parse().unwrap(), TOKEN, ORIGIN)
-            .unwrap();
+        RuntimeBridgeServer::bind(service, "127.0.0.1:0".parse().unwrap(), TOKEN, ORIGIN).unwrap();
     let addr = server.local_addr().unwrap();
     let handle = thread::spawn(move || {
         for _ in 0..request_count {
@@ -53,6 +60,10 @@ fn spawn_server(request_count: usize) -> (SocketAddr, thread::JoinHandle<()>) {
         }
     });
     (addr, handle)
+}
+
+fn spawn_server(request_count: usize) -> (SocketAddr, thread::JoinHandle<()>) {
+    spawn_server_with(service(), request_count)
 }
 
 fn send(addr: SocketAddr, request: &str) -> String {
@@ -159,6 +170,169 @@ fn loopback_http_boundary_enforces_origin_auth_and_guarded_run() {
         entry.implementation_ref == "impl:http-bridge-test"
             && format!("{:?}", entry.status) == "Succeeded"
     }));
+
+    server_thread.join().unwrap();
+}
+
+fn recovery_service() -> RuntimeBridgeService {
+    let mut implementations = ImplementationRegistry::new();
+    let action = ProcessAction::new(
+        env::current_exe().unwrap().display().to_string(),
+        ["--list"],
+    );
+    implementations
+        .register("impl:http-provider-a", action.clone())
+        .unwrap();
+    implementations
+        .register("impl:http-provider-b", action)
+        .unwrap();
+    implementations
+        .register_choice(
+            "logical:http-provider",
+            ["impl:http-provider-a", "impl:http-provider-b"],
+            "impl:http-provider-a",
+        )
+        .unwrap();
+
+    RuntimeBridgeService::new_with_recovery(
+        implementations,
+        RouteRegistry::new(),
+        vec![RuntimeEndpoint::new(
+            "runtime:http-agent-alt",
+            RuntimeLocationClass::RuntimeAgent,
+            ["impl:http-provider-a", "impl:http-provider-b"],
+        )],
+        "runtime:http-local",
+    )
+    .unwrap()
+}
+
+fn recovery_graph() -> Graph {
+    let mut graph = Graph::new("graph:http-recovery");
+    graph.blocks.push(Block {
+        id: "block:http-recovery".to_owned(),
+        label: "HTTP recovery".to_owned(),
+        ports: Vec::new(),
+        internal_graph_ref: None,
+        implementation_ref: Some("logical:http-provider".to_owned()),
+        definition_ref: None,
+        source_anchor: None,
+        extensions: Extensions::new(),
+        diagnostics: Vec::new(),
+    });
+    graph
+}
+
+fn failed_trace(plan: &algoram_runtime::ExecutionPlan) -> ExecutionTrace {
+    let step = &plan.steps[0];
+    ExecutionTrace {
+        reference_graph_id: plan.reference_graph_id.clone(),
+        entries: vec![TraceEntry {
+            step_id: step.id.clone(),
+            implementation_ref: step.implementation_ref.clone(),
+            status: TraceStatus::Failed,
+            origin_block_ids: step.origin_block_ids.clone(),
+            source_anchors: step.source_anchors.clone(),
+            route_connector_ids: step.route_connector_ids.clone(),
+            exit_code: Some(17),
+            stdout: String::new(),
+            stderr: "synthetic provider outage".to_owned(),
+        }],
+    }
+}
+
+#[test]
+fn recovery_http_boundary_requires_auth_and_reuses_explicit_selection_for_run() {
+    let (addr, server_thread) = spawn_server_with(recovery_service(), 5);
+    let graph = recovery_graph();
+
+    let plan_body = serde_json::to_string(&PlanRequest {
+        graph: graph.clone(),
+    })
+    .unwrap();
+    let planned = post(addr, "/v1/plan", ORIGIN, TOKEN, &plan_body);
+    assert!(planned.starts_with("HTTP/1.1 200"));
+    let default_preview: PlanResponse = serde_json::from_str(response_body(&planned)).unwrap();
+    assert_eq!(
+        default_preview.plan.steps[0].implementation_ref,
+        "impl:http-provider-a"
+    );
+
+    let options_body = serde_json::to_string(&RecoveryOptionsRequest {
+        graph: graph.clone(),
+        expected_plan: default_preview.plan.clone(),
+        trace: failed_trace(&default_preview.plan),
+    })
+    .unwrap();
+    let unauthorized = post(
+        addr,
+        "/v1/recovery/options",
+        ORIGIN,
+        "wrong-token",
+        &options_body,
+    );
+    assert!(unauthorized.starts_with("HTTP/1.1 401"));
+
+    let options_response = post(addr, "/v1/recovery/options", ORIGIN, TOKEN, &options_body);
+    assert!(options_response.starts_with("HTTP/1.1 200"));
+    let options: RecoveryOptionsResponse =
+        serde_json::from_str(response_body(&options_response)).unwrap();
+    assert_eq!(options.implementation_candidates.len(), 1);
+    assert!(options.implementation_candidates[0]
+        .candidates
+        .trusted_local
+        .iter()
+        .any(|candidate| candidate.implementation_ref == "impl:http-provider-b"));
+    assert!(options.runtime_candidates[0]
+        .candidates
+        .iter()
+        .any(|candidate| {
+            candidate.candidate.runtime_ref == "runtime:http-agent-alt"
+                && candidate.placement_validated
+                && !candidate.executable_by_bridge
+        }));
+
+    let selections = RecoverySelections {
+        route_overrides: Vec::new(),
+        implementation_overrides: vec![ImplementationOverride {
+            logical_ref: "logical:http-provider".to_owned(),
+            implementation_ref: "impl:http-provider-b".to_owned(),
+        }],
+    };
+    let recovery_plan_body = serde_json::to_string(&RecoveryPlanRequest {
+        graph: graph.clone(),
+        selections: selections.clone(),
+    })
+    .unwrap();
+    let recovered = post(
+        addr,
+        "/v1/recovery/plan",
+        ORIGIN,
+        TOKEN,
+        &recovery_plan_body,
+    );
+    assert!(recovered.starts_with("HTTP/1.1 200"));
+    let recovery_preview: PlanResponse = serde_json::from_str(response_body(&recovered)).unwrap();
+    assert_eq!(
+        recovery_preview.plan.steps[0].implementation_ref,
+        "impl:http-provider-b"
+    );
+
+    let run_body = serde_json::to_string(&RecoveryRunRequest {
+        graph,
+        expected_plan: recovery_preview.plan,
+        allowed_implementation_refs: vec!["impl:http-provider-b".to_owned()],
+        selections,
+    })
+    .unwrap();
+    let executed = post(addr, "/v1/recovery/run", ORIGIN, TOKEN, &run_body);
+    assert!(executed.starts_with("HTTP/1.1 200"));
+    let run: RunResponse = serde_json::from_str(response_body(&executed)).unwrap();
+    assert!(run.trace.succeeded());
+    assert_eq!(
+        run.trace.entries[0].implementation_ref,
+        "impl:http-provider-b"
+    );
 
     server_thread.join().unwrap();
 }

@@ -35,6 +35,10 @@ import {
   ExecutionPanel,
   type ExecutionPhase,
 } from "./ExecutionPanel";
+import {
+  RecoveryPanel,
+  type RecoveryDiscoveryPhase,
+} from "./RecoveryPanel";
 import { GraphAuthoringPanel } from "./GraphAuthoringPanel";
 import { GraphCanvas } from "./GraphCanvas";
 import { validateGraph, type GraphValidationIssue } from "./graphValidation";
@@ -53,10 +57,16 @@ import {
 } from "./presentation";
 import { markEditorPerformance } from "./perfMarks";
 import {
+  hasExecutableRecoverySelection,
   planGraph,
+  recoveryOptions as requestRecoveryOptions,
+  recoveryPlanGraph,
+  recoveryRunGraph,
   requiredImplementationRefs,
   runGraph,
   type PlanResponse,
+  type RecoveryOptionsResponse,
+  type RecoverySelections,
   type RunResponse,
   type RuntimeBridgeSettings,
 } from "./runtimeBridge";
@@ -132,6 +142,15 @@ export function App() {
   >(() => new Set());
   const executionRequestRevision = useRef(0);
   const executionPlanAbort = useRef<AbortController | null>(null);
+  const recoveryRequestRevision = useRef(0);
+  const recoveryAbort = useRef<AbortController | null>(null);
+  const [recoveryDiscoveryPhase, setRecoveryDiscoveryPhase] =
+    useState<RecoveryDiscoveryPhase>("idle");
+  const [recoveryOptionsResult, setRecoveryOptionsResult] =
+    useState<RecoveryOptionsResponse | null>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [activeRecoverySelections, setActiveRecoverySelections] =
+    useState<RecoverySelections | null>(null);
   const [annotations, setAnnotations] = useState<BlockAnnotations>({});
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [focusRequest, setFocusRequest] = useState<GraphFocusRequest | null>(
@@ -205,11 +224,18 @@ export function App() {
     executionPlanAbort.current?.abort();
     executionPlanAbort.current = null;
     executionRequestRevision.current += 1;
+    recoveryAbort.current?.abort();
+    recoveryAbort.current = null;
+    recoveryRequestRevision.current += 1;
     setExecutionPhase("idle");
     setExecutionPreview(null);
     setExecutionResult(null);
     setExecutionError(null);
     setGrantedImplementationRefs(new Set());
+    setRecoveryDiscoveryPhase("idle");
+    setRecoveryOptionsResult(null);
+    setRecoveryError(null);
+    setActiveRecoverySelections(null);
   }, [currentGraphId, currentHistory?.present.revision]);
 
   const selectedBlock = useMemo(
@@ -649,6 +675,16 @@ export function App() {
       grantedImplementationRefs.has(implementationRef),
     );
 
+  const clearRecoveryContext = useCallback(() => {
+    recoveryAbort.current?.abort();
+    recoveryAbort.current = null;
+    recoveryRequestRevision.current += 1;
+    setRecoveryDiscoveryPhase("idle");
+    setRecoveryOptionsResult(null);
+    setRecoveryError(null);
+    setActiveRecoverySelections(null);
+  }, []);
+
   const dismissExecutionPreview = useCallback(() => {
     if (executionPhase === "running") {
       return;
@@ -661,7 +697,8 @@ export function App() {
     setExecutionResult(null);
     setExecutionError(null);
     setGrantedImplementationRefs(new Set());
-  }, [executionPhase]);
+    clearRecoveryContext();
+  }, [clearRecoveryContext, executionPhase]);
 
   const updateBridgeSettings = useCallback(
     (settings: RuntimeBridgeSettings) => {
@@ -674,8 +711,9 @@ export function App() {
       setExecutionResult(null);
       setExecutionError(null);
       setGrantedImplementationRefs(new Set());
+      clearRecoveryContext();
     },
-    [],
+    [clearRecoveryContext],
   );
 
   const setExecutionGrant = useCallback(
@@ -693,9 +731,124 @@ export function App() {
     [],
   );
 
+  const discoverRecoveryOptions = useCallback(
+    async (plan: PlanResponse["plan"], trace: RunResponse["trace"]) => {
+      recoveryAbort.current?.abort();
+      const controller = new AbortController();
+      recoveryAbort.current = controller;
+      const requestRevision = recoveryRequestRevision.current + 1;
+      recoveryRequestRevision.current = requestRevision;
+      setRecoveryDiscoveryPhase("loading");
+      setRecoveryOptionsResult(null);
+      setRecoveryError(null);
+
+      try {
+        const options = await requestRecoveryOptions(
+          bridgeSettings,
+          currentGraph,
+          plan,
+          trace,
+          controller.signal,
+        );
+        if (recoveryRequestRevision.current !== requestRevision) {
+          return;
+        }
+        setRecoveryOptionsResult(options);
+        setRecoveryDiscoveryPhase("ready");
+      } catch (error: unknown) {
+        if (recoveryRequestRevision.current !== requestRevision) {
+          return;
+        }
+        if (error instanceof DOMException && error.name === "AbortError") {
+          setRecoveryDiscoveryPhase("idle");
+          return;
+        }
+        setRecoveryDiscoveryPhase("failed");
+        setRecoveryError(
+          error instanceof Error
+            ? error.message
+            : "Recovery candidate discovery failed.",
+        );
+      } finally {
+        if (recoveryAbort.current === controller) {
+          recoveryAbort.current = null;
+        }
+      }
+    },
+    [bridgeSettings, currentGraph],
+  );
+
+  const applyRecoverySelections = useCallback(
+    async (selections: RecoverySelections) => {
+      if (!hasExecutableRecoverySelection(selections)) {
+        return;
+      }
+
+      executionPlanAbort.current?.abort();
+      const controller = new AbortController();
+      executionPlanAbort.current = controller;
+      const requestRevision = executionRequestRevision.current + 1;
+      executionRequestRevision.current = requestRevision;
+      const previousPreview = executionPreview;
+
+      setExecutionError(null);
+      setRecoveryError(null);
+      setExecutionPhase("planning");
+
+      try {
+        const preview = await recoveryPlanGraph(
+          bridgeSettings,
+          currentGraph,
+          selections,
+          controller.signal,
+        );
+        if (executionRequestRevision.current !== requestRevision) {
+          return;
+        }
+
+        const sameAccess =
+          previousPreview !== null &&
+          JSON.stringify(previousPreview.access_report.requirements) ===
+            JSON.stringify(preview.access_report.requirements);
+        const requiredRefs = new Set(requiredImplementationRefs(preview));
+        setGrantedImplementationRefs((current) =>
+          sameAccess
+            ? new Set([...current].filter((ref) => requiredRefs.has(ref)))
+            : new Set(),
+        );
+        setExecutionPreview(preview);
+        setActiveRecoverySelections(structuredClone(selections));
+        setExecutionPhase("ready");
+        setRecoveryDiscoveryPhase("idle");
+        setRecoveryOptionsResult(null);
+        setRecoveryError(null);
+      } catch (error: unknown) {
+        if (executionRequestRevision.current !== requestRevision) {
+          return;
+        }
+        if (error instanceof DOMException && error.name === "AbortError") {
+          setExecutionPhase("failed");
+          return;
+        }
+
+        setExecutionPhase("failed");
+        const message =
+          error instanceof Error ? error.message : "Recovery re-plan failed.";
+        setRecoveryError(message);
+        setExecutionError(`Recovery re-plan blocked: ${message}`);
+      } finally {
+        if (executionPlanAbort.current === controller) {
+          executionPlanAbort.current = null;
+        }
+      }
+    },
+    [bridgeSettings, currentGraph, executionPreview],
+  );
+
   const planCurrentGraph = useCallback(async () => {
     setInspectorOpen(true);
     setExecutionResult(null);
+    clearRecoveryContext();
 
     if (currentValidationIssues.length > 0) {
       executionPlanAbort.current?.abort();
@@ -761,6 +914,7 @@ export function App() {
     }
   }, [
     bridgeSettings,
+    clearRecoveryContext,
     currentGraph,
     currentValidationIssues,
     executionPreview,
@@ -779,12 +933,23 @@ export function App() {
     setInspectorOpen(true);
 
     try {
-      const result = await runGraph(
-        bridgeSettings,
-        currentGraph,
-        executionPreview.plan,
-        [...grantedImplementationRefs].sort(),
-      );
+      const allowedImplementationRefs = [...grantedImplementationRefs].sort();
+      const result =
+        activeRecoverySelections &&
+        hasExecutableRecoverySelection(activeRecoverySelections)
+          ? await recoveryRunGraph(
+              bridgeSettings,
+              currentGraph,
+              executionPreview.plan,
+              allowedImplementationRefs,
+              activeRecoverySelections,
+            )
+          : await runGraph(
+              bridgeSettings,
+              currentGraph,
+              executionPreview.plan,
+              allowedImplementationRefs,
+            );
       if (executionRequestRevision.current !== requestRevision) {
         return;
       }
@@ -794,8 +959,12 @@ export function App() {
         (entry) => entry.status === "succeeded",
       );
       setExecutionPhase(succeeded ? "succeeded" : "failed");
-      if (!succeeded) {
+      if (succeeded) {
+        clearRecoveryContext();
+      } else {
         setExecutionError("Guarded run completed with a failed execution step.");
+        setActiveRecoverySelections(null);
+        void discoverRecoveryOptions(executionPreview.plan, result.trace);
       }
     } catch (error: unknown) {
       if (executionRequestRevision.current !== requestRevision) {
@@ -807,9 +976,12 @@ export function App() {
       );
     }
   }, [
+    activeRecoverySelections,
     allExecutionGrantsApproved,
     bridgeSettings,
+    clearRecoveryContext,
     currentGraph,
+    discoverRecoveryOptions,
     executionPreview,
     grantedImplementationRefs,
   ]);
@@ -1021,6 +1193,21 @@ export function App() {
                 onGrantChange={setExecutionGrant}
                 onRetryPlan={planCurrentGraph}
                 onDismiss={dismissExecutionPreview}
+              />
+              {activeRecoverySelections ? (
+                <p className="inline-status recovery-applied-status" role="status">
+                  Current preview uses explicit manual recovery selections.
+                  Run will replan with the same selections before execution.
+                </p>
+              ) : null}
+              <RecoveryPanel
+                options={recoveryOptionsResult}
+                phase={recoveryDiscoveryPhase}
+                error={recoveryError}
+                disabled={
+                  executionPhase === "planning" || executionPhase === "running"
+                }
+                onApply={applyRecoverySelections}
               />
               {currentTraceProjection ? (
                 <TraceUnmappedPanel projection={currentTraceProjection} />

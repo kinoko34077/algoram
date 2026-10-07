@@ -1079,6 +1079,124 @@ textarea:focus-visible,
   overflow-wrap: anywhere;
 }
 
+.recovery-panel {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: #0e1319;
+}
+
+.recovery-panel .panel-heading-row strong {
+  color: var(--color-text-strong);
+  font-size: 11px;
+}
+
+.recovery-state {
+  padding: 1px 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-muted);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.recovery-state.ready {
+  border-color: #3d684f;
+  color: #9fd3b2;
+}
+
+.recovery-state.loading {
+  border-color: #426182;
+  color: #a9c7e5;
+}
+
+.recovery-state.failed {
+  border-color: #75444c;
+  color: var(--color-error);
+}
+
+.recovery-impact {
+  display: flex;
+  gap: var(--space-3);
+  color: var(--color-muted);
+  font-size: 9px;
+}
+
+.recovery-impact strong {
+  color: var(--color-text-strong);
+  font-size: 11px;
+}
+
+.recovery-group {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.recovery-group legend {
+  padding: 0 4px;
+  color: var(--color-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.recovery-choice {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+  padding: 5px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: 9px;
+}
+
+.recovery-choice:hover {
+  background: var(--color-panel-hover);
+}
+
+.recovery-choice input {
+  margin: 2px 0 0;
+}
+
+.recovery-choice > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.recovery-choice strong,
+.recovery-choice small,
+.recovery-choice code {
+  overflow-wrap: anywhere;
+}
+
+.recovery-choice strong {
+  color: var(--color-text-strong);
+  font-size: 9px;
+}
+
+.recovery-choice small,
+.recovery-choice code {
+  color: var(--color-muted);
+  font-size: 8px;
+}
+
+.recovery-choice code {
+  white-space: pre-wrap;
+}
+
+.recovery-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .block-inspector,
 .source-panel {
   padding: var(--space-3);
