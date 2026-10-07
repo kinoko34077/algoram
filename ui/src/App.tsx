@@ -1619,6 +1619,15 @@ export function App() {
 
       <section
         id="runtime-execution-panel"
+        ref={executionDrawerRef}
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && !event.nativeEvent.isComposing) {
+            event.preventDefault();
+            setExecutionOpen(false);
+            executionButtonRef.current?.focus();
+          }
+        }}
         className="execution-drawer"
         aria-label={jaJP.execution.runtimeExecution}
         hidden={!executionOpen}
@@ -1665,7 +1674,7 @@ export function App() {
             </button>
           ) : null}
             <button type="button" className="tertiary-action"
-              onClick={() => setExecutionOpen(false)}>{jaJP.common.actions.close}</button>
+              onClick={() => { setExecutionOpen(false); executionButtonRef.current?.focus(); }}>{jaJP.common.actions.close}</button>
           </div>
         </div>
             <div className="execution-drawer-content">
