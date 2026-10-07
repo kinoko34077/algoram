@@ -1071,7 +1071,7 @@ fn write_http_response(stream: &mut TcpStream, response: HttpResponse) -> Result
 mod tests {
     use super::*;
     use algoram_core::{Block, Extensions};
-    use algoram_runtime::{ExecutionSecurityError, TraceStatus};
+    use algoram_runtime::{ExecutionSecurityError, TraceEntry, TraceStatus};
     use std::env;
 
     fn executable_graph(implementation_ref: &str) -> Graph {
@@ -1197,6 +1197,170 @@ mod tests {
         };
         let service = RuntimeBridgeService::from_config(config).unwrap();
         assert!(service.plan(&executable_graph("impl:bridge-test")).is_ok());
+    }
+
+    fn provider_service() -> RuntimeBridgeService {
+        let mut implementations = ImplementationRegistry::new();
+        implementations
+            .register(
+                "impl:provider-a",
+                ProcessAction::new(
+                    "algoram-recovery-test-must-not-execute",
+                    std::iter::empty::<&str>(),
+                ),
+            )
+            .unwrap();
+        implementations
+            .register(
+                "impl:provider-b",
+                ProcessAction::new(
+                    "algoram-recovery-test-must-not-execute",
+                    std::iter::empty::<&str>(),
+                ),
+            )
+            .unwrap();
+        implementations
+            .register_choice(
+                "logical:provider",
+                ["impl:provider-a", "impl:provider-b"],
+                "impl:provider-a",
+            )
+            .unwrap();
+
+        RuntimeBridgeService::new_with_recovery(
+            implementations,
+            RouteRegistry::new(),
+            vec![RuntimeEndpoint::new(
+                "runtime:agent-alt",
+                RuntimeLocationClass::RuntimeAgent,
+                ["impl:provider-a", "impl:provider-b"],
+            )],
+            "runtime:local-bridge",
+        )
+        .unwrap()
+    }
+
+    fn failed_trace(plan: &ExecutionPlan) -> ExecutionTrace {
+        let step = &plan.steps[0];
+        ExecutionTrace {
+            reference_graph_id: plan.reference_graph_id.clone(),
+            entries: vec![TraceEntry {
+                step_id: step.id.clone(),
+                implementation_ref: step.implementation_ref.clone(),
+                status: TraceStatus::Failed,
+                origin_block_ids: step.origin_block_ids.clone(),
+                source_anchors: step.source_anchors.clone(),
+                route_connector_ids: step.route_connector_ids.clone(),
+                exit_code: Some(23),
+                stdout: String::new(),
+                stderr: "provider unavailable".to_owned(),
+            }],
+        }
+    }
+
+    #[test]
+    fn recovery_discovery_and_provider_replan_are_explicit_and_non_mutating() {
+        let service = provider_service();
+        let graph = executable_graph("logical:provider");
+        let graph_before = graph.clone();
+        let preview = service.plan(&graph).unwrap();
+        assert_eq!(preview.plan.steps[0].implementation_ref, "impl:provider-a");
+
+        let options = service
+            .recovery_options(&RecoveryOptionsRequest {
+                graph: graph.clone(),
+                expected_plan: preview.plan.clone(),
+                trace: failed_trace(&preview.plan),
+            })
+            .unwrap();
+
+        assert_eq!(options.report.impact.failed_block_ids, vec!["block:bridge-test"]);
+        assert_eq!(options.implementation_candidates.len(), 1);
+        assert_eq!(
+            options.implementation_candidates[0]
+                .candidates
+                .trusted_local
+                .iter()
+                .map(|candidate| (
+                    candidate.implementation_ref.as_str(),
+                    candidate.is_default
+                ))
+                .collect::<Vec<_>>(),
+            vec![("impl:provider-a", true), ("impl:provider-b", false)]
+        );
+        assert!(!options.catalog_connected);
+        assert_eq!(options.runtime_candidates.len(), 1);
+        assert!(options.runtime_candidates[0]
+            .candidates
+            .iter()
+            .any(|candidate| {
+                candidate.candidate.runtime_ref == "runtime:agent-alt"
+                    && candidate.placement_validated
+                    && !candidate.executable_by_bridge
+            }));
+        assert!(options.runtime_candidates[0]
+            .candidates
+            .iter()
+            .any(|candidate| {
+                candidate.candidate.runtime_ref == "runtime:local-bridge"
+                    && candidate.placement_validated
+                    && candidate.executable_by_bridge
+            }));
+        assert_eq!(graph, graph_before);
+
+        let selections = RecoverySelections {
+            route_overrides: Vec::new(),
+            implementation_overrides: vec![ImplementationOverride {
+                logical_ref: "logical:provider".to_owned(),
+                implementation_ref: "impl:provider-b".to_owned(),
+            }],
+        };
+        let recovered = service
+            .recovery_plan(&RecoveryPlanRequest {
+                graph: graph.clone(),
+                selections,
+            })
+            .unwrap();
+        assert_eq!(recovered.plan.steps[0].implementation_ref, "impl:provider-b");
+
+        let default_again = service.plan(&graph).unwrap();
+        assert_eq!(
+            default_again.plan.steps[0].implementation_ref,
+            "impl:provider-a"
+        );
+        assert_eq!(graph, graph_before);
+    }
+
+    #[test]
+    fn recovery_rejects_forged_trace_and_untrusted_provider_selection() {
+        let service = provider_service();
+        let graph = executable_graph("logical:provider");
+        let preview = service.plan(&graph).unwrap();
+        let mut trace = failed_trace(&preview.plan);
+        trace.entries[0].implementation_ref = "impl:forged".to_owned();
+
+        assert!(matches!(
+            service.recovery_options(&RecoveryOptionsRequest {
+                graph: graph.clone(),
+                expected_plan: preview.plan.clone(),
+                trace,
+            }),
+            Err(BridgeError::Recovery(_))
+        ));
+
+        assert!(matches!(
+            service.recovery_plan(&RecoveryPlanRequest {
+                graph,
+                selections: RecoverySelections {
+                    route_overrides: Vec::new(),
+                    implementation_overrides: vec![ImplementationOverride {
+                        logical_ref: "logical:provider".to_owned(),
+                        implementation_ref: "impl:not-trusted".to_owned(),
+                    }],
+                },
+            }),
+            Err(BridgeError::Planning(_))
+        ));
     }
 
     #[test]
