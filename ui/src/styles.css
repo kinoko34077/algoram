@@ -512,6 +512,51 @@ textarea:focus-visible,
   background: var(--color-panel);
 }
 
+.palette-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.palette-heading strong {
+  color: var(--color-text-strong);
+  font-size: 11px;
+}
+
+.palette-heading > span {
+  min-width: 20px;
+  padding: 1px 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-muted);
+  font-size: 8px;
+  text-align: center;
+}
+
+.palette-search {
+  display: grid;
+  gap: 3px;
+  color: var(--color-muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.palette-search input {
+  width: 100%;
+  min-height: var(--control-height);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #0d1218;
+  color: var(--color-text);
+  padding: 4px 7px;
+  font-size: 10px;
+}
+
+.palette-search input::placeholder {
+  color: var(--color-faint);
+}
+
 .canvas-surface {
   min-width: 0;
   min-height: 0;
