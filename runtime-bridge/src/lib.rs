@@ -1071,7 +1071,10 @@ fn write_http_response(stream: &mut TcpStream, response: HttpResponse) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
-    use algoram_core::{Block, Extensions};
+    use algoram_core::{
+        Block, Connection, Extensions, Port, PortChannel, PortDirection, PortRef,
+    };
+    use algoram_interop::{Connector, ContractId};
     use algoram_runtime::{ExecutionSecurityError, TraceEntry, TraceStatus};
     use std::env;
 
@@ -1333,6 +1336,127 @@ mod tests {
             "impl:provider-a"
         );
         assert_eq!(graph, graph_before);
+    }
+
+    #[test]
+    fn recovery_route_override_is_explicit_and_does_not_change_default_route() {
+        let mut graph = Graph::new("graph:bridge-route-recovery");
+        graph.blocks.push(Block {
+            id: "block:route-source".to_owned(),
+            label: "source".to_owned(),
+            ports: vec![Port {
+                id: "out".to_owned(),
+                direction: PortDirection::Out,
+                channel: PortChannel::Data,
+                contract: Some(serde_json::Value::String("contract:a".to_owned())),
+                extensions: Extensions::new(),
+            }],
+            internal_graph_ref: None,
+            implementation_ref: None,
+            definition_ref: None,
+            source_anchor: None,
+            extensions: Extensions::new(),
+            diagnostics: Vec::new(),
+        });
+        graph.blocks.push(Block {
+            id: "block:route-target".to_owned(),
+            label: "target".to_owned(),
+            ports: vec![Port {
+                id: "in".to_owned(),
+                direction: PortDirection::In,
+                channel: PortChannel::Data,
+                contract: Some(serde_json::Value::String("contract:c".to_owned())),
+                extensions: Extensions::new(),
+            }],
+            internal_graph_ref: None,
+            implementation_ref: Some("impl:route-target".to_owned()),
+            definition_ref: None,
+            source_anchor: None,
+            extensions: Extensions::new(),
+            diagnostics: Vec::new(),
+        });
+        graph.connections.push(Connection {
+            id: "connection:route".to_owned(),
+            source: PortRef {
+                block_id: "block:route-source".to_owned(),
+                port_id: "out".to_owned(),
+            },
+            target: PortRef {
+                block_id: "block:route-target".to_owned(),
+                port_id: "in".to_owned(),
+            },
+            extensions: Extensions::new(),
+        });
+
+        let mut implementations = ImplementationRegistry::new();
+        implementations
+            .register(
+                "impl:route-target",
+                ProcessAction::new(
+                    "algoram-route-recovery-test-must-not-execute",
+                    std::iter::empty::<&str>(),
+                ),
+            )
+            .unwrap();
+
+        let mut routes = RouteRegistry::new();
+        routes
+            .register(Connector::new(
+                "connector:primary",
+                ContractId::from("contract:a"),
+                ContractId::from("contract:c"),
+                "impl:connector-primary",
+            ))
+            .unwrap();
+        routes
+            .register(Connector::new(
+                "connector:alt-a",
+                ContractId::from("contract:a"),
+                ContractId::from("contract:b"),
+                "impl:connector-alt-a",
+            ))
+            .unwrap();
+        routes
+            .register(Connector::new(
+                "connector:alt-b",
+                ContractId::from("contract:b"),
+                ContractId::from("contract:c"),
+                "impl:connector-alt-b",
+            ))
+            .unwrap();
+
+        let service = RuntimeBridgeService::new(implementations, routes);
+        let default_plan = service.plan(&graph).unwrap();
+        assert_eq!(
+            default_plan.plan.steps[0].route_connector_ids,
+            vec!["connector:primary"]
+        );
+
+        let recovered = service
+            .recovery_plan(&RecoveryPlanRequest {
+                graph: graph.clone(),
+                selections: RecoverySelections {
+                    route_overrides: vec![RouteOverride {
+                        connection_id: "connection:route".to_owned(),
+                        connector_ids: vec![
+                            "connector:alt-a".to_owned(),
+                            "connector:alt-b".to_owned(),
+                        ],
+                    }],
+                    implementation_overrides: Vec::new(),
+                },
+            })
+            .unwrap();
+        assert_eq!(
+            recovered.plan.steps[0].route_connector_ids,
+            vec!["connector:alt-a", "connector:alt-b"]
+        );
+
+        let default_again = service.plan(&graph).unwrap();
+        assert_eq!(
+            default_again.plan.steps[0].route_connector_ids,
+            vec!["connector:primary"]
+        );
     }
 
     #[test]
