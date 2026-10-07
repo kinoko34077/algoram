@@ -14,11 +14,11 @@ export function AnnotationPanel({
   const fieldId = `annotation:${blockId}`;
 
   return (
-    <section className="annotation-panel" aria-label="Local Block annotation">
+    <section className="annotation-panel" aria-label={jaJP.authoring.annotation.inputLabel}>
       <div className="annotation-heading">
         <div>
-          <p className="eyebrow">Local annotation</p>
-          <strong>Editor-only note</strong>
+          <p className="eyebrow">{jaJP.authoring.annotation.localAnnotation}</p>
+          <strong>{jaJP.authoring.annotation.editorOnlyNote}</strong>
         </div>
         <button
           type="button"
@@ -26,18 +26,18 @@ export function AnnotationPanel({
           onClick={onRemove}
           disabled={value.length === 0}
         >
-          Remove
+          {jaJP.authoring.annotation.remove}
         </button>
       </div>
 
       <label htmlFor={fieldId}>
-        <span>Annotation for this Block</span>
+        <span>{jaJP.authoring.annotation.annotationForBlock}</span>
         <textarea
           id={fieldId}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           rows={4}
-          placeholder="Add a local note…"
+          placeholder={jaJP.authoring.annotation.placeholder}
         />
       </label>
 
