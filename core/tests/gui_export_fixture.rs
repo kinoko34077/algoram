@@ -1,8 +1,7 @@
 use algoram_core::Graph;
 use serde_json::json;
 
-const PORTABLE_GUI_EXPORT: &str =
-    include_str!("../../fixtures/gui-export/portable.algoram.json");
+const PORTABLE_GUI_EXPORT: &str = include_str!("../../fixtures/gui-export/portable.algoram.json");
 
 #[test]
 fn gui_export_fixture_is_accepted_by_graph_from_json() {
