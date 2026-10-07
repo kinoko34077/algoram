@@ -5,7 +5,7 @@ async function source(path) {
   return readFile(new URL(path, import.meta.url), "utf8");
 }
 
-const [app, canvas, palette, draft, search, annotation, authoring, execution, bridge, styles] = await Promise.all([
+const [app, canvas, palette, draft, search, annotation, authoring, execution, bridge, traceDetail, traceUnmapped, traceProjection, styles, traceStyles] = await Promise.all([
   source("../src/App.tsx"),
   source("../src/GraphCanvas.tsx"),
   source("../src/BlockPalette.tsx"),
@@ -15,7 +15,11 @@ const [app, canvas, palette, draft, search, annotation, authoring, execution, br
   source("../src/GraphAuthoringPanel.tsx"),
   source("../src/ExecutionPanel.tsx"),
   source("../src/runtimeBridge.ts"),
+  source("../src/TraceDetailPanel.tsx"),
+  source("../src/TraceUnmappedPanel.tsx"),
+  source("../src/traceProjection.ts"),
   source("../src/styles.css"),
+  source("../src/trace.css"),
 ]);
 
 assert.match(styles, /--inspector-width:\s*328px/);
@@ -149,6 +153,28 @@ assert.match(bridge, /signal\?: AbortSignal/);
 assert.equal(bridge.includes("child_process"), false);
 assert.equal(bridge.includes("node:"), false);
 
+assert.match(app, /projectExecutionTrace/);
+assert.match(app, /traceProjection=\{currentTraceProjection\}/);
+assert.match(app, /TraceDetailPanel/);
+assert.match(app, /TraceUnmappedPanel/);
+assert.match(canvas, /traceProjection/);
+assert.match(canvas, /observedStatusLabel/);
+assert.match(canvas, /Observed \{Object\.keys\(traceProjection\.byBlockId\)\.length\} Blocks/);
+assert.match(traceDetail, /Observed run/);
+assert.match(traceDetail, /Observed route/);
+assert.match(traceDetail, /stderr/);
+assert.match(traceDetail, /Route IDs are runtime evidence, not/);
+assert.match(traceUnmapped, /unmapped trace origin/);
+assert.match(traceUnmapped, /Unknown origin IDs are not attached/);
+assert.match(traceProjection, /trace\.reference_graph_id !== graph\.id/);
+assert.match(traceProjection, /origin_block_ids/);
+assert.match(traceProjection, /unmappedOrigins/);
+assert.equal(traceProjection.includes("runtime_ref"), false);
+assert.match(traceStyles, /\.observed-status\.succeeded/);
+assert.match(traceStyles, /\.observed-status\.failed/);
+assert.match(traceStyles, /\.trace-detail-panel/);
+assert.match(traceStyles, /overflow-wrap:\s*anywhere/);
+
 console.log(
   JSON.stringify({
     kind: "ui-protocol-check",
@@ -171,5 +197,8 @@ console.log(
     unique_explicit_grants: "pass",
     execution_retry_replans: "pass",
     execution_plan_cancel: "pass",
+    observed_trace_overlay: "pass",
+    trace_text_symbol_semantics: "pass",
+    unmapped_trace_evidence: "pass",
   }),
 );
