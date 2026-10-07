@@ -1,5 +1,7 @@
 import type { AlgoramGraph, ReferenceBundle } from "./algoram";
 
+const HISTORY_LIMIT = 100;
+
 interface GraphRevision {
   graph: AlgoramGraph;
   fingerprint: string;
@@ -81,7 +83,7 @@ export function applyGraph(
   }
 
   return {
-    past: [...history.past, history.present],
+    past: [...history.past, history.present].slice(-HISTORY_LIMIT),
     present: {
       graph: nextGraph,
       fingerprint,
@@ -103,7 +105,7 @@ export function undoGraph(history: GraphHistory): GraphHistory {
     ...history,
     past: history.past.slice(0, -1),
     present: previous,
-    future: [history.present, ...history.future],
+    future: [history.present, ...history.future].slice(0, HISTORY_LIMIT),
   };
 }
 
