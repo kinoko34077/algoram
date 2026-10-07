@@ -1,5 +1,5 @@
 import type { AlgoramGraph, SourceAnchor } from "./algoram";
-import { jaJP } from "./locales/ja-JP";
+import { jaJP } from "./locales/ja-JP/index.ts";
 
 export interface ProcessAction {
   program: string;
