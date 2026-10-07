@@ -172,7 +172,7 @@ export function App() {
   const [activeRecoverySelections, setActiveRecoverySelections] =
     useState<RecoverySelections | null>(null);
   const [annotations, setAnnotations] = useState<BlockAnnotations>({});
-  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [focusRequest, setFocusRequest] = useState<GraphFocusRequest | null>(
     null,
   );
@@ -538,6 +538,7 @@ export function App() {
   const selectBlock = useCallback(
     (blockId: string | null) => {
       if (blockId !== null) {
+        setInspectorOpen(true);
         setConnectionSelectionByGraph((current) => ({
           ...current,
           [currentGraphId]: null,
@@ -562,6 +563,7 @@ export function App() {
   const selectConnection = useCallback(
     (connectionId: string | null) => {
       if (connectionId !== null) {
+        setInspectorOpen(true);
         setSelectionByGraph((current) => ({
           ...current,
           [currentGraphId]: null,
@@ -1452,52 +1454,6 @@ export function App() {
             className="inspector-region"
             aria-label={jaJP.app.blockInspector}
           >
-            <div id="runtime-execution-panel">
-              <ExecutionPanel
-                graph={currentGraph}
-                phase={executionPhase}
-                settings={bridgeSettings}
-                preview={executionPreview}
-                result={executionResult}
-                error={executionError}
-                grantedImplementationRefs={grantedImplementationRefs}
-                onSettingsChange={updateBridgeSettings}
-                onGrantChange={setExecutionGrant}
-                onRetryPlan={planCurrentGraph}
-                onDismiss={dismissExecutionPreview}
-              />
-              {activeRecoverySelections ? (
-                <p className="inline-status recovery-applied-status" role="status">
-                  {jaJP.app.recoverySelectionsHint}
-                </p>
-              ) : null}
-              <RecoveryPanel
-                options={recoveryOptionsResult}
-                phase={recoveryDiscoveryPhase}
-                error={recoveryError}
-                disabled={
-                  executionPhase === "planning" || executionPhase === "running"
-                }
-                onApply={applyRecoverySelections}
-              />
-              {currentTraceProjection ? (
-                <TraceUnmappedPanel projection={currentTraceProjection} />
-              ) : null}
-              {traceProjectionError ? (
-                <p className="inline-status error-text" role="alert">
-                  {jaJP.app.observedTraceHidden.replace("{error}", traceProjectionError)}
-                </p>
-              ) : null}
-            </div>
-
-            <GraphAuthoringPanel
-              graph={currentGraph}
-              editable={currentHistory !== null}
-              dirty={currentGraphDirty}
-              validationIssues={currentValidationIssues}
-              onCommitLabel={commitCurrentGraphLabel}
-            />
-
             <section className="block-inspector">
               {selectedConnection ? (
                 <>
@@ -1653,12 +1609,65 @@ export function App() {
               )}
             </section>
 
+            <details className="inspector-disclosure">
+              <summary>{jaJP.authoring.graphProperties.properties}{currentValidationIssues.length > 0 ? ` · ${jaJP.authoring.graphProperties.issueCount.replace("{count}", String(currentValidationIssues.length))}` : ""}</summary>
+            <GraphAuthoringPanel
+              graph={currentGraph}
+              editable={currentHistory !== null}
+              dirty={currentGraphDirty}
+              validationIssues={currentValidationIssues}
+              onCommitLabel={commitCurrentGraphLabel}
+            />
+            </details>
+
+            <details className="inspector-disclosure">
+              <summary>{jaJP.authoring.sourcePanel.source}</summary>
             <SourcePanel
               bundle={editorBundle}
               graph={currentGraph}
               selectedBlock={selectedBlock}
               onSelectBlock={selectBlock}
             />
+            </details>
+
+            <div id="runtime-execution-panel">
+              <ExecutionPanel
+                graph={currentGraph}
+                phase={executionPhase}
+                settings={bridgeSettings}
+                preview={executionPreview}
+                result={executionResult}
+                error={executionError}
+                grantedImplementationRefs={grantedImplementationRefs}
+                onSettingsChange={updateBridgeSettings}
+                onGrantChange={setExecutionGrant}
+                onRetryPlan={planCurrentGraph}
+                onDismiss={dismissExecutionPreview}
+              />
+              {activeRecoverySelections ? (
+                <p className="inline-status recovery-applied-status" role="status">
+                  {jaJP.app.recoverySelectionsHint}
+                </p>
+              ) : null}
+              <RecoveryPanel
+                options={recoveryOptionsResult}
+                phase={recoveryDiscoveryPhase}
+                error={recoveryError}
+                disabled={
+                  executionPhase === "planning" || executionPhase === "running"
+                }
+                onApply={applyRecoverySelections}
+              />
+              {currentTraceProjection ? (
+                <TraceUnmappedPanel projection={currentTraceProjection} />
+              ) : null}
+              {traceProjectionError ? (
+                <p className="inline-status error-text" role="alert">
+                  {jaJP.app.observedTraceHidden.replace("{error}", traceProjectionError)}
+                </p>
+              ) : null}
+            </div>
+
           </aside>
         ) : null}
       </main>
