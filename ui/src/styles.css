@@ -486,6 +486,32 @@ textarea:focus-visible,
   white-space: nowrap;
 }
 
+.canvas-work-area {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+}
+
+.canvas-work-area.palette-open {
+  grid-template-columns: var(--palette-width) minmax(0, 1fr);
+}
+
+.canvas-work-area.palette-closed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.block-palette {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  overflow: hidden;
+  padding: var(--space-2);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-panel);
+}
+
 .canvas-surface {
   min-width: 0;
   min-height: 0;
