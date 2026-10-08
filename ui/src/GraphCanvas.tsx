@@ -23,7 +23,8 @@ import type { AlgoramBlock, AlgoramGraph } from "./algoram";
 import { BlockPalette } from "./BlockPalette";
 import { FirstUseGuide, useFirstUseGuide } from "./FirstUseGuide";
 import type { ReusableBlockTemplate } from "./blockAuthoring";
-import { getBlockGeometry, portHandleTop } from "./blockDisplay";
+import { getBlockGeometry, portHandleTop, projectBlockDisplay } from "./blockDisplay";
+import type { CapabilityAddSource } from "./BlockPalette";
 import { markEditorPerformance } from "./perfMarks";
 import {
   toFlowEdges,
@@ -142,6 +143,22 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
         </div>
       ) : null}
 
+      {selected && data.onOpenLocalAdd && outputs.length > 0 ? (
+        <button
+          type="button"
+          className="node-local-add nodrag nopan"
+          title={jaJP.authoring.canvas.localPlus}
+          aria-label={jaJP.authoring.canvas.localPlus}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            data.onOpenLocalAdd?.(block.id);
+          }}
+        >
+          ＋
+        </button>
+      ) : null}
+
       {outputs.map((port, index) => (
         <Handle
           key={port.id}
@@ -249,7 +266,11 @@ function CanvasBody({
   const [interactionStatus, setInteractionStatus] = useState<string | null>(
     null,
   );
-  const [paletteOpen, setPaletteOpen] = useState(true);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [addContext, setAddContext] = useState<{
+    blockId: string;
+    sourcePortId: string | null;
+  } | null>(null);
   const firstUse = useFirstUseGuide();
   const [blockDropActive, setBlockDropActive] = useState(false);
   const pointerDragActive = useRef(false);
@@ -364,6 +385,34 @@ function CanvasBody({
     });
   }, [fitView, focusRequest, getNode, graph.id, loadedGraphId]);
 
+  const openLocalAdd = useCallback(
+    (blockId: string) => {
+      if (!editable) return;
+      const block = graph.blocks.find((item) => item.id === blockId);
+      const outputs = (block?.ports ?? []).filter((port) => port.direction === "out");
+      if (!outputs.length) return;
+      setAddContext({
+        blockId,
+        sourcePortId: outputs.length === 1 ? outputs[0].id : null,
+      });
+      setPaletteOpen(true);
+      setInteractionStatus(null);
+    },
+    [editable, graph],
+  );
+
+  const localAddSource = useMemo<CapabilityAddSource | null>(() => {
+    if (!addContext) return null;
+    const block = graph.blocks.find((item) => item.id === addContext.blockId);
+    if (!block) return null;
+    return {
+      blockId: block.id,
+      blockLabel: projectBlockDisplay(block).shortLabel,
+      outputs: (block.ports ?? []).filter((port) => port.direction === "out"),
+      sourcePortId: addContext.sourcePortId,
+    };
+  }, [addContext, graph]);
+
   const nodes = useMemo(
     () =>
       baseNodes.map((node) => ({
@@ -372,9 +421,10 @@ function CanvasBody({
         data: {
           ...node.data,
           traceObservation: traceProjection?.byBlockId[node.id],
+          onOpenLocalAdd: editable ? openLocalAdd : undefined,
         },
       })),
-    [baseNodes, selectedBlockId, traceProjection],
+    [baseNodes, selectedBlockId, traceProjection, editable, openLocalAdd],
   );
 
   const handleNodesChange = useCallback(
@@ -501,23 +551,37 @@ function CanvasBody({
       const fallback = { x: 40, y: 40 };
       let position = fallback;
 
-      if (surface) {
+      const { width, height } = getBlockGeometry(template.block);
+      const sourceNode = addContext?.sourcePortId
+        ? getNode(addContext.blockId)
+        : null;
+      if (sourceNode) {
+        const sourceHeight = getBlockGeometry(sourceNode.data.block).height;
+        const sourceWidth = getBlockGeometry(sourceNode.data.block).width;
+        position = {
+          x: sourceNode.position.x + sourceWidth + 72,
+          y: sourceNode.position.y + (sourceHeight - height) / 2,
+        };
+      } else if (surface) {
         const bounds = surface.getBoundingClientRect();
         const center = screenToFlowPosition({
           x: bounds.left + bounds.width / 2,
           y: bounds.top + bounds.height / 2,
         });
-        const { width, height } = getBlockGeometry(template.block);
-        position = {
-          x: center.x - width / 2,
-          y: center.y - height / 2,
-        };
+        position = { x: center.x - width / 2, y: center.y - height / 2 };
       }
-
+      if (addContext && !addContext.sourcePortId) {
+        setInteractionStatus(jaJP.authoring.blockPalette.outputChoice);
+        return;
+      }
       onAddBlock(template, position);
+      if (addContext) {
+        setInteractionStatus(jaJP.authoring.blockPalette.addedWithoutRoute);
+      }
+      setPaletteOpen(false);
       firstUse.dismiss();
     },
-    [onAddBlock, screenToFlowPosition, firstUse.dismiss],
+    [addContext, getNode, onAddBlock, screenToFlowPosition, firstUse.dismiss],
   );
 
   return (
@@ -534,11 +598,15 @@ function CanvasBody({
               type="button"
               className="tertiary-action"
               aria-controls="block-palette"
-              aria-expanded={paletteOpen}
-              aria-pressed={paletteOpen}
-              onClick={() => setPaletteOpen((open) => !open)}
+              aria-expanded={paletteOpen && addContext === null}
+              aria-label={jaJP.authoring.canvas.globalPlus}
+              title={jaJP.authoring.canvas.globalPlus}
+              onClick={() => {
+                setAddContext(null);
+                setPaletteOpen((open) => addContext ? true : !open);
+              }}
             >
-              {jaJP.authoring.canvas.library}
+              ＋
             </button>
           ) : null}
           <details className="canvas-more-menu">
@@ -595,7 +663,12 @@ function CanvasBody({
           <div id="block-palette">
             <BlockPalette
               templates={blockTemplates}
+              context={localAddSource}
+              onSourcePortChange={(portId) => {
+                setAddContext((current) => current ? { ...current, sourcePortId: portId } : null);
+              }}
               onAdd={addFromPalette}
+              onClose={() => setPaletteOpen(false)}
             />
           </div>
         ) : null}
@@ -627,6 +700,10 @@ function CanvasBody({
             const center = screenToFlowPosition({ x: event.clientX, y: event.clientY });
             const { width, height } = getBlockGeometry(template.block);
             onAddBlock(template, { x: center.x - width / 2, y: center.y - height / 2 });
+            setPaletteOpen(false);
+            if (addContext) {
+              setInteractionStatus(jaJP.authoring.blockPalette.addedWithoutRoute);
+            }
             firstUse.dismiss();
           }}
         >
