@@ -62,6 +62,8 @@ jobs:
         run: npm run test:block-display
       - name: Contextual connection discovery is not route proof
         run: npm run test:discovery
+      - name: Generic gloss longpress versus drag check
+        run: npm run test:gloss
       - name: Browser vertical mobile layout smoke
         run: |
           python3 -m pip install --user --quiet selenium==4.36.0
