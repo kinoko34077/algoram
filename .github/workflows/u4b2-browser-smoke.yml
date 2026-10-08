@@ -1,0 +1,65 @@
+name: U4b2 Browser History Smoke
+on:
+  push:
+    branches: [chatgpt/181-u4b2-browser-smoke]
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Start UI and Chrome
+        run: |
+          cd ui
+          npm install --ignore-scripts --no-audit --no-fund
+          nohup npm run dev -- --host 127.0.0.1 > /tmp/u4b2-vite.log 2>&1 &
+          python -m pip install --disable-pip-version-check selenium==4.36.0
+          google-chrome --version
+      - name: Graph open, browser Back and Forward, breadcrumb, history safety
+        run: |
+          python - <<'PY'
+          import json
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.common.action_chains import ActionChains
+          o=Options()
+          for f in ('--headless=new','--no-sandbox','--disable-dev-shm-usage'):
+            o.add_argument(f)
+          o.set_capability('goog:loggingPrefs',{'browser':'ALL'})
+          for width in (1440,480):
+            d=webdriver.Chrome(options=o)
+            try:
+              d.set_window_size(width,900)
+              d.get('http://127.0.0.1:5173/')
+              w=WebDriverWait(d,30)
+              crumb=lambda: d.find_elements(By.CSS_SELECTOR,'.breadcrumbs button')
+              w.until(lambda b:len(crumb())==1 and b.find_elements(By.CSS_SELECTOR,'.react-flow__node'))
+              initial_url=d.current_url
+              nodes=d.find_elements(By.CSS_SELECTOR,'.react-flow__node')
+              d.execute_script("arguments[0].dispatchEvent(new MouseEvent('dblclick',{bubbles:true,cancelable:true}))",nodes[0])
+              w.until(lambda b:len(crumb())==2)
+              child_label=crumb()[-1].text
+              state=d.execute_script("return history.state && history.state.__algoramGraphNavigationV1")
+              assert state and len(state['path'])==2,state
+              d.back()
+              w.until(lambda b:len(crumb())==1)
+              assert d.current_url==initial_url,"Back changed document URL"
+              d.forward()
+              w.until(lambda b:len(crumb())==2)
+              assert crumb()[-1].text==child_label,"Forward did not restore graph"
+              crumb()[0].click()
+              w.until(lambda b:len(crumb())==1)
+              d.back()
+              w.until(lambda b:len(crumb())==2)
+              dims=d.execute_script('return [document.documentElement.scrollWidth,document.documentElement.clientWidth]')
+              assert dims[0]<=dims[1]+1, f'overflow: {dims}'
+              severe=[x for x in d.get_log('browser') if x['level']=='SEVERE' and 'favicon.ico' not in x['message']]
+              assert not severe,severe
+              print(json.dumps({'viewport':f'{width}x900','child_graph':child_label,'back':'pass','forward':'pass','breadcrumb_back':'pass','pathname':'unchanged','overflow':'none'},ensure_ascii=False))
+            finally:
+              d.quit()
+          PY
