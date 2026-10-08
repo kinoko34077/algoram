@@ -151,6 +151,32 @@ def main():
             time.sleep(0.3)
             m = browser.execute_script(JS_METRICS)
             assert_geometry(m, width, height)
+            # W2a real DOM interaction: temporary global search never consumes Canvas.
+            if width in (390, 1440):
+                browser.find_element(
+                    "css selector", ".canvas-toolbar-actions button[aria-label='＋ 能力を探す']"
+                ).click()
+                wait.until(lambda d: d.execute_script(
+                    "return document.querySelectorAll('#block-palette .palette-item').length >= 2"
+                ))
+                assert_geometry(browser.execute_script(JS_METRICS), width, height)
+                browser.find_element("css selector", "#block-palette .palette-close").click()
+            if width == 1440:
+                browser.find_element("css selector", ".react-flow__node").click()
+                wait.until(lambda d: d.execute_script(
+                    "return Boolean(document.querySelector('.node-local-add'))"
+                ))
+                browser.find_element("css selector", ".node-local-add").click()
+                wait.until(lambda d: d.execute_script(
+                    "return Boolean(document.querySelector('#block-palette [data-connection-discovery]'))"
+                ))
+                route_labels = browser.execute_script(
+                    "return Array.from(document.querySelectorAll('#block-palette [data-connection-discovery]'),"
+                    " el => el.getAttribute('data-connection-discovery'))"
+                )
+                assert route_labels and all(label != "verified" for label in route_labels), route_labels
+                assert "needs-mapper-or-route" in route_labels, route_labels
+                browser.find_element("css selector", "#block-palette .palette-close").click()
             if width in (390, 320, 1440):
                 browser.find_element("css selector", ".execution-entry-action").click()
                 wait.until(lambda d: d.execute_script(
