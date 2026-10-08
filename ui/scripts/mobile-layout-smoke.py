@@ -181,6 +181,19 @@ def main():
                 assert route_labels and all(label != "verified" for label in route_labels), route_labels
                 assert "needs-mapper-or-route" in route_labels, route_labels
                 browser.find_element("css selector", "#block-palette .palette-close").click()
+                # W3b: selected block gets local detail, not automatic Inspector.
+                wait.until(lambda d: d.execute_script(
+                    "return Boolean(document.querySelector('.near-block-detail'))"
+                ))
+                assert browser.execute_script(
+                    "return !document.querySelector('.inspector-region')"
+                ), "Inspector should remain closed on ordinary block selection"
+                browser.find_element(
+                    "css selector", ".near-block-detail .near-block-actions button:last-child"
+                ).click()
+                wait.until(lambda d: d.execute_script(
+                    "return Boolean(document.querySelector('.inspector-region'))"
+                ))
             # W3a: actual DOM/canvas gloss contract. Emulated touch is not
             # physical Safari validation; keep that qualitative gate open.
             if width == 1440:
