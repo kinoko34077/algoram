@@ -43,10 +43,7 @@ export function AnnotationPanel({
         />
       </label>
 
-      <small>
-        Stored only in editor state. Imported source and execution semantics are
-        unchanged.
-      </small>
+      <small>{jaJP.authoring.annotation.storageHint}</small>
     </section>
   );
 }
