@@ -150,6 +150,10 @@ export function App() {
     baseUrl: "http://127.0.0.1:39091",
     bearerToken: "",
   });
+  const [executionOpen, setExecutionOpen] = useState(false);
+  const executionButtonRef = useRef<HTMLButtonElement>(null);
+  const executionDrawerRef = useRef<HTMLElement>(null);
+  useEffect(() => { if (executionOpen) executionDrawerRef.current?.focus(); }, [executionOpen]);
   const [executionPhase, setExecutionPhase] =
     useState<ExecutionPhase>("idle");
   const [executionPreview, setExecutionPreview] =
@@ -1275,7 +1279,7 @@ export function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={executionOpen ? "app-shell execution-open" : "app-shell"}>
       <header className="app-header">
         <div className="title-block">
           <p className="eyebrow">{jaJP.app.brand}</p>
@@ -1325,35 +1329,14 @@ export function App() {
           </button>
           <button
             type="button"
-            className="secondary-action"
-            onClick={planCurrentGraph}
-            disabled={executionPhase === "planning" || executionPhase === "running"}
+            ref={executionButtonRef}
+            className="secondary-action execution-entry-action"
             aria-controls="runtime-execution-panel"
+            aria-expanded={executionOpen}
+            onClick={() => setExecutionOpen((open) => !open)}
           >
-            {executionPhase === "planning"
-              ? jaJP.app.planning
-              : executionPhase === "failed"
-                ? jaJP.app.retryPlan
-                : executionPreview
-                  ? jaJP.app.replan
-                  : jaJP.app.plan}
+            {jaJP.app.executionEntry}
           </button>
-          {executionPhase === "ready" && executionPreview ? (
-            <button
-              type="button"
-              className="primary-action"
-              onClick={runCurrentGraph}
-              disabled={!allExecutionGrantsApproved}
-              aria-controls="runtime-execution-panel"
-              title={
-                allExecutionGrantsApproved
-                  ? jaJP.app.runThroughGuardedHostRuntime
-                  : jaJP.app.grantBeforeRun
-              }
-            >
-              {jaJP.app.run}
-            </button>
-          ) : null}
           <FileMenu
             canOpen={
               executionPhase !== "planning" && executionPhase !== "running"
@@ -1630,7 +1613,71 @@ export function App() {
             />
             </details>
 
-            <div id="runtime-execution-panel">
+          </aside>
+        ) : null}
+      </main>
+
+      <section
+        id="runtime-execution-panel"
+        ref={executionDrawerRef}
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && !event.nativeEvent.isComposing) {
+            event.preventDefault();
+            setExecutionOpen(false);
+            executionButtonRef.current?.focus();
+          }
+        }}
+        className="execution-drawer"
+        aria-label={jaJP.execution.runtimeExecution}
+        hidden={!executionOpen}
+      >
+        <div className="execution-drawer-toolbar">
+          <div className="execution-drawer-heading">
+            <strong>{jaJP.app.executionDrawerTitle}</strong>
+            <span role="status">
+              {bridgeSettings.bearerToken.trim()
+                ? jaJP.app.bridgeCheckAtPlan
+                : jaJP.app.bridgeNotConfigured}
+            </span>
+          </div>
+          <div className="execution-drawer-actions">
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={planCurrentGraph}
+            disabled={executionPhase === "planning" || executionPhase === "running"}
+            aria-controls="runtime-execution-panel"
+          >
+            {executionPhase === "planning"
+              ? jaJP.app.planning
+              : executionPhase === "failed"
+                ? jaJP.app.retryPlan
+                : executionPreview
+                  ? jaJP.app.replan
+                  : jaJP.app.plan}
+          </button>
+          {executionPhase === "ready" && executionPreview ? (
+            <button
+              type="button"
+              className="primary-action"
+              onClick={runCurrentGraph}
+              disabled={!allExecutionGrantsApproved}
+              aria-controls="runtime-execution-panel"
+              title={
+                allExecutionGrantsApproved
+                  ? jaJP.app.runThroughGuardedHostRuntime
+                  : jaJP.app.grantBeforeRun
+              }
+            >
+              {jaJP.app.run}
+            </button>
+          ) : null}
+            <button type="button" className="tertiary-action"
+              onClick={() => { setExecutionOpen(false); executionButtonRef.current?.focus(); }}>{jaJP.common.actions.close}</button>
+          </div>
+        </div>
+            <div className="execution-drawer-content">
               <ExecutionPanel
                 graph={currentGraph}
                 phase={executionPhase}
@@ -1667,10 +1714,8 @@ export function App() {
                 </p>
               ) : null}
             </div>
+      </section>
 
-          </aside>
-        ) : null}
-      </main>
     </div>
   );
 }
