@@ -1564,7 +1564,9 @@ textarea:focus-visible,
   .app-shell {
     height: auto;
     min-height: 100vh;
-    grid-template-rows: auto auto auto;
+    /* A-shell: keep navigation chrome content-sized on narrow screens. */
+    grid-template-rows: max-content max-content auto;
+    align-content: start;
   }
 
   .workspace.inspector-open {
@@ -1574,6 +1576,8 @@ textarea:focus-visible,
 
   .workspace.inspector-closed {
     grid-template-columns: 1fr;
+    /* Preserve a usable editor height without an Inspector row. */
+    grid-template-rows: minmax(520px, 64vh);
   }
 
   .inspector-region {
@@ -1753,7 +1757,7 @@ textarea:focus-visible,
   overflow-y: auto;
 }
 @media (max-width: 900px) {
-  .app-shell.execution-open { grid-template-rows: auto auto auto auto; }
+  .app-shell.execution-open { grid-template-rows: max-content max-content auto auto; }
   .execution-drawer { display: block; max-height: none; overflow: visible; }
   .execution-drawer-content { overflow: visible; }
 }
