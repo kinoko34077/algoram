@@ -11,6 +11,8 @@ export type BlockNodeData = Record<string, unknown> & {
   block: AlgoramBlock;
   display: BlockDisplayProjection;
   onOpenLocalAdd?: (blockId: string) => void;
+  onOpenComposite?: (graphId: string, block: AlgoramBlock) => void;
+  onShowInspector?: () => void;
 };
 
 export type FlowBlockNode = Node<BlockNodeData, "algoramBlock">;

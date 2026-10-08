@@ -4,6 +4,7 @@ import {
   Controls,
   Handle,
   MiniMap,
+  NodeToolbar,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -25,6 +26,7 @@ import { FirstUseGuide, useFirstUseGuide } from "./FirstUseGuide";
 import type { ReusableBlockTemplate } from "./blockAuthoring";
 import { getBlockGeometry, portHandleTop, projectBlockDisplay } from "./blockDisplay";
 import { Glossable } from "./Glossable";
+import { NearBlockDetail } from "./NearBlockDetail";
 import type { CapabilityAddSource } from "./BlockPalette";
 import { markEditorPerformance } from "./perfMarks";
 import {
@@ -76,6 +78,7 @@ interface GraphCanvasProps {
   onSelectBlock: (blockId: string | null) => void;
   onSelectConnection: (connectionId: string | null) => void;
   onOpenGraph: (graphId: string, viaBlock: AlgoramBlock) => void;
+  onShowInspector: () => void;
 }
 
 function contractLabel(contract: unknown): string {
@@ -107,6 +110,19 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
 
   return (
     <div className={nodeClassName}>
+      <NodeToolbar
+        isVisible={selected}
+        position={Position.Bottom}
+        offset={16}
+        className="near-block-toolbar"
+      >
+        <NearBlockDetail
+          block={block}
+          observation={observation}
+          onOpenComposite={data.onOpenComposite}
+          onShowInspector={data.onShowInspector}
+        />
+      </NodeToolbar>
       {inputs.map((port, index) => (
         <Handle
           key={port.id}
@@ -262,6 +278,7 @@ function CanvasBody({
   onSelectBlock,
   onSelectConnection,
   onOpenGraph,
+  onShowInspector,
 }: GraphCanvasProps) {
   const [baseNodes, setBaseNodes, onNodesChange] =
     useNodesState<FlowBlockNode>([]);
@@ -425,9 +442,11 @@ function CanvasBody({
           ...node.data,
           traceObservation: traceProjection?.byBlockId[node.id],
           onOpenLocalAdd: editable ? openLocalAdd : undefined,
+          onOpenComposite: onOpenGraph,
+          onShowInspector,
         },
       })),
-    [baseNodes, selectedBlockId, traceProjection, editable, openLocalAdd],
+    [baseNodes, selectedBlockId, traceProjection, editable, openLocalAdd, onOpenGraph, onShowInspector],
   );
 
   const handleNodesChange = useCallback(
