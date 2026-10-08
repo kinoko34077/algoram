@@ -86,6 +86,14 @@ assert.match(canvas, /presentation\.draftLinks\.length > 0/);
 assert.equal(styles.includes("repeat(auto-fit"), false);
 assert.match(styles, /--color-accent:/);
 assert.match(styles, /--control-height:/);
+// Mobile content-sized chrome: guard both editor-only and Execution-open paths.
+const narrowShell = styles.match(/@media \(max-width: 900px\) \{[\s\S]*?\.app-shell\s*\{([^}]+)\}/);
+assert.ok(narrowShell, "Narrow app-shell CSS must exist");
+assert.match(narrowShell[1], /grid-template-rows:\s*max-content max-content auto/);
+assert.match(narrowShell[1], /align-content:\s*start/);
+assert.match(styles, /\.workspace\.inspector-closed\s*\{\s*grid-template-columns:\s*1fr;\s*[\s\S]*?grid-template-rows:\s*minmax\(520px, 64vh\)/);
+assert.match(styles, /\.app-shell\.execution-open\s*\{\s*grid-template-rows:\s*max-content max-content auto auto;/);
+
 assert.match(styles, /--palette-width:\s*216px/);
 assert.match(styles, /\.canvas-work-area\.palette-open/);
 
