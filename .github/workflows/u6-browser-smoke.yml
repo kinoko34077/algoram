@@ -1,0 +1,66 @@
+name: U6 Browser Smoke
+on:
+  push:
+    branches: [chatgpt/179-u6-browser-smoke]
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Launch UI and Chrome
+        run: |
+          cd ui
+          npm install --ignore-scripts --no-audit --no-fund
+          nohup npm run dev -- --host 127.0.0.1 > /tmp/u6-vite.log 2>&1 &
+          python -m pip install --disable-pip-version-check selenium==4.36.0
+          google-chrome --version
+      - name: First-use guidance, dismissal persistence, and accessible reopen
+        run: |
+          python - <<'PY'
+          import json
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+          o=Options()
+          for f in ('--headless=new','--no-sandbox','--disable-dev-shm-usage'):
+            o.add_argument(f)
+          o.set_capability('goog:loggingPrefs',{'browser':'ALL'})
+          d=webdriver.Chrome(options=o)
+          wait=WebDriverWait(d,25)
+          try:
+            for width in (1440,480):
+              d.set_window_size(width,900)
+              d.get('http://127.0.0.1:5173/')
+              wait.until(lambda b:b.find_elements(By.CSS_SELECTOR,'.canvas-surface'))
+              d.execute_script("localStorage.removeItem('algoram.ui.first-use-guide-dismissed.v1'); location.reload()")
+              wait.until(lambda b:b.find_elements(By.CSS_SELECTOR,'.canvas-first-use'))
+              guide=d.find_element(By.CSS_SELECTOR,'.canvas-first-use')
+              assert guide.is_displayed()
+              assert 'ブロックを追加' in guide.text and 'ポート同士を接続' in guide.text and '実行' in guide.text
+              guide.find_element(By.CSS_SELECTOR,'button').click()
+              wait.until(lambda b: not b.find_elements(By.CSS_SELECTOR,'.canvas-first-use'))
+              assert d.execute_script("return localStorage.getItem('algoram.ui.first-use-guide-dismissed.v1')")=='1'
+              d.refresh()
+              wait.until(lambda b:b.find_elements(By.CSS_SELECTOR,'.canvas-surface'))
+              assert not d.find_elements(By.CSS_SELECTOR,'.canvas-first-use'),'guide unexpectedly returned on reload'
+              menu=d.find_element(By.CSS_SELECTOR,'.canvas-more-menu > summary')
+              d.execute_script('arguments[0].click()',menu)
+              reopen=d.find_element(By.XPATH,"//button[contains(., '操作ガイド')]")
+              d.execute_script('arguments[0].click()',reopen)
+              wait.until(lambda b:b.find_elements(By.CSS_SELECTOR,'.canvas-first-use'))
+              add=d.find_element(By.CSS_SELECTOR,'.palette-actions button')
+              assert add.is_enabled(),'palette Add is not available'
+              d.execute_script('arguments[0].click()',add)
+              wait.until(lambda b: not b.find_elements(By.CSS_SELECTOR,'.canvas-first-use'))
+              dims=d.execute_script('return [document.documentElement.scrollWidth,document.documentElement.clientWidth]')
+              assert dims[0]<=dims[1]+1, f'horizontal overflow {width} {dims}'
+              severe=[x for x in d.get_log('browser') if x['level']=='SEVERE' and 'favicon.ico' not in x['message']]
+              assert not severe,severe
+              print(json.dumps({'viewport':f'{width}x900','first_guide':'shown','dismiss_reload':'pass','manual_reopen':'pass','hide_on_add':'pass','overflow':'none','console_severe':0},ensure_ascii=False))
+          finally:
+            d.quit()
+          PY
