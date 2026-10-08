@@ -15,6 +15,7 @@ from pathlib import Path
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 
 UI_ROOT = Path(__file__).resolve().parents[1]
@@ -50,7 +51,7 @@ return {
     .map(node => ({
       width: parseFloat(getComputedStyle(node).width),
       height: parseFloat(getComputedStyle(node).height),
-      label: node.querySelector(".node-title")?.textContent || "",
+      label: node.querySelector(".node-title .gloss-label")?.textContent || "",
       ports: node.querySelectorAll(".algoram-handle").length,
       permanentTechChrome: Boolean(node.querySelector(
         ".node-grip,.node-badge,.node-subtitle,.node-port-grid"))
@@ -142,6 +143,9 @@ def main():
                 "deviceScaleFactor": 3 if mobile else 1,
                 "mobile": mobile,
             })
+            browser.execute_cdp_cmd("Emulation.setTouchEmulationEnabled", {
+                "enabled": mobile, "maxTouchPoints": 1,
+            })
             browser.get(URL)
             wait.until(lambda d: d.execute_script(
                 "return Boolean(document.querySelector('.canvas-surface .react-flow'))"))
@@ -177,6 +181,47 @@ def main():
                 assert route_labels and all(label != "verified" for label in route_labels), route_labels
                 assert "needs-mapper-or-route" in route_labels, route_labels
                 browser.find_element("css selector", "#block-palette .palette-close").click()
+            # W3a: actual DOM/canvas gloss contract. Emulated touch is not
+            # physical Safari validation; keep that qualitative gate open.
+            if width == 1440:
+                gloss = browser.find_element("css selector", ".glossable .gloss-label")
+                ActionChains(browser).move_to_element(gloss).perform()
+                hover_support = browser.execute_script(
+                    "return matchMedia('(hover: hover) and (pointer: fine)').matches"
+                )
+                if hover_support:
+                    wait.until(lambda d: d.execute_script(
+                        "return Array.from(document.querySelectorAll('.gloss-hint')).some("
+                        "e => getComputedStyle(e).visibility === 'visible')"
+                    ))
+                else:
+                    print("WARN: desktop emulation lacks hover-capable pointer; hover UNVERIFIED")
+                browser.execute_script(
+                    "document.querySelector('.glossable').focus()"
+                )
+                wait.until(lambda d: d.execute_script(
+                    "return Array.from(document.querySelectorAll('.gloss-hint')).some("
+                    "e => getComputedStyle(e).visibility === 'visible')"
+                ))
+                assert "Python" in browser.find_element("css selector", ".gloss-hint").text
+            if width == 390:
+                browser.execute_script(
+                    "const el = document.querySelector('.glossable');"
+                    "el.dispatchEvent(new PointerEvent('pointerdown',"
+                    "{bubbles:true,pointerType:'touch',pointerId:77,clientX:80,clientY:80}));"
+                )
+                time.sleep(0.65)
+                assert browser.execute_script(
+                    "return !!document.querySelector('.glossable.held')"
+                ), "Touch hold did not reveal gloss"
+                browser.execute_script(
+                    "document.querySelector('.glossable').dispatchEvent("
+                    "new PointerEvent('pointerup',"
+                    "{bubbles:true,pointerType:'touch',pointerId:77,clientX:80,clientY:80}));"
+                )
+                wait.until(lambda d: d.execute_script(
+                    "return !document.querySelector('.glossable.held')"
+                ))
             if width in (390, 320, 1440):
                 browser.find_element("css selector", ".execution-entry-action").click()
                 wait.until(lambda d: d.execute_script(

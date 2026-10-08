@@ -1876,3 +1876,72 @@ textarea:focus-visible,
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+
+/* W3a shared ruby/gloss. The native Graph label remains unchanged; only the
+   near-target supplemental reading is disclosed on hover/focus/long hold. */
+.node-title {
+  overflow: visible;
+}
+
+.glossable {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+  outline-offset: 3px;
+}
+
+.gloss-label {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gloss-hint {
+  position: absolute;
+  z-index: 45;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(260px, 70vw);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 3px 7px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 5px;
+  background: var(--color-panel-raised);
+  color: var(--color-text-strong);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 35%);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: normal;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .glossable:not(.dismissed):hover .gloss-hint,
+  .algoram-node:hover .glossable:not(.dismissed) .gloss-hint {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+.glossable:not(.dismissed):focus .gloss-hint,
+.glossable:not(.dismissed):focus-visible .gloss-hint,
+.react-flow__node:focus-visible .glossable:not(.dismissed) .gloss-hint,
+.glossable.held:not(.dismissed) .gloss-hint {
+  opacity: 1;
+  visibility: visible;
+}
+
+.glossable:focus-visible {
+  outline: 2px solid var(--color-accent);
+}
