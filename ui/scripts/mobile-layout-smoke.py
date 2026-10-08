@@ -51,7 +51,7 @@ return {
     .map(node => ({
       width: parseFloat(getComputedStyle(node).width),
       height: parseFloat(getComputedStyle(node).height),
-      label: node.querySelector(".node-title")?.textContent || "",
+      label: node.querySelector(".node-title .gloss-label")?.textContent || "",
       ports: node.querySelectorAll(".algoram-handle").length,
       permanentTechChrome: Boolean(node.querySelector(
         ".node-grip,.node-badge,.node-subtitle,.node-port-grid"))
