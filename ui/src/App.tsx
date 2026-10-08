@@ -1495,7 +1495,7 @@ export function App() {
                       className="tertiary-action"
                       onClick={() => selectBlock(null)}
                     >
-                      Clear
+                      {jaJP.common.actions.clear}
                     </button>
                   </div>
 
