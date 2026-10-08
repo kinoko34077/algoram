@@ -1,0 +1,50 @@
+name: U7 Clarity-first E2E Evidence
+on:
+  push:
+    branches: [chatgpt/187-u7-grid-smoke]
+permissions:
+  contents: read
+jobs:
+  chromium-local-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install UI and browser tools
+        run: |
+          cd ui
+          npm install --ignore-scripts --no-audit --no-fund
+          nohup npm run dev -- --host 127.0.0.1 > /tmp/u7-vite.log 2>&1 &
+          python3 -m pip install --disable-pip-version-check selenium==4.36.0
+          google-chrome --version
+      - name: Build real guarded host bridge
+        run: cargo build -p algoram-runtime-bridge
+      - name: Start loopback-only authenticated bridge
+        run: |
+          python3 - <<'PY'
+          import json
+          config={
+            "schema_version":"algoram.runtime-bridge/0.1",
+            "implementations":[
+              {"implementation_ref":"impl:u7-bad","action":{"program":"python3","args":["-c","import sys; sys.exit(17)"]}},
+              {"implementation_ref":"impl:u7-good","action":{"program":"python3","args":["-c","print('U7_RECOVERED')"]}}
+            ],
+            "implementation_choices":[{"logical_ref":"logical:u7","candidates":["impl:u7-bad","impl:u7-good"],"default_ref":"impl:u7-bad"}],
+            "connectors":[],"runtime_endpoints":[],"local_runtime_ref":"runtime:u7-local"
+          }
+          with open('/tmp/u7-bridge-config.json','w') as f:json.dump(config,f)
+          graph={"schema_version":"algoram.graph/0.1","id":"graph:u7-browser-test","label":"U7 操作検証",
+                 "blocks":[
+                   {"id":"block:u7-provider","label":"U7 provider","ports":[{"id":"result","direction":"out","channel":"data","contract":"c:abi:int32"}],"implementation_ref":"logical:u7"},
+                   {"id":"block:u7-sink","label":"U7 sink","ports":[{"id":"result","direction":"in","channel":"data","contract":"c:abi:int32"}]}
+                 ],"connections":[]}
+          with open('/tmp/u7-fixture.algoram.json','w') as f:json.dump(graph,f)
+          PY
+          nohup target/debug/algoram-runtime-bridge --config /tmp/u7-bridge-config.json --origin http://127.0.0.1:5173 --token u7-local-test-token --bind 127.0.0.1:39091 > /tmp/u7-bridge.log 2>&1 &
+          for n in {1..25}; do
+            if curl -fsS http://127.0.0.1:5173/ >/dev/null && curl -s http://127.0.0.1:39091/health >/dev/null; then break; fi
+            sleep 1
+          done
+          cat /tmp/u7-bridge.log
+      - name: Chromium user task chain (real localhost runtime)
+        run: python3 scripts/u7_browser_acceptance.py
