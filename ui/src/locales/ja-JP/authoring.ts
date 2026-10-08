@@ -77,6 +77,14 @@ export const authoringJa = {
   },
   canvas: {
     nodeWorkspace: "ノードワークスペース",
+    showGuide: "操作ガイド",
+    firstUse: {
+      title: "まずはここから",
+      dismiss: "操作ガイドを閉じる",
+      add: "ライブラリからブロックを追加",
+      connect: "ポート同士を接続",
+      execute: "上部の「実行」を開く",
+    },
     library: "ライブラリ",
     dropBlockUnavailable: "このブロックは追加できません。ライブラリから選び直してください。",
     more: "その他",
