@@ -1750,3 +1750,28 @@ textarea:focus-visible,
   .execution-drawer-actions { flex-wrap: wrap; }
   .execution-drawer-heading { flex-basis: 100%; }
 }
+
+/* Native desktop drop routes: same authoring/import guards as their button paths. */
+.file-drop-overlay {
+  position: absolute;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgb(10 13 19 / 78%);
+  border: 3px dashed var(--color-accent);
+}
+.file-drop-overlay strong {
+  padding: 14px 20px;
+  border-radius: var(--radius-md);
+  background: var(--color-panel-raised);
+  color: var(--color-text-strong);
+  font-size: 15px;
+}
+.canvas-surface.block-drop-active {
+  outline: 2px dashed var(--color-accent);
+  outline-offset: -4px;
+}
+.palette-item[draggable="true"] { cursor: grab; }
+.palette-item[draggable="true"]:active { cursor: grabbing; }
