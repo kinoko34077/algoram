@@ -17,6 +17,7 @@
     "test:ui-protocol": "node scripts/ui-protocol-check.mjs",
     "test:block-display": "node --experimental-strip-types scripts/block-display-check.mjs",
     "test:discovery": "node --experimental-strip-types scripts/connection-discovery-check.mjs",
+    "test:gloss": "node --experimental-strip-types scripts/gloss-gesture-check.mjs",
     "test:platform": "node scripts/browser-platform-check.mjs",
     "test:interaction": "node scripts/smooth-interaction-check.mjs",
     "test:authoring": "node --experimental-strip-types scripts/canonical-authoring-check.mjs",
