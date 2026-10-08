@@ -1725,16 +1725,17 @@ textarea:focus-visible,
 .app-shell.execution-open { grid-template-rows: auto auto minmax(0, 1fr) minmax(180px, 32vh); }
 .execution-drawer[hidden] { display: none; }
 .execution-drawer {
-  min-width: 0; min-height: 0; overflow-y: auto;
-  scroll-padding-top: 88px; /* sticky toolbar is not content for scroll-to-action */
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
   border-top: 1px solid var(--color-border-strong);
   background: var(--color-panel);
 }
-.execution-drawer :is(button, input, select, textarea, summary, [tabindex]) {
-  scroll-margin-top: 88px;
-}
+.execution-drawer[hidden] { display: none; }
 .execution-drawer-toolbar {
-  position: sticky; z-index: 8; top: 0;
+  position: relative; z-index: 8;
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--space-2); padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
@@ -1744,10 +1745,18 @@ textarea:focus-visible,
 .execution-drawer-heading strong { color: var(--color-text-strong); font-size: 12px; }
 .execution-drawer-heading span { color: var(--color-muted); font-size: 10px; line-height: 1.4; }
 .execution-drawer-actions { display: flex; align-items: center; gap: var(--space-1); }
-.execution-drawer-content { max-width: 920px; margin: 0 auto; min-width: 0; }
+.execution-drawer-content {
+  width: 100%;
+  max-width: 920px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 auto;
+  overflow-y: auto;
+}
 @media (max-width: 900px) {
   .app-shell.execution-open { grid-template-rows: auto auto auto auto; }
-  .execution-drawer { max-height: none; overflow: visible; }
+  .execution-drawer { display: block; max-height: none; overflow: visible; }
+  .execution-drawer-content { overflow: visible; }
 }
 @media (max-width: 680px) {
   .execution-drawer-toolbar { align-items: flex-start; flex-wrap: wrap; }
