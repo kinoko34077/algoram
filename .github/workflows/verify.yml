@@ -58,6 +58,8 @@ jobs:
         run: npm run test:presentation
       - name: UIUX protocol structural checks
         run: npm run test:ui-protocol
+      - name: Compact block and port geometry checks
+        run: npm run test:block-display
       - name: Browser vertical mobile layout smoke
         run: |
           python3 -m pip install --user --quiet selenium==4.36.0

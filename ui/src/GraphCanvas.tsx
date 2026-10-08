@@ -23,6 +23,7 @@ import type { AlgoramBlock, AlgoramGraph } from "./algoram";
 import { BlockPalette } from "./BlockPalette";
 import { FirstUseGuide, useFirstUseGuide } from "./FirstUseGuide";
 import type { ReusableBlockTemplate } from "./blockAuthoring";
+import { getBlockGeometry, portHandleTop } from "./blockDisplay";
 import { markEditorPerformance } from "./perfMarks";
 import {
   toFlowEdges,
@@ -75,17 +76,9 @@ interface GraphCanvasProps {
   onOpenGraph: (graphId: string, viaBlock: AlgoramBlock) => void;
 }
 
-function portTop(index: number, count: number): string {
-  return `${((index + 1) / (count + 1)) * 100}%`;
-}
-
 function contractLabel(contract: unknown): string {
-  if (typeof contract === "string") {
-    return contract;
-  }
-  if (contract === undefined) {
-    return "";
-  }
+  if (typeof contract === "string") return contract;
+  if (contract === undefined) return "";
   try {
     return JSON.stringify(contract);
   } catch {
@@ -93,25 +86,8 @@ function contractLabel(contract: unknown): string {
   }
 }
 
-function PortLabel({
-  direction,
-  channel,
-  id,
-}: {
-  direction: "in" | "out";
-  channel: "flow" | "data";
-  id: string;
-}) {
-  return (
-    <span className={`node-port-label ${direction}`}>
-      <span className={`port-dot ${channel}`} aria-hidden="true" />
-      <span>{id}</span>
-    </span>
-  );
-}
-
 function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
-  const { block } = data;
+  const { block, display } = data;
   const observation = data.traceObservation as
     | BlockTraceObservation
     | undefined;
@@ -136,72 +112,35 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
           type="target"
           position={Position.Left}
           className={`algoram-handle ${port.channel}`}
-          style={{ top: portTop(index, inputs.length) }}
+          style={{ top: portHandleTop(index, inputs.length, display.geometry.height) }}
           title={jaJP.authoring.canvas.inputPortLabel.replace("{channel}", port.channel).replace("{contract}", contractLabel(port.contract))}
           aria-label={`${block.label} ${port.id} 入力`}
         />
       ))}
 
-      <div className="node-titlebar">
-        <span className="node-grip" aria-hidden="true">
-          ⠿
-        </span>
-        <div className="node-title">{block.label}</div>
+      <div className="node-titlebar" title={display.gloss}>
+        <div className="node-title">{display.shortLabel}</div>
         {block.internal_graph_ref ? (
-          <span className="node-badge">{jaJP.common.terms.graph}</span>
-        ) : (
-          <span className="node-badge muted">{jaJP.common.terms.block}</span>
-        )}
+          <span className="node-depth-indicator" aria-hidden="true">↳</span>
+        ) : null}
       </div>
 
-      <div className="node-subtitle">
-        {block.implementation_ref ?? block.definition_ref ?? block.id}
-      </div>
-
-      {ports.length > 0 ? (
-        <div className="node-port-grid">
-          <div className="node-port-column inputs">
-            {inputs.map((port) => (
-              <PortLabel
-                key={port.id}
-                direction="in"
-                channel={port.channel}
-                id={port.id}
-              />
-            ))}
-          </div>
-          <div className="node-port-column outputs">
-            {outputs.map((port) => (
-              <PortLabel
-                key={port.id}
-                direction="out"
-                channel={port.channel}
-                id={port.id}
-              />
-            ))}
-          </div>
+      {observation || block.diagnostics?.length ? (
+        <div className="node-meta">
+          {observation ? (
+            <span
+              className={`observed-status ${observation.status}`}
+              title={jaJP.authoring.canvas.observedRun.replace("{status}", observedStatusLabel(observation.status))}
+            >
+              <b aria-hidden="true">{observedStatusSymbol(observation.status)}</b>
+              {observedStatusLabel(observation.status)}
+            </span>
+          ) : null}
+          {block.diagnostics?.length ? (
+            <span>{jaJP.authoring.canvas.diagnosticsCount.replace("{count}", String(block.diagnostics.length))}</span>
+          ) : null}
         </div>
-      ) : (
-        <div className="node-empty-ports">{jaJP.authoring.canvas.noExposedPorts}</div>
-      )}
-
-      <div className="node-meta">
-        {observation ? (
-          <span
-            className={`observed-status ${observation.status}`}
-            title={`${jaJP.authoring.canvas.observedRun.replace("{status}", observedStatusLabel(observation.status))}`}
-          >
-            <b aria-hidden="true">
-              {observedStatusSymbol(observation.status)}
-            </b>
-            {observedStatusLabel(observation.status)}
-          </span>
-        ) : null}
-        {block.source_anchor ? <span>{jaJP.authoring.canvas.sourceBadge}</span> : null}
-        {block.diagnostics?.length ? (
-          <span>{jaJP.authoring.canvas.diagnosticsCount.replace("{count}", String(block.diagnostics.length))}</span>
-        ) : null}
-      </div>
+      ) : null}
 
       {outputs.map((port, index) => (
         <Handle
@@ -210,7 +149,7 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
           type="source"
           position={Position.Right}
           className={`algoram-handle ${port.channel}`}
-          style={{ top: portTop(index, outputs.length) }}
+          style={{ top: portHandleTop(index, outputs.length, display.geometry.height) }}
           title={jaJP.authoring.canvas.outputPortLabel.replace("{channel}", port.channel).replace("{contract}", contractLabel(port.contract))}
           aria-label={`${block.label} ${port.id} 出力`}
         />
@@ -568,9 +507,10 @@ function CanvasBody({
           x: bounds.left + bounds.width / 2,
           y: bounds.top + bounds.height / 2,
         });
+        const { width, height } = getBlockGeometry(template.block);
         position = {
-          x: center.x - 122,
-          y: center.y - 48,
+          x: center.x - width / 2,
+          y: center.y - height / 2,
         };
       }
 
@@ -685,7 +625,8 @@ function CanvasBody({
               return;
             }
             const center = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-            onAddBlock(template, { x: center.x - 122, y: center.y - 48 });
+            const { width, height } = getBlockGeometry(template.block);
+            onAddBlock(template, { x: center.x - width / 2, y: center.y - height / 2 });
             firstUse.dismiss();
           }}
         >
