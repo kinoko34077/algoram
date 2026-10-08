@@ -144,7 +144,7 @@ def main():
                 "mobile": mobile,
             })
             browser.execute_cdp_cmd("Emulation.setTouchEmulationEnabled", {
-                "enabled": mobile, "maxTouchPoints": 1 if mobile else 0,
+                "enabled": mobile, "maxTouchPoints": 1,
             })
             browser.get(URL)
             wait.until(lambda d: d.execute_script(
