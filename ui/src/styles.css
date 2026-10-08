@@ -1775,3 +1775,33 @@ textarea:focus-visible,
 }
 .palette-item[draggable="true"] { cursor: grab; }
 .palette-item[draggable="true"]:active { cursor: grabbing; }
+
+/* A-shell U6: temporary guidance overlays Canvas without changing the editor grid. */
+.canvas-surface { position: relative; }
+.canvas-first-use {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 12;
+  width: min(296px, calc(100% - 24px));
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 9px 11px;
+  background: var(--color-panel-raised);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+  color: var(--color-text);
+}
+.canvas-first-use-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.canvas-first-use-heading strong { font-size: 12px; color: var(--color-text-strong); }
+.canvas-first-use-heading button { min-width: 30px; min-height: 30px; font-size: 16px; }
+.canvas-first-use ol {
+  margin: 5px 0 0;
+  padding-left: 20px;
+  font-size: 11px;
+  line-height: 1.7;
+}
