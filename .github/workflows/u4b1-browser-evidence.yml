@@ -35,16 +35,16 @@ jobs:
               driver.get('http://127.0.0.1:5173/')
               WebDriverWait(driver,40).until(lambda d:d.find_elements(By.CSS_SELECTOR,'.react-flow__node'))
               before=driver.find_elements(By.CSS_SELECTOR,'.react-flow__node')
-              invalid=driver.execute_script("""
+              driver.execute_script("""
                 const d=new DataTransfer();
                 d.items.add(new File(['invalid'],'other.txt',{type:'text/plain'}));
-                const shell=document.querySelector('.app-shell');
-                shell.dispatchEvent(new DragEvent('dragenter',{dataTransfer:d,bubbles:true,cancelable:true}));
-                const overlay=!!document.querySelector('.file-drop-overlay');
-                shell.dispatchEvent(new DragEvent('drop',{dataTransfer:d,bubbles:true,cancelable:true}));
-                return overlay;
+                window.testFileDrop=d;
+                document.querySelector('.app-shell').dispatchEvent(new DragEvent('dragenter',{dataTransfer:d,bubbles:true,cancelable:true}));
               """)
-              assert invalid, 'OS file drag feedback absent'
+              WebDriverWait(driver,5).until(lambda d:d.find_elements(By.CSS_SELECTOR,'.file-drop-overlay'))
+              driver.execute_script("""
+                document.querySelector('.app-shell').dispatchEvent(new DragEvent('drop',{dataTransfer:window.testFileDrop,bubbles:true,cancelable:true}));
+              """)
               WebDriverWait(driver,5).until(lambda d:d.find_element(By.CSS_SELECTOR,'.file-operation-status').text.find('.algoram.json')>=0)
               # Construct a canonical Graph from the same fixture as current user canvas.
               result=driver.execute_async_script("""
