@@ -1726,8 +1726,12 @@ textarea:focus-visible,
 .execution-drawer[hidden] { display: none; }
 .execution-drawer {
   min-width: 0; min-height: 0; overflow-y: auto;
+  scroll-padding-top: 88px; /* sticky toolbar is not content for scroll-to-action */
   border-top: 1px solid var(--color-border-strong);
   background: var(--color-panel);
+}
+.execution-drawer :is(button, input, select, textarea, summary, [tabindex]) {
+  scroll-margin-top: 88px;
 }
 .execution-drawer-toolbar {
   position: sticky; z-index: 8; top: 0;
