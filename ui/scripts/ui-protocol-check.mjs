@@ -29,6 +29,30 @@ const [app, canvas, palette, draft, search, annotation, authoring, execution, re
 ]);
 
 assert.match(styles, /--inspector-width:\s*328px/);
+
+assert.match(styles, /--color-muted:\s*#b2bfcd/);
+assert.match(styles, /--color-faint:\s*#899bac/);
+assert.match(annotation, /jaJP\\.authoring\\.annotation\\.storageHint/);
+assert.equal(app.includes("                      Clear"), false);
+assert.equal(annotation.includes("Stored only in editor state."), false);
+
+function relativeLuminance(hex) {
+  const rgb = hex.match(/[0-9a-f]{2}/gi).map((value) => Number.parseInt(value, 16) / 255);
+  const channels = rgb.map((value) => value <= 0.04045
+    ? value / 12.92
+    : ((value + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+function contrastRatio(a, b) {
+  const aL = relativeLuminance(a);
+  const bL = relativeLuminance(b);
+  return (Math.max(aL, bL) + 0.05) / (Math.min(aL, bL) + 0.05);
+}
+const faintContrast = ["#11161c", "#171d25", "#232b35", "#202731", "#1d2530", "#0d1218", "#090c10"]
+  .map((background) => ({ background, ratio: contrastRatio("#899bac", background) }));
+assert.ok(faintContrast.every(({ ratio }) => ratio >= 4.5), JSON.stringify(faintContrast));
+console.log(JSON.stringify({ kind: "faint-text-contrast", foreground: "#899bac", measurements: faintContrast }));
+
 assert.equal(styles.includes("30vw"), false);
 assert.match(styles, /:focus-visible/);
 assert.match(styles, /\.algoram-handle\s*\{[\s\S]*?width:\s*24px/);
