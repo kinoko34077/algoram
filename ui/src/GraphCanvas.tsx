@@ -24,6 +24,7 @@ import { BlockPalette } from "./BlockPalette";
 import { FirstUseGuide, useFirstUseGuide } from "./FirstUseGuide";
 import type { ReusableBlockTemplate } from "./blockAuthoring";
 import { getBlockGeometry, portHandleTop, projectBlockDisplay } from "./blockDisplay";
+import { Glossable } from "./Glossable";
 import type { CapabilityAddSource } from "./BlockPalette";
 import { markEditorPerformance } from "./perfMarks";
 import {
@@ -119,8 +120,10 @@ function BlockNode({ data, selected }: NodeProps<FlowBlockNode>) {
         />
       ))}
 
-      <div className="node-titlebar" title={display.gloss}>
-        <div className="node-title">{display.shortLabel}</div>
+      <div className="node-titlebar">
+        <div className="node-title">
+          <Glossable shortLabel={display.shortLabel} fullLabel={display.gloss} />
+        </div>
         {block.internal_graph_ref ? (
           <span className="node-depth-indicator" aria-hidden="true">↳</span>
         ) : null}
