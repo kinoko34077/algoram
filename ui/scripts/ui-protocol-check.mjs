@@ -64,6 +64,7 @@ assert.ok(faintContrast.every(({ ratio }) => ratio >= 4.5), JSON.stringify(faint
 console.log(JSON.stringify({ kind: "faint-text-contrast", foreground: "#899bac", measurements: faintContrast }));
 
 assert.equal(styles.includes("30vw"), false);
+assert.match(styles, /html,\s*body,\s*#root\s*\{[\s\S]*?min-width:\s*0;/);
 assert.match(styles, /:focus-visible/);
 assert.match(styles, /\.algoram-handle\s*\{[\s\S]*?width:\s*24px/);
 assert.match(styles, /\.search-result-list/);
