@@ -1,0 +1,65 @@
+name: U5b Accessibility Runtime Audit
+on:
+  push:
+    branches: [chatgpt/183-u5b-reflow-smoke]
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Start UI / browser
+        run: |
+          cd ui
+          npm install --ignore-scripts --no-audit --no-fund
+          nohup npm run dev -- --host 127.0.0.1 > /tmp/u5b-vite.log 2>&1 &
+          python -m pip install --disable-pip-version-check selenium==4.36.0
+          google-chrome --version
+      - name: Responsive reflow / focus / composition event
+        run: |
+          python - <<'PY'
+          import json
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.common.keys import Keys
+          from selenium.webdriver.support.ui import WebDriverWait
+          o=Options()
+          for flag in ('--headless=new','--no-sandbox','--disable-dev-shm-usage'):
+            o.add_argument(flag)
+          o.set_capability('goog:loggingPrefs',{'browser':'ALL'})
+          d=webdriver.Chrome(options=o)
+          try:
+            for width,height in ((1440,900),(720,450),(320,450)):
+              d.execute_cdp_cmd('Emulation.setDeviceMetricsOverride',{'width':width,'height':height,'deviceScaleFactor':1,'mobile':False})
+              d.get('http://127.0.0.1:5173/')
+              wait=WebDriverWait(d,30)
+              wait.until(lambda b:b.find_elements(By.CSS_SELECTOR,'.canvas-surface'))
+              vw=d.execute_script('return document.documentElement.clientWidth')
+              assert 0<vw<=width,(vw,width) # Chromium may reserve scrollbar width (320 -> 305 CSS px)
+              dims=d.execute_script('return [document.documentElement.scrollWidth,document.documentElement.clientWidth]')
+              assert dims[0]<=dims[1]+1, f'horizontal overflow {width}: {dims}'
+              search_button=d.find_element(By.CSS_SELECTOR,'.header-search-action')
+              assert search_button.is_displayed()
+              search_button.click()
+              wait.until(lambda b:b.find_element(By.ID,'editor-search-panel').is_displayed())
+              query=d.find_element(By.CSS_SELECTOR,'.search-controls input[type=search]')
+              assert d.switch_to.active_element==query,'search initial focus missing'
+              query.send_keys('python')
+              wait.until(lambda b:len(b.find_elements(By.CSS_SELECTOR,'.search-result'))>0)
+              before=d.execute_script('return history.length')
+              d.execute_script("arguments[0].dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true,isComposing:true}))",query)
+              assert d.find_element(By.ID,'editor-search-panel').is_displayed(),'composing Enter navigated'
+              assert d.execute_script('return history.length')==before,'composing Enter changed navigation'
+              query.send_keys(Keys.ESCAPE)
+              wait.until(lambda b:not b.find_element(By.ID,'editor-search-panel').is_displayed())
+              assert d.switch_to.active_element==search_button,'focus did not return'
+              severe=[x for x in d.get_log('browser') if x['level']=='SEVERE' and 'favicon.ico' not in x['message'] and 'beforeunload' not in x['message']]
+              print(json.dumps({'viewport':f'{width}x{height}','client':dims[1],'scroll':dims[0],'horizontal_overflow':dims[0]>dims[1]+1,'search_focus':'pass','escape_focus_return':'pass','simulated_ime_composition_enter':'pass','severe_count':len(severe)},ensure_ascii=False))
+              assert not severe,severe
+            d.execute_cdp_cmd('Emulation.clearDeviceMetricsOverride',{})
+          finally:
+            d.quit()
+          PY
