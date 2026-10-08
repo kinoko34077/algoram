@@ -245,6 +245,8 @@ assert.match(app, /className="tertiary-action inspector-header-action"/);
 
 assert.match(styles, /\.primary-action/);
 assert.match(styles, /\.execution-panel/);
+assert.match(styles, /\.execution-drawer\\s*\\{[\\s\\S]*?scroll-padding-top:\\s*88px/);
+assert.match(styles, /\.execution-drawer :is\\(button, input, select, textarea, summary, \\[tabindex\\]\\)/);
 assert.match(app, /jaJP\.app\.plan/);
 assert.match(app, /jaJP\.app\.run/);
 assert.match(app, /className="primary-action"/);
