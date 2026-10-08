@@ -146,6 +146,8 @@ export function App() {
   const searchButtonRef = useRef<HTMLButtonElement>(null);
   const [authoringStatus, setAuthoringStatus] = useState<string | null>(null);
   const [fileStatus, setFileStatus] = useState<FileOperationStatus | null>(null);
+  const [fileDropActive, setFileDropActive] = useState(false);
+  const fileDragDepth = useRef(0);
   const [bridgeSettings, setBridgeSettings] = useState<RuntimeBridgeSettings>({
     baseUrl: "http://127.0.0.1:39091",
     bearerToken: "",
@@ -1279,7 +1281,46 @@ export function App() {
   }
 
   return (
-    <div className={executionOpen ? "app-shell execution-open" : "app-shell"}>
+    <div
+      className={executionOpen ? "app-shell execution-open" : "app-shell"}
+      onDragEnter={(event) => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        fileDragDepth.current += 1;
+        setFileDropActive(true);
+      }}
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect =
+          executionPhase === "planning" || executionPhase === "running" ? "none" : "copy";
+      }}
+      onDragLeave={(event) => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        fileDragDepth.current = Math.max(0, fileDragDepth.current - 1);
+        if (fileDragDepth.current === 0) setFileDropActive(false);
+      }}
+      onDrop={(event) => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        fileDragDepth.current = 0;
+        setFileDropActive(false);
+        if (executionPhase === "planning" || executionPhase === "running") {
+          setFileStatus({ kind: "error", message: jaJP.fileMenu.dropUnavailable });
+          return;
+        }
+        const files = Array.from(event.dataTransfer.files);
+        if (files.length !== 1 || !files[0].name.toLowerCase().endsWith(".algoram.json")) {
+          setFileStatus({ kind: "error", message: jaJP.fileMenu.dropInvalidFile });
+          return;
+        }
+        void openCanonicalGraphFile(files[0]);
+      }}
+    >
+      {fileDropActive ? (
+        <div className="file-drop-overlay" aria-hidden="true">
+          <strong>{jaJP.fileMenu.dropHint}</strong>
+        </div>
+      ) : null}
       <header className="app-header">
         <div className="title-block">
           <p className="eyebrow">{jaJP.app.brand}</p>
