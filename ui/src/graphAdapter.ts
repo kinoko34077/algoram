@@ -10,6 +10,7 @@ import { projectBlockDisplay, type BlockDisplayProjection } from "./blockDisplay
 export type BlockNodeData = Record<string, unknown> & {
   block: AlgoramBlock;
   display: BlockDisplayProjection;
+  onOpenLocalAdd?: (blockId: string) => void;
 };
 
 export type FlowBlockNode = Node<BlockNodeData, "algoramBlock">;

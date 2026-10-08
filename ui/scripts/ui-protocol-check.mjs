@@ -151,9 +151,14 @@ assert.match(canvas, /jaJP\.authoring\.canvas\.observedBlocks/);
 
 assert.match(palette, /jaJP\.authoring\.blockPalette\.accessibilityLabel/);
 assert.match(palette, /type="search"/);
-assert.match(palette, /aria-pressed=\{selectedRow\}/);
-assert.match(palette, /event\.key === "Escape"/);
-assert.match(palette, /jaJP\.authoring\.blockPalette\.addBlock/);
+// W2 replaces a two-step selected row + Add with direct accessible item action.
+assert.match(palette, /onClick=\{\(\) => onAdd\(template\)\}/);
+assert.match(palette, /data-connection-discovery/);
+assert.match(palette, /discoverConnectionStatus/);
+assert.match(canvas, /onOpenLocalAdd/);
+assert.match(canvas, /jaJP\.authoring\.canvas\.globalPlus/);
+assert.match(palette, /event\.key !== "Escape"/);
+assert.match(palette, /jaJP\.authoring\.blockPalette\.contextualAdd/);
 assert.match(palette, /jaJP\.authoring\.blockPalette\.findBlock/);
 assert.match(palette, /jaJP\.authoring\.blockPalette\.ioSummary/);
 assert.equal(palette.includes("Find Block"), false);
