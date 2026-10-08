@@ -29,10 +29,10 @@ jobs:
           for f in ('--headless=new','--no-sandbox','--disable-dev-shm-usage'):
             o.add_argument(f)
           o.set_capability('goog:loggingPrefs',{'browser':'ALL'})
-          d=webdriver.Chrome(options=o)
-          wait=WebDriverWait(d,25)
-          try:
-            for width in (1440,480):
+          for width in (1440,480):
+            d=webdriver.Chrome(options=o)
+            wait=WebDriverWait(d,25)
+            try:
               d.set_window_size(width,900)
               d.get('http://127.0.0.1:5173/')
               wait.until(lambda b:b.find_elements(By.CSS_SELECTOR,'.canvas-surface'))
@@ -61,6 +61,6 @@ jobs:
               severe=[x for x in d.get_log('browser') if x['level']=='SEVERE' and 'favicon.ico' not in x['message']]
               assert not severe,severe
               print(json.dumps({'viewport':f'{width}x900','first_guide':'shown','dismiss_reload':'pass','manual_reopen':'pass','hide_on_add':'pass','overflow':'none','console_severe':0},ensure_ascii=False))
-          finally:
-            d.quit()
+            finally:
+              d.quit()
           PY
