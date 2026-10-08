@@ -245,8 +245,8 @@ assert.match(app, /className="tertiary-action inspector-header-action"/);
 
 assert.match(styles, /\.primary-action/);
 assert.match(styles, /\.execution-panel/);
-assert.match(styles, /scroll-padding-top: 88px/);
-assert.equal(styles.includes(".execution-drawer :is(button, input, select, textarea, summary, [tabindex])"), true);
+assert.equal(styles.includes(".execution-drawer[hidden] { display: none; }"), true);
+assert.equal(styles.includes("grid-template-rows: auto minmax(0, 1fr);"), true);
 assert.match(app, /jaJP\.app\.plan/);
 assert.match(app, /jaJP\.app\.run/);
 assert.match(app, /className="primary-action"/);
