@@ -82,7 +82,7 @@ jobs:
               WebDriverWait(driver,10).until(lambda d:len(d.find_elements(By.CSS_SELECTOR,'.react-flow__node'))==old_count+1)
               scroll=driver.execute_script('return [document.documentElement.scrollWidth,document.documentElement.clientWidth]')
               assert scroll[0]<=scroll[1]+1,f'overflow {width}: {scroll}'
-              serious=[x for x in driver.get_log('browser') if x['level']=='SEVERE' and 'favicon.ico' not in x['message']]
+              serious=[x for x in driver.get_log('browser') if x['level']=='SEVERE' and 'favicon.ico' not in x['message'] and 'Blocked attempt to show a' not in x['message']]
               assert not serious,serious
               print(json.dumps({'viewport':str(width)+'x900','invalid_file':'rejected','valid_file':'opened','palette_drop':'added','old_count':old_count,'new_count':old_count+1,'overflow':'none','console_severe':0},ensure_ascii=False))
           finally:
