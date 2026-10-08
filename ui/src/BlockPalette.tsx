@@ -82,6 +82,14 @@ export function BlockPalette({ templates, onAdd }: BlockPaletteProps) {
                   selectedRow ? "palette-item selected" : "palette-item"
                 }
                 aria-pressed={selectedRow}
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = "copy";
+                  event.dataTransfer.setData(
+                    "application/x-algoram-block-template",
+                    template.definitionRef,
+                  );
+                }}
                 onClick={() =>
                   setSelectedDefinitionRef(template.definitionRef)
                 }

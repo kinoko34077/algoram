@@ -78,6 +78,7 @@ export const authoringJa = {
   canvas: {
     nodeWorkspace: "ノードワークスペース",
     library: "ライブラリ",
+    dropBlockUnavailable: "このブロックは追加できません。ライブラリから選び直してください。",
     more: "その他",
     moreActions: "その他のキャンバス操作",
     resetLayoutAction: "レイアウトをリセット",

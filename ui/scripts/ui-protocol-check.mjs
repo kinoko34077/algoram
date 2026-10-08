@@ -189,6 +189,14 @@ assert.match(app, /textEditorOwnsKeys/);
 
 assert.match(fileMenu, /jaJP\.fileMenu\.shortcutHint/);
 assert.match(localeMeta, /shortcutHint:\s*"Ctrl\/Cmd\+O · Ctrl\/Cmd\+S"/);
+assert.match(app, /className="file-drop-overlay"/);
+assert.match(app, /event\.dataTransfer\.types\.includes\("Files"\)/);
+assert.match(app, /openCanonicalGraphFile\(files\[0\]\)/);
+assert.match(canvas, /application\/x-algoram-block-template/);
+assert.match(canvas, /blockDropActive/);
+assert.match(canvas, /screenToFlowPosition\(\{ x: event\.clientX, y: event\.clientY \}\)/);
+assert.match(palette, /draggable/);
+assert.match(palette, /application\/x-algoram-block-template/);
 assert.match(fileMenu, /type="file"/);
 assert.match(fileMenu, /accept="\.algoram\.json,application\/json"/);
 assert.match(fileMenu, /event\.key === "Escape"/);

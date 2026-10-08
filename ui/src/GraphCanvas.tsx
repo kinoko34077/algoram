@@ -310,6 +310,7 @@ function CanvasBody({
     null,
   );
   const [paletteOpen, setPaletteOpen] = useState(true);
+  const [blockDropActive, setBlockDropActive] = useState(false);
   const pointerDragActive = useRef(false);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [loadedGraphId, setLoadedGraphId] = useState<string | null>(null);
@@ -653,7 +654,34 @@ function CanvasBody({
           </div>
         ) : null}
 
-        <div className="canvas-surface" ref={surfaceRef}>
+        <div
+          className={blockDropActive ? "canvas-surface block-drop-active" : "canvas-surface"}
+          ref={surfaceRef}
+          onDragOver={(event) => {
+            if (!editable || !event.dataTransfer.types.includes("application/x-algoram-block-template")) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+            setBlockDropActive(true);
+          }}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setBlockDropActive(false);
+            }
+          }}
+          onDrop={(event) => {
+            const definitionRef = event.dataTransfer.getData("application/x-algoram-block-template");
+            if (!editable || !definitionRef) return;
+            event.preventDefault();
+            setBlockDropActive(false);
+            const template = blockTemplates.find((item) => item.definitionRef === definitionRef);
+            if (!template) {
+              setInteractionStatus(jaJP.authoring.canvas.dropBlockUnavailable);
+              return;
+            }
+            const center = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+            onAddBlock(template, { x: center.x - 122, y: center.y - 48 });
+          }}
+        >
           <ReactFlow
             aria-label={jaJP.authoring.canvas.graphCanvas}
             nodes={nodes}
