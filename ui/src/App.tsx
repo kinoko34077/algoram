@@ -553,7 +553,7 @@ export function App() {
   const selectBlock = useCallback(
     (blockId: string | null) => {
       if (blockId !== null) {
-        setInspectorOpen(true);
+        // W3: selection is local; show technical Inspector only on request.
         setConnectionSelectionByGraph((current) => ({
           ...current,
           [currentGraphId]: null,
@@ -1478,6 +1478,7 @@ export function App() {
             onSelectBlock={selectBlock}
             onSelectConnection={selectConnection}
             onOpenGraph={openGraph}
+            onShowInspector={() => setInspectorOpen(true)}
           />
         </section>
 
