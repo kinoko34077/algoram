@@ -134,6 +134,14 @@ try:
         d.set_window_size(width,height)
         time.sleep(.5)
         scroll,client=d.execute_script("return [document.documentElement.scrollWidth,document.documentElement.clientWidth]")
+        if scroll>client+1:
+            offenders=d.execute_script("""const v=document.documentElement.clientWidth;
+              return Array.from(document.querySelectorAll('body *'))
+                .map(e=>({tag:e.tagName,cls:String(e.className||'').slice(0,80),txt:(e.textContent||'').slice(0,55),r:e.getBoundingClientRect()}))
+                .filter(x=>x.r.width>1&&x.r.right>v+2)
+                .sort((a,b)=>b.r.right-a.r.right).slice(0,30)
+                .map(x=>({tag:x.tag,cls:x.cls,txt:x.txt,right:Math.round(x.r.right),width:Math.round(x.r.width)}));""")
+            print("OVERFLOW_OFFENDERS:",json.dumps(offenders,ensure_ascii=False),flush=True)
         assert scroll<=client+1,(width,scroll,client)
         record("responsive_reflow",width=width,height=height,client_width=client,scroll_width=scroll)
 
