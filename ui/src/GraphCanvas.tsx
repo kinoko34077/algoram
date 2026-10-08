@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { jaJP } from "./locales/ja-JP";
 import type { AlgoramBlock, AlgoramGraph } from "./algoram";
 import { BlockPalette } from "./BlockPalette";
+import { FirstUseGuide, useFirstUseGuide } from "./FirstUseGuide";
 import type { ReusableBlockTemplate } from "./blockAuthoring";
 import { markEditorPerformance } from "./perfMarks";
 import {
@@ -310,6 +311,7 @@ function CanvasBody({
     null,
   );
   const [paletteOpen, setPaletteOpen] = useState(true);
+  const firstUse = useFirstUseGuide();
   const [blockDropActive, setBlockDropActive] = useState(false);
   const pointerDragActive = useRef(false);
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -573,6 +575,7 @@ function CanvasBody({
       }
 
       onAddBlock(template, position);
+      firstUse.dismiss();
     },
     [onAddBlock, screenToFlowPosition],
   );
@@ -610,6 +613,9 @@ function CanvasBody({
               <button type="button" className="tertiary-action"
                 onClick={clearDrafts} disabled={presentation.draftLinks.length === 0}>
                 {jaJP.authoring.canvas.clearDraftsAction}
+              </button>
+              <button type="button" className="tertiary-action" onClick={() => firstUse.reopen()}>
+                {jaJP.authoring.canvas.showGuide}
               </button>
               <p>{editable ? jaJP.authoring.canvas.editableHint : jaJP.authoring.canvas.readOnlyHint}</p>
             </div>
@@ -680,6 +686,7 @@ function CanvasBody({
             }
             const center = screenToFlowPosition({ x: event.clientX, y: event.clientY });
             onAddBlock(template, { x: center.x - 122, y: center.y - 48 });
+            firstUse.dismiss();
           }}
         >
           <ReactFlow
@@ -758,6 +765,7 @@ function CanvasBody({
             />
             <Controls />
           </ReactFlow>
+          {editable && firstUse.visible ? <FirstUseGuide onDismiss={firstUse.dismiss} /> : null}
         </div>
       </div>
     </div>
