@@ -27,6 +27,7 @@ export function SearchPanel({
   const [query, setQuery] = useState("");
   const [language, setLanguage] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultButtonsRef = useRef<Array<HTMLButtonElement | null>>([]);
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
@@ -51,7 +52,7 @@ export function SearchPanel({
 
   return (
     <section className="search-panel" aria-label={jaJP.authoring.search.graphSearch} onKeyDown={(event) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !event.nativeEvent.isComposing) {
         event.preventDefault();
         event.stopPropagation();
         onClose();
@@ -63,6 +64,13 @@ export function SearchPanel({
           <span>{jaJP.authoring.search.findBlock}</span>
           <input
             ref={inputRef}
+            onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing || visibleResults.length === 0) return;
+              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                resultButtonsRef.current[event.key === "ArrowDown" ? 0 : visibleResults.length - 1]?.focus();
+              }
+            }}
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -113,11 +121,23 @@ export function SearchPanel({
 
           {visibleResults.length > 0 ? (
             <ul className="search-result-list">
-              {visibleResults.map((record) => (
+              {visibleResults.map((record, index) => (
                 <li key={`${record.graphId}:${record.blockId}`}>
                   <button
                     type="button"
                     className="search-result"
+                    ref={(element) => { resultButtonsRef.current[index] = element; }}
+                    onKeyDown={(event) => {
+                      if (event.nativeEvent.isComposing) return;
+                      if (event.key === "ArrowDown") {
+                        event.preventDefault();
+                        resultButtonsRef.current[Math.min(index + 1, visibleResults.length - 1)]?.focus();
+                      } else if (event.key === "ArrowUp") {
+                        event.preventDefault();
+                        if (index === 0) inputRef.current?.focus();
+                        else resultButtonsRef.current[index - 1]?.focus();
+                      }
+                    }}
                     onClick={() => onSelectResult(record)}
                   >
                     <strong>{record.label}</strong>
