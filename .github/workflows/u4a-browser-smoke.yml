@@ -1,0 +1,65 @@
+name: U4a Search Browser Smoke
+on:
+  push:
+    branches: [chatgpt/173-u4a-browser-smoke]
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Start UI and install browser support
+        run: |
+          cd ui
+          npm install --ignore-scripts --no-audit --no-fund
+          nohup npm run dev -- --host 127.0.0.1 > /tmp/u4a-vite.log 2>&1 &
+          python -m pip install --disable-pip-version-check selenium==4.36.0
+          google-chrome --version
+      - name: Keyboard graph search
+        run: |
+          python - <<'PY'
+          import json
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.common.keys import Keys
+          from selenium.webdriver.support.ui import WebDriverWait
+          opts=Options()
+          for flag in ('--headless=new','--no-sandbox','--disable-dev-shm-usage'): opts.add_argument(flag)
+          opts.set_capability('goog:loggingPrefs',{'browser':'ALL'})
+          d=webdriver.Chrome(options=opts)
+          try:
+            for width in (1440,480):
+              d.set_window_size(width,900)
+              d.get('http://127.0.0.1:5173/')
+              WebDriverWait(d,30).until(lambda b:b.find_elements(By.CSS_SELECTOR,'.react-flow__node'))
+              toggle=d.find_element(By.CSS_SELECTOR,'.header-search-action')
+              toggle.click()
+              field=d.find_element(By.CSS_SELECTOR,'.search-controls input[type=search]')
+              assert d.switch_to.active_element == field
+              field.send_keys('python')
+              WebDriverWait(d,5).until(lambda b:len(b.find_elements(By.CSS_SELECTOR,'.search-result')) >= 2)
+              buttons=d.find_elements(By.CSS_SELECTOR,'.search-result')
+              field.send_keys(Keys.ARROW_DOWN)
+              assert d.switch_to.active_element == buttons[0], 'ArrowDown first result'
+              buttons[0].send_keys(Keys.ARROW_DOWN)
+              assert d.switch_to.active_element == buttons[1], 'ArrowDown second result'
+              buttons[1].send_keys(Keys.ARROW_UP)
+              assert d.switch_to.active_element == buttons[0], 'ArrowUp previous result'
+              buttons[0].send_keys(Keys.ARROW_UP)
+              assert d.switch_to.active_element == field, 'ArrowUp returns to input'
+              field.send_keys(Keys.ARROW_UP)
+              assert d.switch_to.active_element == buttons[-1], 'ArrowUp chooses last result'
+              buttons[-1].send_keys(Keys.ENTER)
+              WebDriverWait(d,5).until(lambda b:not b.find_element(By.ID,'editor-search-panel').is_displayed())
+              assert d.find_element(By.CSS_SELECTOR,'.breadcrumbs [aria-current=page]'), 'navigation missing'
+              document=d.execute_script('return [document.documentElement.scrollWidth, document.documentElement.clientWidth]')
+              assert document[0] <= document[1]+1, f'overflow: {document}'
+              severe=[x for x in d.get_log('browser') if x['level']=='SEVERE' and 'favicon.ico' not in x['message']]
+              assert not severe, f'browser errors: {severe}'
+              print(json.dumps({'width':width,'matches':len(buttons),'arrow_down_up':'PASS','enter_navigates':'PASS','horizontal_overflow':'none'},ensure_ascii=False))
+          finally:
+            d.quit()
+          PY
