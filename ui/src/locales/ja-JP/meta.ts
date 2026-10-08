@@ -73,5 +73,8 @@ export const metaJa = {
     export: "書き出し",
     shortcutHint: "Ctrl/Cmd+O · Ctrl/Cmd+S",
     fileOperations: "ファイル操作",
+    dropHint: "ここに .algoram.json をドロップして開く",
+    dropInvalidFile: "開けるのは .algoram.json ファイル1個だけです。",
+    dropUnavailable: "実行中はファイルを開けません。",
   },
 } as const;
