@@ -577,7 +577,7 @@ function CanvasBody({
       onAddBlock(template, position);
       firstUse.dismiss();
     },
-    [onAddBlock, screenToFlowPosition],
+    [onAddBlock, screenToFlowPosition, firstUse.dismiss],
   );
 
   return (
