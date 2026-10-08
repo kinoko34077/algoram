@@ -1,23 +1,5 @@
 import type { AlgoramBlock } from "./algoram.ts";
-import { demoJa } from "./locales/ja-JP/demo.ts";
-
-/**
- * UI-only vocabulary. These keys are the complete, known fixture labels;
- * no native ID, contract, source anchor, or Graph data is translated.
- * Unknown labels stay verbatim rather than guessing their meaning.
- */
-const shortNames: Readonly<Record<string, string>> = {
-  [demoJa.graphPythonC]: "Py→C ×2",
-  [demoJa.graphPythonRust]: "Py→Rust ×3",
-  [demoJa.pythonInputBoundary]: "入力",
-  [demoJa.pythonCtypesInputBoundary]: "入力",
-  [demoJa.pythonResultBoundary]: "結果",
-  [demoJa.pythonCtypesResultBoundary]: "結果",
-  [demoJa.buildCSharedLibrary]: "Cビルド",
-  [demoJa.buildRustCdylib]: "Rustビルド",
-  [demoJa.callCThroughCtypes]: "C関数呼出",
-  [demoJa.invokeRustExternC]: "Rust関数呼出",
-};
+import { shortBlockNamesJa } from "./locales/ja-JP/blocks.ts";
 
 export interface BlockGeometry {
   width: number;
@@ -46,7 +28,7 @@ function approximateLabelWidth(label: string): number {
 
 export function projectBlockDisplay(block: AlgoramBlock): BlockDisplayProjection {
   const fullLabel = block.label;
-  const shortLabel = shortNames[fullLabel] ?? fullLabel;
+  const shortLabel = shortBlockNamesJa[fullLabel] ?? fullLabel;
   const ports = block.ports ?? [];
   const inputs = ports.filter((port) => port.direction === "in").length;
   const outputs = ports.length - inputs;
@@ -55,7 +37,7 @@ export function projectBlockDisplay(block: AlgoramBlock): BlockDisplayProjection
   return {
     shortLabel,
     fullLabel,
-    gloss: shortLabel === fullLabel ? fullLabel : fullLabel,
+    gloss: fullLabel,
     geometry: {
       width: Math.max(72, Math.min(300, approximateLabelWidth(shortLabel))),
       height: Math.max(56, 32 + rows * 30),
