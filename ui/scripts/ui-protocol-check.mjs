@@ -32,7 +32,7 @@ assert.match(styles, /--inspector-width:\s*328px/);
 
 assert.match(styles, /--color-muted:\s*#b2bfcd/);
 assert.match(styles, /--color-faint:\s*#899bac/);
-assert.match(annotation, /jaJP\\.authoring\\.annotation\\.storageHint/);
+assert.match(annotation, /jaJP\.authoring\.annotation\.storageHint/);
 assert.equal(app.includes("                      Clear"), false);
 assert.equal(annotation.includes("Stored only in editor state."), false);
 
