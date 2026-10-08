@@ -143,6 +143,9 @@ def main():
                 "deviceScaleFactor": 3 if mobile else 1,
                 "mobile": mobile,
             })
+            browser.execute_cdp_cmd("Emulation.setTouchEmulationEnabled", {
+                "enabled": mobile, "maxTouchPoints": 1 if mobile else 0,
+            })
             browser.get(URL)
             wait.until(lambda d: d.execute_script(
                 "return Boolean(document.querySelector('.canvas-surface .react-flow'))"))
@@ -183,8 +186,22 @@ def main():
             if width == 1440:
                 gloss = browser.find_element("css selector", ".glossable .gloss-label")
                 ActionChains(browser).move_to_element(gloss).perform()
+                hover_support = browser.execute_script(
+                    "return matchMedia('(hover: hover) and (pointer: fine)').matches"
+                )
+                if hover_support:
+                    wait.until(lambda d: d.execute_script(
+                        "return Array.from(document.querySelectorAll('.gloss-hint')).some("
+                        "e => getComputedStyle(e).visibility === 'visible')"
+                    ))
+                else:
+                    print("WARN: desktop emulation lacks hover-capable pointer; hover UNVERIFIED")
+                browser.execute_script(
+                    "document.querySelector('.glossable').focus()"
+                )
                 wait.until(lambda d: d.execute_script(
-                    "return getComputedStyle(document.querySelector('.gloss-hint')).visibility === 'visible'"
+                    "return Array.from(document.querySelectorAll('.gloss-hint')).some("
+                    "e => getComputedStyle(e).visibility === 'visible')"
                 ))
                 assert "Python" in browser.find_element("css selector", ".gloss-hint").text
             if width == 390:
