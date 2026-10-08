@@ -48,6 +48,8 @@ jobs:
         run: npm run build
       - name: Navigation checks
         run: npm run test:navigation
+      - name: Browser Graph history checks
+        run: npm run test:browser-history
       - name: Navigation scale baseline
         run: npm run perf:navigation
       - name: Annotation checks

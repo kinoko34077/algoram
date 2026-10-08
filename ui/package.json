@@ -10,6 +10,7 @@
     "build": "tsc --noEmit && vite build",
     "perf:baseline": "node scripts/perf-baseline.mjs",
     "test:navigation": "node --experimental-strip-types scripts/navigation-check.mjs",
+    "test:browser-history": "node --experimental-strip-types scripts/browser-graph-history-check.mjs",
     "perf:navigation": "node --experimental-strip-types scripts/navigation-scale.mjs",
     "test:annotations": "node --experimental-strip-types scripts/annotation-check.mjs",
     "test:presentation": "node --experimental-strip-types scripts/presentation-check.mjs",

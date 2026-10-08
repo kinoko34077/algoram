@@ -31,6 +31,7 @@ import {
   removeConnection,
   validateConnectionCandidate,
 } from "./connectionAuthoring";
+import { useBrowserGraphHistory } from "./browserGraphHistory";
 import { requestCanonicalGraphDownload } from "./browserDownload";
 import {
   loadLastLocalDocument,
@@ -208,6 +209,14 @@ export function App() {
       },
     };
   }, [activeRootGraphId, authoringByGraph]);
+
+  useBrowserGraphHistory({
+    rootGraphId: activeRootGraphId,
+    path,
+    setPath,
+    availableGraphs: editorBundle.graphs,
+    ready: persistenceReady,
+  });
 
   const navigationIndex = useMemo(
     () => buildNavigationIndex(editorBundle),
