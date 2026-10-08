@@ -28,6 +28,16 @@ const [app, canvas, palette, draft, search, annotation, authoring, execution, re
   source("../src/locales/ja-JP/meta.ts"),
 ]);
 
+const firstUse = await source("../src/FirstUseGuide.tsx");
+assert.match(firstUse, /className="canvas-first-use"/);
+assert.match(firstUse, /window\.localStorage\.getItem/);
+assert.match(firstUse, /window\.localStorage\.setItem/);
+assert.match(firstUse, /onDismiss/);
+assert.match(canvas, /<FirstUseGuide onDismiss=\{firstUse\.dismiss\}/);
+assert.match(canvas, /firstUse\.dismiss\(\)/);
+assert.match(canvas, /firstUse\.reopen\(\)/);
+assert.match(styles, /\.canvas-first-use\s*\{/);
+assert.match(styles, /\.canvas-first-use-heading/);
 assert.match(styles, /--inspector-width:\s*328px/);
 
 assert.match(styles, /--color-muted:\s*#b2bfcd/);
