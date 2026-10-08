@@ -157,7 +157,7 @@ assert.match(palette, /data-connection-discovery/);
 assert.match(palette, /discoverConnectionStatus/);
 assert.match(canvas, /onOpenLocalAdd/);
 assert.match(canvas, /jaJP\.authoring\.canvas\.globalPlus/);
-assert.match(palette, /event\.key === "Escape"/);
+assert.match(palette, /event\.key !== "Escape"/);
 assert.match(palette, /jaJP\.authoring\.blockPalette\.contextualAdd/);
 assert.match(palette, /jaJP\.authoring\.blockPalette\.findBlock/);
 assert.match(palette, /jaJP\.authoring\.blockPalette\.ioSummary/);
