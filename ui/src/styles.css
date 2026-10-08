@@ -1934,6 +1934,7 @@ textarea:focus-visible,
   }
 }
 
+.glossable:not(.dismissed):focus .gloss-hint,
 .glossable:not(.dismissed):focus-visible .gloss-hint,
 .react-flow__node:focus-visible .glossable:not(.dismissed) .gloss-hint,
 .glossable.held:not(.dismissed) .gloss-hint {
