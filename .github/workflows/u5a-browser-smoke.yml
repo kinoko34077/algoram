@@ -1,0 +1,54 @@
+name: U5a Contrast Browser Smoke
+on:
+  push:
+    branches: [chatgpt/175-u5a-browser-smoke]
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Start UI browser
+        run: |
+          cd ui
+          npm install --ignore-scripts --no-audit --no-fund
+          nohup npm run dev -- --host 127.0.0.1 > /tmp/u5a-vite.log 2>&1 &
+          python -m pip install --disable-pip-version-check selenium==4.36.0
+      - name: Computed text tiers and responsive copy
+        run: |
+          python - <<'PY'
+          import json
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+          opts=Options()
+          for flag in ('--headless=new','--no-sandbox','--disable-dev-shm-usage'): opts.add_argument(flag)
+          opts.set_capability('goog:loggingPrefs',{'browser':'ALL'})
+          d=webdriver.Chrome(options=opts)
+          try:
+            for width in (1440,480):
+              d.set_window_size(width,900)
+              d.get('http://127.0.0.1:5173/')
+              WebDriverWait(d,30).until(lambda b:b.find_elements(By.CSS_SELECTOR,'.react-flow__node'))
+              tokens=d.execute_script('let r=getComputedStyle(document.documentElement);return [r.getPropertyValue("--color-faint").trim(),r.getPropertyValue("--color-muted").trim()]')
+              assert tokens==['#899bac','#b2bfcd'],f'color tokens: {tokens}'
+              d.execute_script('arguments[0].click()', d.find_element(By.CSS_SELECTOR,'.react-flow__node'))
+              inspector=d.find_element(By.ID,'inspector-panel')
+              assert inspector.is_displayed(), 'Inspector inaccessible'
+              clear_buttons=[b.text for b in inspector.find_elements(By.TAG_NAME,'button')]
+              assert 'Clear' not in clear_buttons, 'English clear remained'
+              assert 'クリア' in clear_buttons
+              annotation=d.find_element(By.CSS_SELECTOR,'.annotation-panel')
+              assert 'Stored only in editor state.' not in annotation.get_attribute('textContent')
+              assert 'エディター状態にだけ保存されます' in annotation.get_attribute('textContent')
+              widths=d.execute_script('return [document.documentElement.scrollWidth,document.documentElement.clientWidth]')
+              assert widths[0] <= widths[1]+1, f'horizontal overflow {width}: {widths}'
+              errors=[x for x in d.get_log('browser') if x['level']=='SEVERE' and 'favicon.ico' not in x['message']]
+              assert not errors, f'console errors: {errors}'
+              print(json.dumps({'viewport':f'{width}x900','faint':'#899bac','muted':'#b2bfcd','japanese_copy':'PASS','overflow':'none'},ensure_ascii=False))
+          finally:
+            d.quit()
+          PY
