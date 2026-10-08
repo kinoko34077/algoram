@@ -1,61 +1,110 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { jaJP } from "./locales/ja-JP";
+import type { AlgoramPort } from "./algoram";
 import type { ReusableBlockTemplate } from "./blockAuthoring";
+import { projectBlockDisplay } from "./blockDisplay";
+import { discoverConnectionStatus } from "./connectionDiscovery";
+
+export interface CapabilityAddSource {
+  blockId: string;
+  blockLabel: string;
+  outputs: AlgoramPort[];
+  sourcePortId: string | null;
+}
 
 interface BlockPaletteProps {
   templates: ReusableBlockTemplate[];
+  context?: CapabilityAddSource | null;
+  onSourcePortChange?: (portId: string) => void;
   onAdd: (template: ReusableBlockTemplate) => void;
+  onClose?: () => void;
 }
 
-export function BlockPalette({ templates, onAdd }: BlockPaletteProps) {
+/**
+ * One searchable discovery surface for global + and selected-output +.
+ * Connection statuses are explicitly exploratory and never route proof.
+ */
+export function BlockPalette({
+  templates,
+  context = null,
+  onSourcePortChange,
+  onAdd,
+  onClose,
+}: BlockPaletteProps) {
   const [query, setQuery] = useState("");
-  const [selectedDefinitionRef, setSelectedDefinitionRef] = useState<
-    string | null
-  >(templates[0]?.definitionRef ?? null);
-
+  const searchRef = useRef<HTMLInputElement>(null);
+  const sourcePort = context?.outputs.find((port) => port.id === context.sourcePortId);
   const visibleTemplates = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) {
-      return templates;
-    }
-
-    return templates.filter((template) =>
-      [template.label, template.definitionRef]
+    if (!needle) return templates;
+    return templates.filter((template) => {
+      const display = projectBlockDisplay(template.block);
+      return [display.shortLabel, display.fullLabel, template.definitionRef]
         .join(" ")
         .toLowerCase()
-        .includes(needle),
-    );
+        .includes(needle);
+    });
   }, [query, templates]);
 
-  const selected =
-    visibleTemplates.find(
-      (template) => template.definitionRef === selectedDefinitionRef,
-    ) ??
-    visibleTemplates[0] ??
-    null;
+  useEffect(() => {
+    searchRef.current?.focus();
+  }, [context?.blockId]);
 
   return (
     <aside
       className="block-palette"
       aria-label={jaJP.authoring.blockPalette.accessibilityLabel}
       onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          setQuery("");
-          setSelectedDefinitionRef(null);
-        }
+        if (event.key !== "Escape") return;
+        event.stopPropagation();
+        if (query) setQuery("");
+        else onClose?.();
       }}
     >
       <div className="palette-heading">
         <div>
-          <p className="eyebrow">{jaJP.authoring.blockPalette.library}</p>
-          <strong>{jaJP.authoring.blockPalette.reusableBlocks}</strong>
+          <strong>
+            {context
+              ? jaJP.authoring.blockPalette.contextualAdd
+              : jaJP.authoring.blockPalette.globalAdd}
+          </strong>
+          {context ? (
+            <p className="compact-hint">
+              {jaJP.authoring.blockPalette.sourceContext.replace("{name}", context.blockLabel)}
+            </p>
+          ) : null}
         </div>
-        <span>{templates.length}</span>
+        <button
+          type="button"
+          className="tertiary-action palette-close"
+          aria-label={jaJP.authoring.blockPalette.searchClose}
+          onClick={onClose}
+        >
+          ×
+        </button>
       </div>
+
+      {context && context.outputs.length > 1 ? (
+        <label className="palette-source-port">
+          <span>{jaJP.authoring.blockPalette.outputChoice}</span>
+          <select
+            value={context.sourcePortId ?? ""}
+            onChange={(event) => onSourcePortChange?.(event.target.value)}
+          >
+            <option value="">{jaJP.authoring.blockPalette.outputChoice}</option>
+            {context.outputs.map((port) => (
+              <option key={port.id} value={port.id}>
+                {port.id} · {port.channel}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       <label className="palette-search">
         {jaJP.authoring.blockPalette.findBlock}
         <input
+          ref={searchRef}
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -65,24 +114,17 @@ export function BlockPalette({ templates, onAdd }: BlockPaletteProps) {
 
       <ul className="palette-list" aria-label={jaJP.authoring.blockPalette.reusableBlockDefinitions}>
         {visibleTemplates.map((template) => {
-          const selectedRow =
-            selected?.definitionRef === template.definitionRef;
-          const inputs = (template.block.ports ?? []).filter(
-            (port) => port.direction === "in",
-          ).length;
-          const outputs = (template.block.ports ?? []).filter(
-            (port) => port.direction === "out",
-          ).length;
+          const display = projectBlockDisplay(template.block);
+          const status = context ? discoverConnectionStatus(sourcePort, template.block) : null;
 
           return (
             <li key={template.definitionRef}>
               <button
                 type="button"
-                className={
-                  selectedRow ? "palette-item selected" : "palette-item"
-                }
-                aria-pressed={selectedRow}
-                draggable
+                className="palette-item"
+                data-connection-discovery={status ?? "global"}
+                disabled={Boolean(context && !sourcePort)}
+                draggable={!context || Boolean(sourcePort)}
                 onDragStart={(event) => {
                   event.dataTransfer.effectAllowed = "copy";
                   event.dataTransfer.setData(
@@ -90,41 +132,29 @@ export function BlockPalette({ templates, onAdd }: BlockPaletteProps) {
                     template.definitionRef,
                   );
                 }}
-                onClick={() =>
-                  setSelectedDefinitionRef(template.definitionRef)
-                }
+                onClick={() => onAdd(template)}
               >
-                <strong>{template.label}</strong>
-                <span>{template.definitionRef}</span>
-                <small>
-                  {jaJP.authoring.blockPalette.ioSummary
-                    .replace("{inputs}", String(inputs))
-                    .replace("{outputs}", String(outputs))}
-                </small>
+                <strong>{display.shortLabel}</strong>
+                {display.shortLabel !== display.fullLabel ? (
+                  <span>{display.fullLabel}</span>
+                ) : null}
+                {status ? (
+                  <small>{jaJP.authoring.blockPalette.routeStatus[status]}</small>
+                ) : (
+                  <small>
+                    {jaJP.authoring.blockPalette.ioSummary
+                      .replace("{inputs}", String((template.block.ports ?? []).filter((p) => p.direction === "in").length))
+                      .replace("{outputs}", String((template.block.ports ?? []).filter((p) => p.direction === "out").length))}
+                  </small>
+                )}
               </button>
             </li>
           );
         })}
       </ul>
-
       {visibleTemplates.length === 0 ? (
         <p className="palette-empty">{jaJP.authoring.blockPalette.noMatches}</p>
       ) : null}
-
-      <div className="palette-actions">
-        <button
-          type="button"
-          className="secondary-action"
-          disabled={!selected}
-          onClick={() => {
-            if (selected) {
-              onAdd(selected);
-            }
-          }}
-        >
-          {jaJP.authoring.blockPalette.addBlock}
-        </button>
-      </div>
     </aside>
   );
 }
