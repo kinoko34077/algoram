@@ -94,7 +94,7 @@ export const authoringJa = {
     firstUse: {
       title: "まずはここから",
       dismiss: "操作ガイドを閉じる",
-      add: "ライブラリからブロックを追加",
+      add: "＋で能力を探して追加",
       connect: "ポート同士を接続",
       execute: "上部の「実行」を開く",
     },
