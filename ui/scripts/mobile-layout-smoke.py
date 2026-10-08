@@ -18,7 +18,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 
 UI_ROOT = Path(__file__).resolve().parents[1]
-URL = "http://127.0.0.1:4173/algoram/"
+URL = "http://127.0.0.1:4173/"
 METRICS = (
     (390, 844, True),
     (320, 568, True),
