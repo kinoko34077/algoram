@@ -45,6 +45,16 @@ return {
   canvas:rect(".canvas-surface"),
   inspector:rect(".inspector-region"),
   drawer:rect(".execution-drawer"),
+  nodes:[...document.querySelectorAll(".react-flow__node")]
+    .filter(node => node.querySelector(".algoram-node"))
+    .map(node => ({
+      width: parseFloat(getComputedStyle(node).width),
+      height: parseFloat(getComputedStyle(node).height),
+      label: node.querySelector(".node-title")?.textContent || "",
+      ports: node.querySelectorAll(".algoram-handle").length,
+      permanentTechChrome: Boolean(node.querySelector(
+        ".node-grip,.node-badge,.node-subtitle,.node-port-grid"))
+    })),
 };
 """
 
@@ -70,6 +80,13 @@ def assert_geometry(m, width, height, execution_open=False):
         f"Whitespace between nav and workspace: {m}"
     )
     assert canvas["height"] >= 170, f"Canvas collapsed: {m}"
+    # W1: Check browser-computed intrinsic geometry, not only TS estimates.
+    nodes = m["nodes"]
+    assert len(nodes) >= 2, f"Canvas nodes missing: {m}"
+    assert all(72 <= node["width"] < 244 for node in nodes), nodes
+    assert all(node["height"] >= 56 for node in nodes), nodes
+    assert any(node["label"] == "Py→C ×2" for node in nodes), nodes
+    assert not any(node["permanentTechChrome"] for node in nodes), nodes
     # A substantial working area must be visible before the first scroll.
     visible_canvas = max(0, min(canvas["bottom"], m["viewport"]["height"]) -
                          max(canvas["y"], 0))
@@ -129,6 +146,8 @@ def main():
             wait.until(lambda d: d.execute_script(
                 "return Boolean(document.querySelector('.canvas-surface .react-flow'))"))
             # Allow font/layout and Graph presentation effects to settle.
+            wait.until(lambda d: d.execute_script(
+                "return document.querySelectorAll('.algoram-node').length >= 2"))
             time.sleep(0.3)
             m = browser.execute_script(JS_METRICS)
             assert_geometry(m, width, height)

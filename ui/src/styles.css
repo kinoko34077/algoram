@@ -834,10 +834,20 @@ textarea:focus-visible,
   background: var(--color-panel);
 }
 
+
+/* Presentation-only geometry is supplied by blockDisplay to both ELK and React Flow.
+   Handles overhang visually small nodes but keep independent >=24px hit targets. */
 .algoram-node {
-  width: 244px;
-  min-height: 96px;
-  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   background: var(--color-panel-raised);
@@ -857,133 +867,57 @@ textarea:focus-visible,
 }
 
 .node-titlebar {
-  min-height: 30px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 6px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  display: flex;
   align-items: center;
-  padding: 5px 7px;
-  border-bottom: 1px solid var(--color-border);
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: inherit;
   background: #202731;
 }
 
-.node-grip {
-  color: var(--color-faint);
-  cursor: grab;
-  font-size: 12px;
-  line-height: 1;
-}
-
 .node-title {
+  min-width: 0;
   overflow: hidden;
   color: var(--color-text-strong);
   font-size: 11px;
   font-weight: 700;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.node-badge {
-  padding: 1px 4px;
-  border: 1px solid #536a82;
-  border-radius: 4px;
-  color: #a9c7e5;
-  font-size: 7px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.node-badge.muted {
-  border-color: var(--color-border-strong);
-  color: var(--color-muted);
-}
-
-.node-subtitle {
-  overflow: hidden;
-  padding: 5px 8px 1px;
-  color: var(--color-faint);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 8px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.node-port-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-  padding: 5px 8px 6px;
-}
-
-.node-port-column {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: 4px;
-}
-
-.node-port-column.outputs {
-  text-align: right;
-}
-
-.node-port-label {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: #b5bfca;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 8px;
-}
-
-.node-port-label.out {
-  justify-content: flex-end;
-}
-
-.node-port-label span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.port-dot {
-  width: 6px;
-  height: 6px;
+.node-depth-indicator {
   flex: 0 0 auto;
-}
-
-.port-dot.flow {
-  border-radius: 50%;
-  background: var(--color-flow);
-}
-
-.port-dot.data {
-  border-radius: 1px;
-  background: var(--color-data);
-}
-
-.node-empty-ports {
-  padding: 7px 8px;
-  color: var(--color-faint);
-  font-size: 8px;
+  color: var(--color-muted);
+  font-size: 10px;
 }
 
 .node-meta {
-  min-height: 20px;
+  position: absolute;
+  inset-inline: 3px;
+  bottom: 2px;
+  min-width: 0;
   display: flex;
-  gap: 4px;
-  margin: 0;
-  padding: 3px 8px 5px;
+  justify-content: center;
+  gap: 3px;
+  pointer-events: none;
 }
 
 .node-meta span {
-  padding: 1px 4px;
-  border-radius: 4px;
+  min-width: 0;
+  padding: 1px 3px;
+  border-radius: 3px;
+  overflow: hidden;
   background: #232b35;
   color: var(--color-muted);
   font-size: 8px;
-  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .algoram-handle {

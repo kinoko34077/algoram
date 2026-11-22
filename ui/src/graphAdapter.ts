@@ -5,9 +5,11 @@ import {
 } from "@xyflow/react";
 import type { AlgoramBlock, AlgoramGraph } from "./algoram";
 import { layoutGraph } from "./layout";
+import { projectBlockDisplay, type BlockDisplayProjection } from "./blockDisplay";
 
 export type BlockNodeData = Record<string, unknown> & {
   block: AlgoramBlock;
+  display: BlockDisplayProjection;
 };
 
 export type FlowBlockNode = Node<BlockNodeData, "algoramBlock">;
@@ -17,13 +19,17 @@ export async function toFlowNodes(
 ): Promise<FlowBlockNode[]> {
   const positions = await layoutGraph(graph);
 
-  return graph.blocks.map((block) => ({
-    id: block.id,
-    type: "algoramBlock",
-    position: positions.get(block.id) ?? { x: 0, y: 0 },
-    ariaLabel: `${block.label} Block`,
-    data: { block },
-  }));
+  return graph.blocks.map((block) => {
+    const display = projectBlockDisplay(block);
+    return {
+      id: block.id,
+      type: "algoramBlock",
+      position: positions.get(block.id) ?? { x: 0, y: 0 },
+      style: { width: display.geometry.width, height: display.geometry.height },
+      ariaLabel: display.fullLabel,
+      data: { block, display },
+    };
+  });
 }
 
 export function toFlowEdges(graph: AlgoramGraph): Edge[] {

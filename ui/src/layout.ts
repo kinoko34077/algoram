@@ -2,6 +2,7 @@ import ELK from "elkjs/lib/elk-api.js";
 import ElkWorker from "elkjs/lib/elk-worker.min.js?worker";
 import type { ElkNode } from "elkjs/lib/elk-api.js";
 import type { AlgoramGraph } from "./algoram";
+import { getBlockGeometry } from "./blockDisplay";
 
 export interface NodePosition {
   x: number;
@@ -11,10 +12,6 @@ export interface NodePosition {
 const elk = new ELK({
   workerFactory: () => new ElkWorker(),
 });
-
-function nodeHeight(portCount: number): number {
-  return Math.max(92, 76 + portCount * 14);
-}
 
 export async function layoutGraph(
   graph: AlgoramGraph,
@@ -30,8 +27,7 @@ export async function layoutGraph(
     },
     children: graph.blocks.map((block) => ({
       id: block.id,
-      width: 240,
-      height: nodeHeight(block.ports?.length ?? 0),
+      ...getBlockGeometry(block),
     })),
     edges: graph.connections.map((connection) => ({
       id: connection.id,
